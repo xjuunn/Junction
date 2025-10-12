@@ -23,7 +23,6 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
     "@vueuse/nuxt",
     "@nuxtjs/color-mode",
-    "dayjs-nuxt",
     "nuxt-tiptap-editor",
     "@nuxtjs/device",
     "@hypernym/nuxt-anime"
