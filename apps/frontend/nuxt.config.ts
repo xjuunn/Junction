@@ -19,6 +19,15 @@ export default defineNuxtConfig({
       title: "Junction"
     }
   },
+  nitro: {
+    devProxy: {
+      '/api': {
+        target: process.env.API_URL,
+        changeOrigin: true,
+        prependPath: true,
+      },
+    },
+  },
   modules: [
     "@nuxt/icon",
     "@pinia/nuxt",
