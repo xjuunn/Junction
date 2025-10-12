@@ -8,14 +8,7 @@ export default defineNuxtConfig({
   css:["~/assets/app.css"],
   app: {
     head: {
-      title: "Junction",
-      link: [
-        {
-          rel: "icon",
-          type: "image/png",
-          href: "/favicon.png"
-        }
-      ]
+      title: "Junction"
     }
   },
   modules: [
