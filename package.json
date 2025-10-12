@@ -13,6 +13,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.9.0",
   "devDependencies": {
+    "dotenv": "^17.2.3",
     "turbo": "^2.5.8"
   }
 }

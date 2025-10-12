@@ -1,11 +1,19 @@
 import tailwindcss from "@tailwindcss/vite"
+import { config } from 'dotenv';
+import { resolve } from 'path';
+config({ path: resolve(__dirname, '../../.env') })
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   vite: {
     plugins: [tailwindcss()]
   },
-  css:["~/assets/app.css"],
+  runtimeConfig: {
+    public: {
+      apiUrl: process.env.API_URL
+    }
+  },
+  css: ["~/assets/app.css"],
   app: {
     head: {
       title: "Junction"
