@@ -1,2 +1,12 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+
+@font-face {
+    font-family: Modernia;
+    src: url(./fonts/Modernia-Regular-2.otf);
+}
+
+.font-modernia {
+    font-family: Modernia, 'Courier New', Courier, monospace;
+}
