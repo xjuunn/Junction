@@ -4,5 +4,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     const html = document.getElementsByTagName('html')[0];
     if (html && isTauri() && (type() === 'windows' || type() === 'macos'))
         html.style.background = 'transparent';
+    if (html) html.addEventListener('contextmenu', e => e.preventDefault())
 
 })
