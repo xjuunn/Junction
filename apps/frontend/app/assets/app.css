@@ -4,7 +4,8 @@
 
 @font-face {
     font-family: Modernia;
-    src: url(./fonts/Modernia-Regular-2.otf);
+    src: url(/fonts/Modernia-Regular-2.otf) format('opentype');
+    font-display: swap;
 }
 
 .font-modernia {
