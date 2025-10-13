@@ -4,7 +4,7 @@
             <span class="font-modernia text-base-content" data-tauri-drag-region>Junc</span>
         </div>
         <div class="navbar-end" data-tauri-drag-region>
-            <span v-show="isTauri()" class="flex gap-3">
+            <span v-show="isTauri() && $device.isDesktop" class="flex gap-3">
                 <icon @click="minimizeWindow" class="text-base-content/60 hover:text-base-content cursor-pointer"
                     name="mingcute:minimize-line" size="0.9rem"></icon>
                 <icon v-if="!maximized" @click="maximizeWindow"
@@ -21,7 +21,8 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWindow } from '@tauri-apps/api/window';
+const { $device } = useNuxtApp();
 
 const maximized = ref(false)
 
