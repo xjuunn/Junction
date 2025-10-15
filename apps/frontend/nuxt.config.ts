@@ -38,6 +38,7 @@ export default defineNuxtConfig({
     "@nuxtjs/color-mode",
     "nuxt-tiptap-editor",
     "@nuxtjs/device",
-    "@hypernym/nuxt-anime"
+    "@hypernym/nuxt-anime",
+    "@vueuse/motion/nuxt"
   ]
 })
