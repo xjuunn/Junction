@@ -13,6 +13,9 @@ export default defineNuxtConfig({
       apiUrl: process.env.API_URL
     }
   },
+  imports: {
+    dirs: ['core/**']
+  },
   css: ["~/assets/app.css"],
   app: {
     head: {
