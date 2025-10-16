@@ -147,6 +147,9 @@ importers:
       '@tauri-apps/plugin-os':
         specifier: ~2.3.1
         version: 2.3.1
+      '@vueuse/core':
+        specifier: ^13.9.0
+        version: 13.9.0(vue@3.5.22(typescript@5.9.3))
       '@vueuse/motion':
         specifier: ^3.0.3
         version: 3.0.3(magicast@0.3.5)(vue@3.5.22(typescript@5.9.3))
