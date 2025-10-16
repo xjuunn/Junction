@@ -1,6 +1,7 @@
 <template>
     <div class="h-full flex">
-        <div v-show="isShowList || md" class="border-r border-base-content/10" :class="(isShowContent || md) ? 'w-[300px]' : 'flex-1'">
+        <div v-show="isShowList || md" class="border-r border-base-content/10"
+            :class="(isShowContent || md) ? 'w-[300px]' : 'flex-1'">
             <slot name="list" />
         </div>
         <div v-show="isShowContent || md" class="flex-1">
@@ -15,20 +16,24 @@ const isShowList = ref(true);
 const isShowContent = ref(true);
 const route = useRoute();
 watch(() => route.query.ui, () => {
+    setIsShow();
+})
+onMounted(() => {
+    setIsShow()
+})
+
+function setIsShow() {
     switch (route.query.ui) {
-        case 'list':
-            isShowList.value = true;
-            isShowContent.value = false;
-            break;
         case 'content':
             isShowList.value = false;
             isShowContent.value = true;
             break;
+        case 'list':
         default:
             isShowList.value = true;
-            isShowContent.value = true;
+            isShowContent.value = false;
     }
-}, { immediate: true })
+}
 
 
 </script>
