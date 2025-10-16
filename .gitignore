@@ -25,3 +25,5 @@ logs
 
 .turbo
 *.db
+
+**/public/eg/**
