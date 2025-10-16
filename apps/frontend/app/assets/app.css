@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-
 @font-face {
     font-family: Modernia;
     src: url(/fonts/Modernia-Regular-2.otf) format('opentype');
@@ -10,4 +9,9 @@
 
 .font-modernia {
     font-family: Modernia, 'Courier New', Courier, monospace;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 100, 100, 0.2) transparent;
 }
