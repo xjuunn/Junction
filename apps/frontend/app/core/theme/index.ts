@@ -1,9 +1,12 @@
 import { emit, listen } from '@tauri-apps/api/event'
+import { Window } from '@tauri-apps/api/window'
 import { createTimeline } from 'animejs'
+import { type } from '@tauri-apps/plugin-os';
 
 export class AppTheme {
     private static instance: AppTheme | null = null
     public isDark = ref<boolean>(true)
+    public isBgTransparent = ref<boolean>(true);
     public isTransitioning = ref<boolean>(false)
 
     private theme = {
@@ -21,10 +24,16 @@ export class AppTheme {
     public async init() {
         const saved = localStorage.getItem('theme')
         if (saved) {
-            this.setTheme(saved === this.theme.dark, false)
+            this.setTheme(saved === this.theme.dark, true)
         } else {
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-            this.setTheme(prefersDark, false)
+            this.setTheme(prefersDark, true)
+        }
+        const isBgTransparentSaved = localStorage.getItem('bg-transparent');
+        if (isBgTransparentSaved) {
+            this.setBgTransparent(isBgTransparentSaved === 'true');
+        } else {
+            this.setBgTransparent(true);
         }
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
@@ -37,7 +46,7 @@ export class AppTheme {
             })
     }
 
-    public setTheme(dark: boolean, broadcast = true, clickPos?: { x: number; y: number }) {
+    public async setTheme(dark: boolean, broadcast = true, clickPos?: { x: number; y: number }) {
         if (this.isDark.value === dark) return
 
         this.isTransitioning.value = true
@@ -48,7 +57,16 @@ export class AppTheme {
         this.isDark.value = dark
         html.setAttribute('data-theme', current)
         localStorage.setItem('theme', current)
-        if (broadcast && isTauri()) emit('theme-changed', { dark })
+        if (isTauri()) {
+            if (broadcast) {
+                emit('theme-changed', { dark })
+                const windows = await Window.getAll();
+                let theme: null | 'light' | 'dark' = null;
+                if (dark === true) theme = 'dark';
+                else if (dark === false) theme = 'light'
+                windows.map(win => win.setTheme(theme))
+            }
+        }
 
         if (clickPos) this.playAdvancedRipple(clickPos, dark)
 
@@ -64,6 +82,14 @@ export class AppTheme {
 
     public getIsDark() {
         return this.isDark
+    }
+
+    public setBgTransparent(trans: boolean) {
+        const html = document.documentElement
+        if (!(html && isTauri() && (type() === 'windows' || type() === 'macos'))) return;
+        html.style.background = (trans ? 'transparent' : '');
+        this.isBgTransparent.value = trans;
+        localStorage.setItem('bg-transparent', trans + "");
     }
 
     private playAdvancedRipple(pos: { x: number; y: number }, dark: boolean) {
