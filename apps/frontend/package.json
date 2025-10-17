@@ -11,7 +11,6 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@hypernym/nuxt-anime": "2.1.1",
     "@iconify-json/mingcute": "^1.2.5",
     "@iconify/vue": "^5.0.0",
     "@nuxt/icon": "2.0.0",
@@ -23,6 +22,7 @@
     "@vueuse/core": "^13.9.0",
     "@vueuse/motion": "^3.0.3",
     "@vueuse/nuxt": "13.9.0",
+    "animejs": "^4.2.2",
     "axios": "^1.12.2",
     "daisyui": "^5.2.3",
     "mitt": "^3.0.1",
