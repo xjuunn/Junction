@@ -14,7 +14,7 @@
             </div>
         </template>
         <template #content>
-            content
+            <nuxt-page></nuxt-page>
         </template>
     </layout-list-content>
 </template>
