@@ -7,18 +7,15 @@
         </label> -->
         <button class="btn btn-primary" @click="toggleTheme">toggleTheme</button>
         <button class="btn btn-primary" @click="test">test</button>
-
     </div>
 </template>
 
 <script setup lang="ts">
-import { Window } from '@tauri-apps/api/window'
 definePageMeta({
     layout: 'main-window'
 })
 const theme = AppTheme.getInstance()
 const toggleTheme = (event: MouseEvent) => {
-    // 获取点击位置作为波纹中心
     const pos = { x: event.clientX, y: event.clientY }
     theme.toggleTheme(pos)
 }
@@ -26,6 +23,5 @@ let isTrans = false;
 async function test() {
     isTrans = !isTrans;
     theme.setBgTransparent(isTrans);
-
 }
 </script>

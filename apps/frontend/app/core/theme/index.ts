@@ -92,6 +92,10 @@ export class AppTheme {
         localStorage.setItem('bg-transparent', trans + "");
     }
 
+    public getIsBgTransparent() {
+        return this.isBgTransparent;
+    }
+
     private playAdvancedRipple(pos: { x: number; y: number }, dark: boolean) {
         const ripple = document.createElement('div')
         ripple.className = 'theme-ripple-anime'
