@@ -144,6 +144,9 @@ importers:
       '@tauri-apps/plugin-os':
         specifier: ~2.3.1
         version: 2.3.1
+      '@tauri-store/pinia':
+        specifier: ^4.1.0
+        version: 4.1.0(typescript@5.9.3)
       '@vueuse/core':
         specifier: ^13.9.0
         version: 13.9.0(vue@3.5.22(typescript@5.9.3))
@@ -2120,6 +2123,12 @@ packages:
   '@tauri-apps/plugin-os@2.3.1':
     resolution: {integrity: sha512-ty5V8XDUIFbSnrk3zsFoP3kzN+vAufYzalJSlmrVhQTImIZa1aL1a03bOaP2vuBvfR+WDRC6NgV2xBl8G07d+w==}
 
+  '@tauri-store/pinia@4.1.0':
+    resolution: {integrity: sha512-5zn4c/IBzga+tihsS5dXywzsg9Xs+ZylRvyn899Cyz+tbJxZ00XQCiUO/DrTcwdseKz85rn7aFtjtDZPh1H5/g==}
+
+  '@tauri-store/shared@0.10.2':
+    resolution: {integrity: sha512-hnEBbe/m9UG5ATSBp4yJOosLkX5QLblVsGIvz7mtBAqmzeWFfjP4+8X/T81L+bCH6+ref/0vsR9Ekex138kAfg==}
+
   '@tiptap/core@2.26.3':
     resolution: {integrity: sha512-TaOJzu2v5ufsOx+yu94NqXE504zmupVdFCxH1g3hk5fzZ3gT57Lh9R/27OjwM4e6o+Z3DXDl8yfFMHIcR3zUkg==}
     peerDependencies:
@@ -3580,6 +3589,9 @@ packages:
   es-set-tostringtag@2.1.0:
     resolution: {integrity: sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA==}
     engines: {node: '>= 0.4'}
+
+  es-toolkit@1.40.0:
+    resolution: {integrity: sha512-8o6w0KFmU0CiIl0/Q/BCEOabF2IJaELM1T2PWj6e8KqzHv1gdx+7JtFnDwOx1kJH/isJ5NwlDG1nCr1HrRF94Q==}
 
   esbuild@0.25.10:
     resolution: {integrity: sha512-9RiGKvCwaqxO2owP61uQ4BgNborAQskMR6QusfWzQqv7AZOg5oGehdY2pRJMTKuwxd1IDBP4rSbI5lHzU7SMsQ==}
@@ -8661,6 +8673,20 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.8.0
 
+  '@tauri-store/pinia@4.1.0(typescript@5.9.3)':
+    dependencies:
+      '@tauri-apps/api': 2.8.0
+      '@tauri-store/shared': 0.10.2
+      pinia: 3.0.3(typescript@5.9.3)(vue@3.5.22(typescript@5.9.3))
+      vue: 3.5.22(typescript@5.9.3)
+    transitivePeerDependencies:
+      - typescript
+
+  '@tauri-store/shared@0.10.2':
+    dependencies:
+      '@tauri-apps/api': 2.8.0
+      es-toolkit: 1.40.0
+
   '@tiptap/core@2.26.3(@tiptap/pm@2.26.3)':
     dependencies:
       '@tiptap/pm': 2.26.3
@@ -10341,6 +10367,8 @@ snapshots:
       get-intrinsic: 1.3.0
       has-tostringtag: 1.0.2
       hasown: 2.0.2
+
+  es-toolkit@1.40.0: {}
 
   esbuild@0.25.10:
     optionalDependencies:

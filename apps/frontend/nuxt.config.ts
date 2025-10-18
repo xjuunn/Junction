@@ -14,7 +14,10 @@ export default defineNuxtConfig({
     }
   },
   imports: {
-    dirs: ['core/**']
+    dirs: [
+      'core/**',
+      'stores/**'
+    ]
   },
   css: ["~/assets/app.css"],
   app: {
