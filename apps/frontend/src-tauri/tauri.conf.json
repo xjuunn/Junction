@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "Junction",
+        "label": "main",
         "width": 1050,
         "height": 650,
         "resizable": true,
