@@ -10,9 +10,10 @@
 definePageMeta({
     layout: 'main-window'
 })
-
+import { type PrismaTypes } from '@junction/types';
+const testData = ref<PrismaTypes.Test>()
 async function test() {
-
+    
 }
 
 </script>

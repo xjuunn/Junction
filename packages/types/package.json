@@ -1,0 +1,11 @@
+{
+  "name": "@junction/types",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "scripts": {
+    "build": "tsc && tsc -p tsconfig.cjs.json"
+  }
+}
