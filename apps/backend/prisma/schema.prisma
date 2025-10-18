@@ -67,8 +67,3 @@ model Verification {
 
   @@map("verification")
 }
-
-model Test {
-  id   Int    @id @default(autoincrement())
-  name String
-}

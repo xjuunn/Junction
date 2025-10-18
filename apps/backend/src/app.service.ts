@@ -6,12 +6,4 @@ export class AppService {
   getHello(): string {
     return 'Hello World!';
   }
-
-  test() {
-    return this.prisma.test.create({
-      data: {
-        name: "test"
-      }
-    })
-  }
 }
