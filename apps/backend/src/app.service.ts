@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '~/res/prisma/prisma.service';
-import { PrismaTypes } from '@junction/types';
 @Injectable()
 export class AppService {
   constructor(private readonly prisma: PrismaService) { }
@@ -9,11 +8,10 @@ export class AppService {
   }
 
   test() {
-    let a: PrismaTypes.User;
     return this.prisma.test.create({
       data: {
         name: "test"
       }
-    });
+    })
   }
 }

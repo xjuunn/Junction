@@ -1,3 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from 'prismaclient'
 
-export const prisma: PrismaClient = global.prisma ?? new PrismaClient();
+export const prisma: PrismaClient
+    = global.prisma ?? new PrismaClient();
