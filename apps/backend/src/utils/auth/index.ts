@@ -11,5 +11,6 @@ export const auth = betterAuth({
         enabled: true,
         autoSignIn: true,
         minPasswordLength: 6,
-    }
+    },
+    trustedOrigins:["*"], // 危! 允许所有源
 })

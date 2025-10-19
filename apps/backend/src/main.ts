@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { json, urlencoded } from 'body-parser'
+import { core } from 'better-auth';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -18,7 +19,7 @@ async function bootstrap() {
       urlencoded({ extended: true })(req, res, next)
     })
   })
-
+  app.enableCors({ origin: '*', credentials: true })
   await app.listen(process.env.PORT ?? 8080);
 }
 bootstrap();
