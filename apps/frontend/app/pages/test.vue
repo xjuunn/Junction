@@ -1,8 +1,8 @@
 <template>
     <div class="grid grid-cols-4">
-        <button class="btn btn-primary" @click="test">
+        <!-- <button class="btn btn-primary" @click="test">
             <span>test</span>
-        </button>
+        </button> -->
     </div>
 </template>
 

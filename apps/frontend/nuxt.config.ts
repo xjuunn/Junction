@@ -10,8 +10,13 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiUrl: process.env.API_URL
-    }
+      apiUrl: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
+      httpType: process.env.HTTP_TYPE,
+      serverHost: process.env.SERVER_HOST,
+      backendPort: process.env.BACKEND_PORT,
+      frontendPort: process.env.FRONTEND_PORT,
+    },
+    authSecret: process.env.AUTH_SECRET,
   },
   imports: {
     dirs: [
@@ -28,7 +33,7 @@ export default defineNuxtConfig({
   nitro: {
     devProxy: {
       '/api': {
-        target: process.env.API_URL,
+        target: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.BACKEND_PORT}`,
         changeOrigin: true,
         prependPath: true,
       },

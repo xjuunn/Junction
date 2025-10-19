@@ -8,6 +8,8 @@ export const authFactory = (emailService: EmailService) => betterAuth({
         provider: 'sqlite',
     }),
     basePath: "/auth",
+    baseURL: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.BACKEND_PORT}`,
+    secret: process.env.AUTH_SECRET,
     emailAndPassword: {
         enabled: true,
         autoSignIn: true,
