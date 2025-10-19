@@ -4,8 +4,11 @@ import { AppService } from './app.service';
 
 import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
-import { AuthModule } from './res/auth/auth.module';
+// import { AuthModule } from './res/auth/auth.module';
+import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { PrismaModule } from './res/prisma/prisma.module';
+import { auth } from '~/utils/auth';
+import { UserModule } from './res/user/user.module';
 
 @Module({
   imports: [
@@ -14,7 +17,8 @@ import { PrismaModule } from './res/prisma/prisma.module';
       isGlobal: true,
     }),
     PrismaModule,
-    AuthModule,
+    AuthModule.forRoot({ auth }),
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

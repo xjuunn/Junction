@@ -10,7 +10,14 @@
 definePageMeta({
     layout: 'main-window'
 })
+
 async function test() {
+    const data = await authClient.signUp.email({
+        email: "test01@gmail.com",
+        name: "test01",
+        password: "123123123"
+    })
+    console.log(data);
 
 }
 
