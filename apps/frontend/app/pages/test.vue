@@ -1,8 +1,8 @@
 <template>
     <div class="grid grid-cols-4">
-        <!-- <button class="btn btn-primary" @click="test">
+        <button class="btn btn-primary" @click="test">
             <span>test</span>
-        </button> -->
+        </button>
     </div>
 </template>
 
@@ -12,12 +12,15 @@ definePageMeta({
 })
 
 async function test() {
-    const data = await authClient.signUp.email({
+    const data = await useAuthClient().signUp.email({
         email: "xjuunn@gmail.com",
         name: "junhsiun",
         password: "123123123"
     })
+
     console.log(data);
+
+
 }
 
 </script>

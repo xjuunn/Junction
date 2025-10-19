@@ -1,5 +1,8 @@
 import { createAuthClient } from "better-auth/vue"
 
-export const authClient = createAuthClient({
-    baseURL: useRuntimeConfig().public.apiUrl,
-})
+export function useAuthClient() {
+    const config = useRuntimeConfig();
+    return createAuthClient({
+        baseURL: config.public.apiUrl
+    })
+}
