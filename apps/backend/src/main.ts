@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { json, urlencoded } from 'body-parser'
-import { core } from 'better-auth';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -19,7 +19,16 @@ async function bootstrap() {
       urlencoded({ extended: true })(req, res, next)
     })
   })
+
+  const documentConfig = new DocumentBuilder()
+    .setTitle("Junction API")
+    .setDescription("Junction API")
+    .setVersion("1.0")
+    .build();
+  const documentFactory = () => SwaggerModule.createDocument(app, documentConfig);
+  SwaggerModule.setup('swagger', app, documentFactory);
+
   app.enableCors({ origin: '*', credentials: true })
-  await app.listen(process.env.PORT ?? 8080);
+  await app.listen(process.env.BACKEND_PORT ?? 8080);
 }
 bootstrap();

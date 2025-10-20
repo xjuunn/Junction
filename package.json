@@ -11,7 +11,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.9.0",
+  "packageManager": "pnpm@10.18.3",
   "devDependencies": {
     "dotenv": "^17.2.3",
     "handlebars": "^4.7.8",
