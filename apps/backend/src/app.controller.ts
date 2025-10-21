@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { EmailService } from './res/email/email.service';
@@ -18,8 +18,8 @@ export class AppController {
 
   @AllowAnonymous()
   @Get("test")
-  testEmail() {
-    this.emailService.sendVerificationEmail('xjuunn@gmail.com', "/")
-    return "Email";
+  testEmail(@Query("name") name: string) {
+
+    return name;
   }
 }

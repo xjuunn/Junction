@@ -4,7 +4,7 @@ import { resolve } from 'path';
 config({ path: resolve(__dirname, '../../.env') })
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: false },
+  devtools: { enabled: true },
   vite: {
     plugins: [tailwindcss()]
   },

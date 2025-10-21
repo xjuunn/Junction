@@ -37,7 +37,7 @@ export class MenuBar {
 
     private constructor() {
         this.addMenuItem(new MenuItem(1, '消息', 'mingcute:chat-4-fill', () => navigateTo('/'), 1, true))
-        this.addMenuItem(new MenuItem(2, 'At', 'mingcute:at-fill', () => navigateTo('/test'), 3, true))
+        this.addMenuItem(new MenuItem(2, 'At', 'mingcute:at-fill', () => navigateTo('/auth/sign-in'), 3, true))
         this.addMenuItem(new MenuItem(3, '功能', 'mingcute:classify-2-fill', () => console.log("功能"), 2, true))
         this.addMenuItem(new MenuItem(4, 'AI', 'mingcute:ai-fill', () => console.log("AI"), 4, true))
     }
