@@ -12,13 +12,14 @@ definePageMeta({
 })
 
 async function test() {
-    const data = await useAuthClient().signUp.email({
-        email: "xjuunn@gmail.com",
-        name: "junhsiun",
-        password: "123123123"
-    })
+    // const data = await useAuthClient().signUp.email({
+    //     email: "xjuunn@gmail.com",
+    //     name: "junhsiun",
+    //     password: "123123123"
+    // })
 
-    console.log(data);
+    // console.log(data);
+    navigateTo('/auth/sign-in')
 
 
 }
