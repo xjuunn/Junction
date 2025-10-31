@@ -17,7 +17,7 @@
 }
 
 .font-siyuan {
-    font-family:   siyuan;
+    font-family: siyuan;
 }
 
 * {
@@ -44,4 +44,24 @@
     opacity: 0.8;
     will-change: transform, opacity, backdrop-filter;
     overflow: hidden;
+}
+
+.page-enter-active,
+.page-leave-active {
+    transition: opacity 0.1s ease-in-out;
+}
+
+.page-enter-from,
+.page-leave-to {
+    opacity: 0;
+}
+
+.layout-enter-active,
+.layout-leave-active {
+    transition: all 0.1s;
+}
+
+.layout-enter-from,
+.layout-leave-to {
+    filter: grayscale(1);
 }

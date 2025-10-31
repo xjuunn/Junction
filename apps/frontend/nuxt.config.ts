@@ -28,7 +28,10 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: "Junction"
-    }
+    },
+    layoutTransition: { name: "layout", mode: 'out-in' },
+    pageTransition: { name: "page", mode: "out-in" },
+    viewTransition: "always"
   },
   nitro: {
     devProxy: {
