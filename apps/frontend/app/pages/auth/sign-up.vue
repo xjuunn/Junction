@@ -2,7 +2,9 @@
     <div class="flex h-full">
         <div class="w-5/12 flex flex-1 md:flex-none items-center justify-center pl-5 overflow-y-auto relative">
             <div class="mb-10 min-w-80 ">
-                <nuxt-page></nuxt-page>
+                <Transition name="slide-fade" mode="out-in">
+                    <nuxt-page></nuxt-page>
+                </Transition>
                 <nuxt-link to="/auth/sign-in" class="absolute bottom-3 right-3 text-sm hover:link text-base-content/60">
                     已有账号？ 直接登录
                 </nuxt-link>
