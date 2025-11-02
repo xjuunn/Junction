@@ -8,14 +8,9 @@
 
         <form ref="form">
             <div class="flex flex-col gap-2">
-                <p class="text-[0.7rem] text-base-content/60">
-                    全局唯一用户名，后续可<b>自定义昵称</b>
-                </p>
-
                 <label class="input validator bg-transparent focus-within:outline-0">
                     <icon name="mingcute:user-3-fill" />
-                    <input v-model="username" type="text" pattern="^[A-Za-z0-9_]+$" placeholder="请输入用户名" minlength="4"
-                        maxlength="20" required />
+                    <input v-model="username" type="text" placeholder="请输入用户名" minlength="4" maxlength="20" required />
                 </label>
 
                 <label class="input validator bg-transparent focus-within:outline-0">
@@ -96,6 +91,14 @@ async function signUp() {
             password: password1.value,
             callbackURL: '/',
         })
+        if (result.error) {
+            switch (result.error.code) {
+                case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": errorMsg.value = "用户已经存在，请尝试登录"; break;
+                default: errorMsg.value = result.error.message ?? "未知错误";
+                    console.log(result.error);
+            }
+            return;
+        }
 
         await client.emailOtp.sendVerificationOtp({
             email: email.value,
