@@ -50,6 +50,6 @@ class Api {
     }
 }
 
-export const api = new Api('/api/')
+export const api = new Api('/bgapi/')
 
 

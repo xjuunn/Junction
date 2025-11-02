@@ -35,7 +35,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     devProxy: {
-      '/api': {
+      '/bgapi': {
         target: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.BACKEND_PORT}`,
         changeOrigin: true,
         prependPath: true,
