@@ -23,7 +23,7 @@
                 </div>
             </label>
 
-            <div class="text-sm text-error" v-if="errorMsg">{{ errorMsg }}</div>
+            <div class="text-sm text-error text-end" v-if="errorMsg">{{ errorMsg }}</div>
 
             <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
                 <span v-if="loading" class="loading loading-spinner loading-sm"></span>
@@ -89,7 +89,14 @@ async function handleVerify() {
     try {
         const client = useAuthClient()
         const result = await client.emailOtp.verifyEmail({ email: email.value, otp: otp.value })
-        if (result.error) return
+        if (result.error) {
+            switch (result.error.code) {
+                case "INVALID_OTP": errorMsg.value = "无效验证码，请重试"; break;
+                default: errorMsg.value = result.error.message ?? "未知错误";
+                    console.log(result.error);
+            }
+            return;
+        }
         router.replace('/')
     } catch (err: any) {
         errorMsg.value = err?.message || '验证码错误，请重试'
