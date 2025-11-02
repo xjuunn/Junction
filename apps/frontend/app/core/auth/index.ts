@@ -5,6 +5,7 @@ export function useAuthClient() {
     const config = useRuntimeConfig();
     return createAuthClient({
         baseURL: config.public.apiUrl,
+        basePath: "bgapi/auth",
         plugins: [
             emailOTPClient()
         ]

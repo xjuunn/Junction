@@ -2,15 +2,16 @@
     <div>
         <div class="text-3xl w-full inline-flex items-center gap-2">
             <span class="font-bold font-siyuan">注册</span>
-            <span class="font-modernia text-base-content/20 translate-y-1.5">
-                SIGNUP
-            </span>
+            <span class="font-modernia text-base-content/20 translate-y-1.5">SIGNUP</span>
         </div>
         <div class="divider"></div>
 
         <form ref="form">
             <div class="flex flex-col gap-2">
-                <p class="text-[0.7rem] text-base-content/60">全局唯一用户名，后续可<b>自定义昵称</b></p>
+                <p class="text-[0.7rem] text-base-content/60">
+                    全局唯一用户名，后续可<b>自定义昵称</b>
+                </p>
+
                 <label class="input validator bg-transparent focus-within:outline-0">
                     <icon name="mingcute:user-3-fill" />
                     <input v-model="username" type="text" pattern="^[A-Za-z0-9_]+$" placeholder="请输入用户名" minlength="4"
@@ -35,16 +36,19 @@
                 </label>
 
                 <div class="inline-flex items-center gap-2 justify-end text-sm text-error">
-
+                    <span v-if="errorMsg">{{ errorMsg }}</span>
                 </div>
             </div>
 
             <div class="mt-2">
-                <button type="submit" class="btn btn-primary btn-block" @click.prevent="handleSubmit">
-                    下一步
+                <button type="submit" class="btn btn-primary btn-block" @click.prevent="handleSubmit"
+                    :disabled="loading">
+                    <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+                    <span v-else>下一步</span>
                 </button>
             </div>
         </form>
+
         <div class="text-end mt-4">
             <nuxt-link to="/auth/sign-in" :replace="true" class="text-sm hover:link text-base-content/60">
                 已有账号？ 直接登录
@@ -54,6 +58,8 @@
 </template>
 
 <script lang="ts" setup>
+import { useRouter } from 'vue-router'
+const router = useRouter()
 const form = useTemplateRef('form')
 const password1Ref = ref<HTMLInputElement>()
 const password2Ref = ref<HTMLInputElement>()
@@ -62,8 +68,10 @@ const username = ref('')
 const email = ref('')
 const password1 = ref('')
 const password2 = ref('')
+const loading = ref(false)
+const errorMsg = ref('')
 
-function handleSubmit() {
+async function handleSubmit() {
     password2Ref.value?.setCustomValidity('')
     const valid = form.value?.reportValidity()
     if (!valid) return
@@ -74,23 +82,34 @@ function handleSubmit() {
         return
     }
 
-    console.log('验证通过')
-    signUp();
+    await signUp()
 }
 
 async function signUp() {
-    const signUpResult = await useAuthClient().signUp.email({
-        email: email.value,
-        name: username.value,
-        password: password1.value,
-        callbackURL: '/',
-    })
-    console.log("signUpresult", signUpResult);
-    // const otpResult = await useAuthClient().emailOtp.sendVerificationOtp({
-    //     email: email.value,
-    //     type: 'email-verification'
-    // })
-    // console.log("otp", otpResult);
+    loading.value = true
+    errorMsg.value = ''
+    try {
+        const client = useAuthClient()
+        const result = await client.signUp.email({
+            email: email.value,
+            name: username.value,
+            password: password1.value,
+            callbackURL: '/',
+        })
 
+        await client.emailOtp.sendVerificationOtp({
+            email: email.value,
+            type: 'email-verification',
+        })
+
+        router.push({
+            path: '/auth/sign-up/otp',
+            query: { email: email.value },
+        })
+    } catch (err: any) {
+        errorMsg.value = err?.message || '注册失败，请稍后重试'
+    } finally {
+        loading.value = false
+    }
 }
 </script>
