@@ -75,5 +75,16 @@ function handleSubmit() {
     }
 
     console.log('验证通过')
+    signUp();
+}
+
+async function signUp() {
+    const signUpResult = await useAuthClient().signUp.email({
+        email: email.value,
+        name: username.value,
+        password: password1.value,
+        callbackURL: '/',
+    })
+    console.log("signUpresult", signUpResult);
 }
 </script>
