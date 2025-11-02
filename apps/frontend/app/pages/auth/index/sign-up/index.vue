@@ -86,5 +86,11 @@ async function signUp() {
         callbackURL: '/',
     })
     console.log("signUpresult", signUpResult);
+    // const otpResult = await useAuthClient().emailOtp.sendVerificationOtp({
+    //     email: email.value,
+    //     type: 'email-verification'
+    // })
+    // console.log("otp", otpResult);
+
 }
 </script>

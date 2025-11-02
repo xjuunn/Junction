@@ -12,7 +12,7 @@ definePageMeta({
 })
 
 async function test() {
-
+    navigateTo('/auth/sign-in')
 }
 
 </script>

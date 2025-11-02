@@ -1,8 +1,12 @@
 import { createAuthClient } from "better-auth/vue"
+import { emailOTPClient } from 'better-auth/client/plugins'
 
 export function useAuthClient() {
     const config = useRuntimeConfig();
     return createAuthClient({
-        baseURL: config.public.apiUrl
+        baseURL: config.public.apiUrl,
+        plugins: [
+            emailOTPClient()
+        ]
     })
 }
