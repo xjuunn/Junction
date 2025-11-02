@@ -97,7 +97,7 @@ async function handleVerify() {
             }
             return;
         }
-        router.replace('/')
+        router.replace('/auth/sign-in')
     } catch (err: any) {
         errorMsg.value = err?.message || '验证码错误，请重试'
     } finally {
