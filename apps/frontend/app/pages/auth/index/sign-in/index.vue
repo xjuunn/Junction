@@ -45,5 +45,10 @@
                 魔术链接
             </nuxt-link>
         </div>
+        <div class="text-end mt-4">
+            <nuxt-link to="/auth/sign-up" :replace="true" class="text-sm hover:link text-base-content/60">
+                没有账号？ 前往注册
+            </nuxt-link>
+        </div>
     </div>
 </template>

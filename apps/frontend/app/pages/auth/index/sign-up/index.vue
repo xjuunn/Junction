@@ -45,6 +45,11 @@
                 </button>
             </div>
         </form>
+        <div class="text-end mt-4">
+            <nuxt-link to="/auth/sign-in" :replace="true" class="text-sm hover:link text-base-content/60">
+                已有账号？ 直接登录
+            </nuxt-link>
+        </div>
     </div>
 </template>
 
