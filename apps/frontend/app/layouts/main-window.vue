@@ -1,5 +1,5 @@
 <template>
-    <div class="h-screen w-screen flex flex-col">
+    <div class="h-screen w-screen flex flex-col overflow-hidden">
         <main-window-nav></main-window-nav>
         <div class="flex flex-1 overflow-hidden">
             <main-window-menubar></main-window-menubar>
