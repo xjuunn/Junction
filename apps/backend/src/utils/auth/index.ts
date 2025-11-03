@@ -1,6 +1,7 @@
-import { betterAuth, type Auth, type BetterAuthOptions, type Adapter, email } from 'better-auth'
+import { betterAuth, type Auth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { emailOTP } from 'better-auth/plugins'
+import { passkey } from 'better-auth/plugins/passkey'
 import { EmailService } from '~/res/email/email.service'
 import { prisma } from '~/utils/prisma'
 
@@ -26,6 +27,16 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
                 } else if (type === 'forget-password') {
                     console.log("使用OTP找回密码", email, otp, type);
                 }
+            },
+        }),
+        passkey({
+            rpID: process.env.SERVER_HOST!,
+            rpName: process.env.APP_NAME!,
+            origin: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
+            authenticatorSelection: {
+                authenticatorAttachment: "platform",
+                residentKey: "preferred",
+                userVerification: "preferred",
             },
         }),
     ],

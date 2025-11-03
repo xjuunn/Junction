@@ -23,6 +23,11 @@ async function toggleTheme(event: MouseEvent) {
     theme.toggleTheme(pos);
 }
 async function setPasskey() {
-    
+    const result = await useAuthClient().passkey.addPasskey({
+        name: "test",
+        authenticatorAttachment: "cross-platform"
+    })
+    console.log(result);
+
 }
 </script>

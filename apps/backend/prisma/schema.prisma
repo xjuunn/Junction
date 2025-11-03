@@ -16,11 +16,27 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
+  passkeys      Passkey[]
   sessions      Session[]
   accounts      Account[]
 
   @@unique([email])
   @@map("user")
+}
+
+model Passkey {
+  id           String   @id @default(cuid())
+  name         String?
+  publicKey    String
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  credentialId String   @unique
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String
+  createdAt    DateTime @default(now())
+  aaguid       String?
 }
 
 model Session {
