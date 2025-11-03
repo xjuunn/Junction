@@ -5,6 +5,7 @@
         </button>
         <button class="btn btn-primary" @click="toggleTheme">切换主题</button>
         <button class="btn btn-primary" @click="setPasskey">设置passkey</button>
+        <button class="btn btn-primary" @click="verifPasskey">验证passkey</button>
     </div>
 </template>
 
@@ -27,6 +28,10 @@ async function setPasskey() {
         name: "test",
         authenticatorAttachment: "cross-platform"
     })
+    console.log(result);
+}
+async function verifPasskey() {
+    const result = await useAuthClient().signIn.passkey()
     console.log(result);
 
 }

@@ -16,7 +16,7 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
-  passkeys      Passkey[]
+  passkeys      passkey[]
   sessions      Session[]
   accounts      Account[]
 
@@ -24,13 +24,13 @@ model User {
   @@map("user")
 }
 
-model Passkey {
+model passkey {
   id           String   @id @default(cuid())
   name         String?
   publicKey    String
   userId       String
   user         User     @relation(fields: [userId], references: [id])
-  credentialId String   @unique
+  credentialID String   @unique
   counter      Int
   deviceType   String
   backedUp     Boolean
