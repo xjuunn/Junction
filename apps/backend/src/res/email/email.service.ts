@@ -16,7 +16,7 @@ export class EmailService {
             subject: '请验证您的邮箱地址',
             template: 'verify-email',
             context: {
-                appName: 'Junction',
+                appName: process.env.APP_NAME,
                 url,
             },
         })
@@ -34,7 +34,7 @@ export class EmailService {
             template: 'verify-email-otp',
             context: {
                 email,
-                appName: 'Junction',
+                appName: process.env.APP_NAME,
                 code
             }
         })

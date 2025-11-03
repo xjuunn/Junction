@@ -10,6 +10,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
+      appName: process.env.APP_NAME,
       apiUrl: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
       httpType: process.env.HTTP_TYPE,
       serverHost: process.env.SERVER_HOST,
@@ -27,7 +28,7 @@ export default defineNuxtConfig({
   css: ["~/assets/app.css"],
   app: {
     head: {
-      title: "Junction"
+      title: process.env.APP_NAME,
     },
     layoutTransition: { name: "layout", mode: 'out-in' },
     pageTransition: { name: "page", mode: "out-in" },

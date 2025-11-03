@@ -21,8 +21,8 @@ async function bootstrap() {
   })
 
   const documentConfig = new DocumentBuilder()
-    .setTitle("Junction API")
-    .setDescription("Junction API")
+    .setTitle(process.env.APP_NAME + " API")
+    .setDescription(process.env.APP_NAME + " API")
     .setVersion("1.0")
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, documentConfig);

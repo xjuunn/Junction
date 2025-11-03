@@ -3,7 +3,8 @@
         <button class="btn btn-primary" @click="login">
             <span>登录</span>
         </button>
-        <button class="btn btn-primary" @click="test">切换主题</button>
+        <button class="btn btn-primary" @click="toggleTheme">切换主题</button>
+        <button class="btn btn-primary" @click="setPasskey">设置passkey</button>
     </div>
 </template>
 
@@ -17,9 +18,11 @@ async function login() {
 }
 
 const theme = AppTheme.getInstance()
-async function test(event: MouseEvent) {
+async function toggleTheme(event: MouseEvent) {
     const pos = { x: event.clientX, y: event.clientY }
     theme.toggleTheme(pos);
 }
-
+async function setPasskey() {
+    
+}
 </script>
