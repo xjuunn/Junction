@@ -37,7 +37,8 @@
                         <div class="flex gap-2" @paste.prevent="onPaste">
                             <input v-for="(digit, i) in 6" :key="i" ref="inputs" type="text" inputmode="numeric"
                                 maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="off"
-                                spellcheck="false"
+                                spellcheck="false" :name="`otp_${i}_${Math.random().toString(36).substring(2, 8)}`"
+                                :id="`otp_${i}_${Date.now()}`"
                                 class="w-10 h-12 text-center border border-base-content/20 rounded-lg focus:outline-none focus:border-primary bg-transparent text-lg transition-all duration-200 focus:scale-105"
                                 v-model="otpDigits[i]" @input="onInput(i, $event)"
                                 @keydown.backspace="onBackspace(i)" />
@@ -58,8 +59,7 @@
                         <span v-else>重新发送验证码</span>
                     </button>
 
-                    <button type="button" class="btn btn-ghost text-xs text-base-content/50"
-                        @click="resetToEmailStep">
+                    <button type="button" class="btn btn-ghost text-xs text-base-content/50" @click="resetToEmailStep">
                         返回修改邮箱
                     </button>
                 </div>
