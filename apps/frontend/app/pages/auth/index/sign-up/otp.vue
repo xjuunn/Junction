@@ -34,6 +34,10 @@
                 <span v-if="countdown > 0">重新发送 ({{ countdown }})</span>
                 <span v-else>重新发送验证码</span>
             </button>
+
+            <button type="button" class="btn btn-ghost btn-block" @click="router.back()">
+                返回
+            </button>
         </form>
     </div>
 </template>

@@ -26,6 +26,10 @@
                         <span v-if="loading" class="loading loading-spinner loading-sm"></span>
                         <span v-else>发送验证码</span>
                     </button>
+
+                    <button type="button" class="btn btn-ghost btn-block" @click="router.back()">
+                        返回
+                    </button>
                 </div>
 
                 <div v-else key="otp" class="flex flex-col gap-4">
