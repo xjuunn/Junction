@@ -46,16 +46,16 @@
 
         <div class="grid grid-cols-3 text-base-content/80">
             <nuxt-link to="/auth/sign-in/passkey" class="btn btn-sm btn-ghost">
-                <icon name="mingcute:fingerprint-fill" />
+                <icon name="mingcute:fingerprint-fill" size="1.2rem" />
                 通行密钥
             </nuxt-link>
             <nuxt-link to="/auth/sign-in/device-authorization" class="btn btn-sm btn-ghost">
-                <icon name="mingcute:device-fill" />
+                <icon name="mingcute:device-fill" size="1.2rem" />
                 设备授权
             </nuxt-link>
-            <nuxt-link to="/auth/sign-in/magic-link" class="btn btn-sm btn-ghost">
-                <icon name="mingcute:link-fill" />
-                魔术链接
+            <nuxt-link to="/auth/sign-in/email-verification" class="btn btn-sm btn-ghost">
+                <icon name="mingcute:mail-send-fill" size="1.2rem" />
+                邮箱验证
             </nuxt-link>
         </div>
 
