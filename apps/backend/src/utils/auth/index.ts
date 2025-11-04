@@ -21,9 +21,9 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
         emailOTP({
             async sendVerificationOTP({ email, otp, type }) {
                 if (type === "sign-in") {
-                    console.log("使用OTP登录", email, otp, type);
+                    emailService.sendSignInOTPVerification(email, otp);
                 } else if (type === "email-verification") {
-                    emailService.sendOTPVerification(email, otp);
+                    emailService.sendSignUpOTPVerification(email, otp);
                 } else if (type === 'forget-password') {
                     console.log("使用OTP找回密码", email, otp, type);
                 }
