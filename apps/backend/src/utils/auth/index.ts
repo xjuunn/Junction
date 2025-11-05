@@ -1,4 +1,4 @@
-import { betterAuth, type Auth } from 'better-auth'
+import { betterAuth, codec, type Auth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { emailOTP } from 'better-auth/plugins'
 import { passkey } from 'better-auth/plugins/passkey'
@@ -25,7 +25,7 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
                 } else if (type === "email-verification") {
                     emailService.sendSignUpOTPVerification(email, otp);
                 } else if (type === 'forget-password') {
-                    console.log("使用OTP找回密码", email, otp, type);
+                    emailService.sendForgotPasswordOTPVerification(email, otp);
                 }
             },
         }),

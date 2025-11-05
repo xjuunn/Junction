@@ -126,6 +126,6 @@ async function signIn() {
 }
 
 function handleForgotPassword() {
-    router.push('/auth/forgot-password')
+    router.push('/auth/sign-in/forgot-password')
 }
 </script>

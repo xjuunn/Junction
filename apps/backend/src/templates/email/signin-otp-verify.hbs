@@ -1,4 +1,224 @@
-<h2>欢迎使用 {{appName}} 👋</h2>
-<p>您好，您正在使用邮箱注册{{appName}}，验证码：</p>
-<h3>{{code}}</h3>
-<p>为保障账号安全性，该验证码仅在5分钟内有效。</p>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录验证 - {{appName}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .email-container {
+            width: 100%;
+            max-width: 500px;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .email-header {
+            padding: 40px 30px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .email-header h1 {
+            font-size: 32px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .email-header p {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .email-content {
+            padding: 40px 30px;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-text {
+            font-size: 14px;
+            color: #475569;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .section-text strong {
+            color: #0f172a;
+        }
+
+        .code-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            margin: 24px 0;
+        }
+
+        .code-label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+        }
+
+        .code {
+            font-size: 36px;
+            font-weight: 700;
+            color: #60a5fa;
+            letter-spacing: 3px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .info-box {
+            background: #f8fafc;
+            border-left: 2px solid #60a5fa;
+            border-radius: 4px;
+            padding: 14px 16px;
+            margin: 16px 0;
+            font-size: 13px;
+            color: #475569;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: #0369a1;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 32px 0;
+        }
+
+        .warning-box {
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+            font-size: 13px;
+            color: #0c4a6e;
+            line-height: 1.6;
+        }
+
+        .warning-box strong {
+            color: #0369a1;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .email-footer {
+            padding: 24px 30px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            color: #60a5fa;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .email-container {
+                border-radius: 8px;
+            }
+
+            .email-header {
+                padding: 32px 24px;
+            }
+
+            .email-header h1 {
+                font-size: 28px;
+            }
+
+            .email-content {
+                padding: 32px 24px;
+            }
+
+            .code {
+                font-size: 28px;
+                letter-spacing: 2px;
+            }
+
+            .code-box {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <h1>🔑 登录验证</h1>
+            <p>{{appName}}</p>
+        </div>
+
+        <!-- Content -->
+        <div class="email-content">
+            <div class="section">
+                <p class="section-text">
+                    您好，您正在尝试登录账户 <span class="highlight">{{email}}</span>。
+                </p>
+                <p class="section-text">
+                    请在 <strong>5 分钟</strong> 内使用下方验证码完成身份验证。
+                </p>
+            </div>
+
+            <div class="code-box">
+                <div class="code-label">登录验证码</div>
+                <div class="code">{{code}}</div>
+            </div>
+
+            <div class="info-box">
+                <strong>💡 安全提示</strong><br>
+                该验证码仅在 <strong>5 分钟</strong> 内有效，请勿将其泄露给他人。
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="warning-box">
+                <strong>⚠️ 如果这不是您本人操作</strong>
+                请立即忽略此邮件。您的账户将不会被登录。
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="email-footer">
+            <p>© {{appName}} | 此邮件由系统自动发送，请勿回复</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -51,4 +51,13 @@ export class EmailService {
     async sendSignInOTPVerification(email: string, code: string) {
         await this.send(email, "验证您的邮箱地址", 'signin-otp-verify', { code });
     }
+
+    /**
+     * 发送忘记密码验证码
+     * @param email 用户邮箱
+     * @param code 验证码
+     */
+    async sendForgotPasswordOTPVerification(email: string, code: string) {
+        await this.send(email, "验证您的邮箱地址", 'forgot-password-otp.hbs', { code });
+    }
 }
