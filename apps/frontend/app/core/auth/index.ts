@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/vue"
-import { emailOTPClient, passkeyClient } from 'better-auth/client/plugins'
+import { emailOTPClient, passkeyClient, siweClient } from 'better-auth/client/plugins'
 
 export function useAuthClient() {
     const config = useRuntimeConfig();
@@ -8,7 +8,8 @@ export function useAuthClient() {
         basePath: "bgapi/auth",
         plugins: [
             emailOTPClient(),
-            passkeyClient()
+            passkeyClient(),
+            siweClient()
         ]
     })
 }

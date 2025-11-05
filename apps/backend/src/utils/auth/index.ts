@@ -2,6 +2,10 @@ import { betterAuth, codec, type Auth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { emailOTP } from 'better-auth/plugins'
 import { passkey } from 'better-auth/plugins/passkey'
+import { siwe } from 'better-auth/plugins'
+import { generateRandomString } from 'better-auth/crypto'
+import { verifyMessage, createPublicClient, http } from 'viem'
+import { mainnet } from 'viem/chains'
 import { EmailService } from '~/res/email/email.service'
 import { prisma } from '~/utils/prisma'
 
@@ -37,6 +41,52 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
                 authenticatorAttachment: "platform",
                 residentKey: "preferred",
                 userVerification: "preferred",
+            },
+        }),
+        siwe({
+            domain: process.env.SERVER_HOST!,
+            emailDomainName: process.env.SERVER_HOST!,
+            anonymous: true,
+            getNonce: async () => {
+                return generateRandomString(32)
+            },
+            verifyMessage: async ({ message, signature, address }) => {
+                try {
+                    const isValid = await verifyMessage({
+                        address: address as `0x${string}`,
+                        message,
+                        signature: signature as `0x${string}`,
+                    })
+                    return isValid
+                } catch (err) {
+                    console.error("⚠️ SIWE 验证失败:", err)
+                    return false
+                }
+            },
+            ensLookup: async ({ walletAddress }) => {
+                try {
+                    const client = createPublicClient({
+                        chain: mainnet,
+                        transport: http(),
+                    })
+
+                    const ensName = await client.getEnsName({
+                        address: walletAddress as `0x${string}`,
+                    })
+                    const ensAvatar = ensName
+                        ? await client.getEnsAvatar({ name: ensName })
+                        : null
+
+                    return {
+                        name: ensName || walletAddress,
+                        avatar: ensAvatar || "",
+                    }
+                } catch {
+                    return {
+                        name: walletAddress,
+                        avatar: "",
+                    }
+                }
             },
         }),
     ],

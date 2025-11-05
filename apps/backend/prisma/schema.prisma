@@ -9,16 +9,17 @@ datasource db {
 }
 
 model User {
-  id            String    @id
+  id            String          @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean         @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @default(now()) @updatedAt
   passkeys      passkey[]
   sessions      Session[]
   accounts      Account[]
+  wallets       walletAddress[]
 
   @@unique([email])
   @@map("user")
@@ -37,6 +38,19 @@ model passkey {
   transports   String
   createdAt    DateTime @default(now())
   aaguid       String?
+}
+
+model walletAddress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address   String
+  chainId   Int
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([address, chainId])
+  @@map("wallet_address")
 }
 
 model Session {
