@@ -49,9 +49,9 @@
                 <icon name="mingcute:fingerprint-fill" size="1.2rem" />
                 通行密钥
             </nuxt-link>
-            <nuxt-link to="/auth/sign-in/device-authorization" class="btn btn-sm btn-ghost">
-                <icon name="mingcute:device-fill" size="1.2rem" />
-                设备授权
+            <nuxt-link to="/auth/sign-in/ethereum" class="btn btn-sm btn-ghost">
+                <icon name="mingcute:ethereum-fill" size="1.2rem" />
+                以太坊
             </nuxt-link>
             <nuxt-link to="/auth/sign-in/email-verification" class="btn btn-sm btn-ghost">
                 <icon name="mingcute:mail-send-fill" size="1.2rem" />
