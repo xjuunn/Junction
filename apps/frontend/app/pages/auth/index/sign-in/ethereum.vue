@@ -51,8 +51,8 @@
                     <div class="divider my-2 text-xs">或</div>
 
                     <label class="input validator flex items-center gap-2 bg-transparent focus-within:outline-0 w-full">
-                        <icon name="mingcute:wallet-3-fill" class="w-5 h-5 opacity-60" />
-                        <input v-model="privateKey" type="text" placeholder="手动输入钱包私钥" required
+                        <icon name="mingcute:wallet-3-fill" class="w-5 h-5 opacity-60" /> 0x
+                        <input v-model="privateKey" type="password" placeholder="手动输入钱包私钥" required
                             class="grow bg-transparent outline-none text-sm" @input="validateInput" />
                     </label>
 
@@ -154,18 +154,8 @@ const statusDescription = ref('请在钱包中确认签名请求')
 const validateInput = () => {
     errorMsg.value = ''
     let input = privateKey.value.trim()
-
     if (!input) return
-
-    if (!input.startsWith('0x')) {
-        input = '0x' + input
-        privateKey.value = input
-    }
-
-    const isPrivateKey = input.startsWith('0x') && input.length === 66
-    // const isAddressValid = input.startsWith('0x') && input.length === 42
-
-    if (!isPrivateKey) {
+    if (!(input.length === 64 || input.length === 66)) {
         errorMsg.value = '请输入有效的私钥'
         return
     }
@@ -205,13 +195,13 @@ const handleSubmit = () => {
     if (step.value === 'wallet') {
         validateInput()
         if (!errorMsg.value && privateKey.value) {
-            const input = privateKey.value.trim()
-            if (input.startsWith('0x') && (input.length === 66 || input.length === 42)) {
-                if (input.length === 42) {
-                    displayAddress.value = input
-                } else {
-                    displayAddress.value = '使用私钥进行签名'
-                }
+            let input = privateKey.value.trim()
+            if (!(input.toLocaleLowerCase().startsWith("0x"))) {
+                input = `0x${input}`
+                privateKey.value = input
+            }
+            if (input.length === 66) {
+                displayAddress.value = '使用私钥进行签名'
                 step.value = 'signing'
             }
         }
