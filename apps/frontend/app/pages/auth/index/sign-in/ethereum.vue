@@ -52,8 +52,8 @@
 
                     <label class="input validator flex items-center gap-2 bg-transparent focus-within:outline-0 w-full">
                         <icon name="mingcute:wallet-3-fill" class="w-5 h-5 opacity-60" /> 0x
-                        <input v-model="privateKey" type="password" placeholder="手动输入钱包私钥" required
-                            class="grow bg-transparent outline-none text-sm" @input="validateInput" />
+                        <input v-model="privateKey" type="password" placeholder="手动输入钱包私钥" maxlength="66" minlength="64"
+                            required class="grow bg-transparent outline-none text-sm" @input="validateInput" />
                     </label>
 
                     <transition name="fade">
