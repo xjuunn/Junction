@@ -26,7 +26,9 @@ async function bootstrap() {
     .setVersion("1.0")
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, documentConfig);
-  SwaggerModule.setup('swagger', app, documentFactory);
+  SwaggerModule.setup('swagger', app, documentFactory, {
+    jsonDocumentUrl: "swagger/json"
+  });
 
   app.enableCors({ origin: '*', credentials: true })
   await app.listen(process.env.BACKEND_PORT ?? 8080);
