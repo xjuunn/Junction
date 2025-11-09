@@ -3,3 +3,4 @@ export interface APP {
 }
 
 export type * as PrismaTypes from 'prismaclient';
+export * from './api-response';

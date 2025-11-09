@@ -9,6 +9,9 @@ import { authFactory } from '~/utils/auth';
 import { UserModule } from './resource/user/user.module';
 import { EmailModule } from './resource/email/email.module'
 import { EmailService } from './resource/email/email.service'
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { ResponseInterceptor } from './interceptors/response.interceptor';
+import { HttpExceptionFilter } from './exception-filters/HttpExceptionFilter';
 
 @Module({
   imports: [
@@ -28,6 +31,15 @@ import { EmailService } from './resource/email/email.service'
     UserModule,
   ],
   controllers: [AppController],
-  providers: [AppService, EmailService],
+  providers: [AppService, EmailService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter
+    },
+  ],
 })
 export class AppModule { }
