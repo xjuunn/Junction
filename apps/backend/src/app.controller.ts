@@ -7,8 +7,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 @ApiTags('app')
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService,
-    private readonly emailService: EmailService
+  constructor(
+    private readonly appService: AppService,
   ) { }
 
   @ApiOperation({ summary: "hello" })
@@ -20,7 +20,7 @@ export class AppController {
   @ApiOperation({ summary: "测试" })
   @AllowAnonymous()
   @Get("test")
-  testEmail(@Query("name") name: string) {
+  test(@Query("name") name: string) {
     return this.appService.test();
   }
 }

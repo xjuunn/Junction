@@ -97,8 +97,10 @@ Issued At: ${new Date().toISOString()}`
 
 import * as App from '~/api/app';
 async function fetchApi() {
-    const { data, error, success } = await App.getHello();
-    console.log(data, error, success);
+    const { data, error, success } = await App.test();
+    data?.items.forEach(item => {
+        console.log(item.email);
+    })
 
 }
 </script>
