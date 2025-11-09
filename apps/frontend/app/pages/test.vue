@@ -7,6 +7,7 @@
         <button class="btn btn-primary" @click="setPasskey">设置passkey</button>
         <button class="btn btn-primary" @click="verifPasskey">验证passkey</button>
         <button class="btn btn-primary" @click="signInWithWalletAddress">钱包地址登录</button>
+        <button class="btn btn-primary" @click="test">test</button>
     </div>
 </template>
 
@@ -93,4 +94,11 @@ Issued At: ${new Date().toISOString()}`
     console.log("登录成功:", verifyData)
     return verifyData.user
 }
+import { type PrismaTypes } from '@junction/types'
+function test() {
+    const user: PrismaTypes.User | null = null
+    console.log(user);
+
+}
+
 </script>

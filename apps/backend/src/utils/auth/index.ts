@@ -2,6 +2,7 @@ import { betterAuth, codec, type Auth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { emailOTP } from 'better-auth/plugins'
 import { passkey } from 'better-auth/plugins/passkey'
+import { admin } from 'better-auth/plugins'
 import { siwe } from 'better-auth/plugins'
 import { generateRandomString } from 'better-auth/crypto'
 import { verifyMessage, createPublicClient, http } from 'viem'
@@ -22,6 +23,7 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
     },
     trustedOrigins: ["*"],
     plugins: [
+        admin(),
         emailOTP({
             async sendVerificationOTP({ email, otp, type }) {
                 if (type === "sign-in") {
