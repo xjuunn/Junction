@@ -4,11 +4,11 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
-import { PrismaModule } from './res/prisma/prisma.module';
+import { PrismaModule } from './resource/prisma/prisma.module';
 import { authFactory } from '~/utils/auth';
-import { UserModule } from './res/user/user.module';
-import { EmailModule } from './res/email/email.module'
-import { EmailService } from './res/email/email.service'
+import { UserModule } from './resource/user/user.module';
+import { EmailModule } from './resource/email/email.module'
+import { EmailService } from './resource/email/email.service'
 
 @Module({
   imports: [

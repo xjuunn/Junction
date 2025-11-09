@@ -6,7 +6,7 @@ import { siwe } from 'better-auth/plugins'
 import { generateRandomString } from 'better-auth/crypto'
 import { verifyMessage, createPublicClient, http } from 'viem'
 import { mainnet } from 'viem/chains'
-import { EmailService } from '~/res/email/email.service'
+import { EmailService } from '~/resource/email/email.service'
 import { prisma } from '~/utils/prisma'
 
 export const authFactory = (emailService: EmailService): Auth => betterAuth({
