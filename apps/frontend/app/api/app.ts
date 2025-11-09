@@ -1,3 +1,7 @@
 export function getHello() {
-    return api.get('/')
+    return api.get<string>('/')
+}
+
+export function test() {
+
 }
