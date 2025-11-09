@@ -16,11 +16,4 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
-
-  @ApiOperation({ summary: "测试" })
-  @AllowAnonymous()
-  @Get("test")
-  test(@Query("name") name: string) {
-    return this.appService.test();
-  }
 }

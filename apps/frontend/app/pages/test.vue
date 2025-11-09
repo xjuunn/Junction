@@ -7,7 +7,6 @@
         <button class="btn btn-primary" @click="setPasskey">设置passkey</button>
         <button class="btn btn-primary" @click="verifPasskey">验证passkey</button>
         <button class="btn btn-primary" @click="signInWithWalletAddress">钱包地址登录</button>
-        <button class="btn btn-primary" @click="fetchApi">api</button>
     </div>
 </template>
 
@@ -93,14 +92,5 @@ Issued At: ${new Date().toISOString()}`
 
     console.log("登录成功:", verifyData)
     return verifyData.user
-}
-
-import * as App from '~/api/app';
-async function fetchApi() {
-    const { data, error, success } = await App.test();
-    data?.items.forEach(item => {
-        console.log(item.email);
-    })
-
 }
 </script>

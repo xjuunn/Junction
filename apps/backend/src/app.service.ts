@@ -9,16 +9,4 @@ export class AppService {
   getHello(): string {
     return 'Hello World!';
   }
-
-  async test() {
-    const [data, total] = await Promise.all([
-      this.prisma.user.findMany(),
-      this.prisma.user.count()
-    ])
-    return new PaginationData<User>(data, {
-      page: 1,
-      pageSize: 20,
-      total
-    })
-  }
 }
