@@ -14,10 +14,10 @@ model User {
   email         String
   emailVerified Boolean         @default(false)
   image         String?
-  role          String /// 用户的角色。默认为“user”。管理员将拥有“admin”角色。
-  banned        Boolean /// 用户是否被禁止
-  banReason     String /// 用户被封禁的原因
-  banExpires    DateTime /// 用户封禁到期的日期
+  role          String          @default("user") /// 用户的角色。默认为“user”。管理员将拥有“admin”角色。
+  banned        Boolean         @default(false) /// 用户是否被禁止
+  banReason     String? /// 用户被封禁的原因
+  banExpires    DateTime? /// 用户封禁到期的日期
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @default(now()) @updatedAt
   passkeys      passkey[]
@@ -66,7 +66,7 @@ model Session {
   ipAddress      String?
   userAgent      String?
   userId         String
-  impersonatedBy String ///模拟此会话的管理员的 ID
+  impersonatedBy String? ///模拟此会话的管理员的 ID
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
