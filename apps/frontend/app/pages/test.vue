@@ -94,10 +94,7 @@ Issued At: ${new Date().toISOString()}`
     console.log("登录成功:", verifyData)
     return verifyData.user
 }
-import { type PrismaTypes } from '@junction/types'
 function test() {
-    const user: PrismaTypes.User | null = null
-    console.log(user);
 
 }
 

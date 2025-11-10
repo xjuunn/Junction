@@ -1,8 +1,8 @@
 <template>
-    <main-modal-nav></main-modal-nav>
-    <div class="h-full flex">
+    <div class="flex h-full">
         <div v-show="isShowList || md" class="border-r border-base-content/10"
             :class="(isShowContent || md) ? 'w-[300px]' : 'flex-1'">
+            <button class="btn btn-accent" @click="test">test</button>
             <slot name="list" />
         </div>
         <div v-show="isShowContent || md" class="flex-1">
@@ -11,11 +11,11 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { breakpointsTailwind } from '@vueuse/core';
-const { md } = useBreakpoints(breakpointsTailwind);
+const { md } = useTailwindBreakpoints();
 const isShowList = ref(true);
 const isShowContent = ref(true);
 const route = useRoute();
+const router = useRouter();
 watch(() => route.query.ui, () => {
     setIsShow();
 })
@@ -35,6 +35,16 @@ function setIsShow() {
             isShowContent.value = false;
     }
 }
+
+function test() {
+    router.push({
+        ...route,
+        query: {
+            ui: "content"
+        }
+    })
+}
+
 
 
 </script>

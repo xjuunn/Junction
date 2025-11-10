@@ -1,12 +1,14 @@
 <template>
-    <div v-if="!md" class="dock bg-transparent">
-        <button :class="{
-            'dock-active': route.path === item.path
-        }" v-for="item in sortedMenuList" :key="item.id" @click="item.clickHandler()" v-motion-pop-visible-once>
-            <icon :name="item.icon" size="1.2rem"></icon>
-            <span class="dock-label">{{ item.name }}</span>
-        </button>
-    </div>
+    <client-only>
+        <div v-if="!md" class="dock bg-transparent">
+            <button :class="{
+                'dock-active': route.path === item.path
+            }" v-for="item in sortedMenuList" :key="item.id" @click="item.clickHandler()" v-motion-pop-visible-once>
+                <icon :name="item.icon" size="1.2rem"></icon>
+                <span class="dock-label">{{ item.name }}</span>
+            </button>
+        </div>
+    </client-only>
 </template>
 
 <script lang="ts" setup>
