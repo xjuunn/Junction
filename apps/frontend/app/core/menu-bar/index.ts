@@ -8,7 +8,8 @@ export class MenuItem {
     icon: string;  // ICON
     sort: number = Date.now();  // 排序
     pin: boolean = false;  // 是否固定显示
-    clickHandler: Function;
+    path?: string;
+    clickHandler: () => void;
 
     /**
      * 创建菜单项
@@ -18,13 +19,14 @@ export class MenuItem {
      * @param pin 是否固定显示
      * @param sort 排序
      */
-    constructor(id: number, name: string, icon: string, clickHandler: Function, sort: number = Date.now(), pin: boolean = false) {
-        this.id = id;
-        this.name = name;
-        this.icon = icon;
-        this.sort = sort;
-        this.pin = pin;
-        this.clickHandler = clickHandler;
+    constructor(data: MenuItem) {
+        this.id = data.id;
+        this.name = data.name;
+        this.icon = data.icon;
+        this.sort = data.sort;
+        this.pin = data.pin;
+        this.path = data.path;
+        this.clickHandler = data.clickHandler;
     }
 }
 
@@ -36,10 +38,50 @@ export class MenuBar {
     private menuList = reactive<MenuItem[]>([]);
 
     private constructor() {
-        this.addMenuItem(new MenuItem(1, '消息', 'mingcute:chat-4-fill', () => navigateTo('/', { replace: true }), 1, true))
-        this.addMenuItem(new MenuItem(2, 'At', 'mingcute:at-fill', () => navigateTo('/test', { replace: true }), 3, true))
-        this.addMenuItem(new MenuItem(3, '功能', 'mingcute:classify-2-fill', () => console.log("功能"), 2, true))
-        this.addMenuItem(new MenuItem(4, 'AI', 'mingcute:ai-fill', () => console.log("AI"), 4, true))
+        this.addMenuItem(new MenuItem({
+            id: 1,
+            name: "消息",
+            icon: "mingcute:chat-4-fill",
+            path: "/",
+            sort: 1,
+            clickHandler: function () {
+                navigateTo(this.path, { replace: true })
+            },
+            pin: false
+        }))
+        this.addMenuItem(new MenuItem({
+            id: 2,
+            name: "At",
+            icon: "mingcute:at-fill",
+            path: "/test",
+            sort: 2,
+            clickHandler: function () {
+                navigateTo(this.path, { replace: true })
+            },
+            pin: false
+        }))
+        this.addMenuItem(new MenuItem({
+            id: 3,
+            name: "功能",
+            icon: "mingcute:classify-2-fill",
+            path: "",
+            sort: 3,
+            clickHandler: function () {
+                navigateTo(this.path, { replace: true })
+            },
+            pin: false
+        }))
+        this.addMenuItem(new MenuItem({
+            id: 4,
+            name: "AI",
+            icon: "mingcute:ai-fill",
+            path: "",
+            sort: 4,
+            clickHandler: function () {
+                navigateTo(this.path, { replace: true })
+            },
+            pin: false
+        }))
     }
 
     public static getInstance(): MenuBar {

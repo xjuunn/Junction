@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div data-tauri-drag-region>
         nav
     </div>
 </template>

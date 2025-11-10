@@ -8,6 +8,6 @@
                 <slot></slot>
             </div>
         </div>
-        <main-modal-menubar class="md:hidden"></main-modal-menubar>
+        <main-modal-menubar class="md:hidden relative"></main-modal-menubar>
     </div>
 </template>
