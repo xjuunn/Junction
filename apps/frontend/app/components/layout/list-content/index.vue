@@ -1,4 +1,5 @@
 <template>
+    <main-modal-nav></main-modal-nav>
     <div class="h-full flex">
         <div v-show="isShowList || md" class="border-r border-base-content/10"
             :class="(isShowContent || md) ? 'w-[300px]' : 'flex-1'">

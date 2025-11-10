@@ -1,5 +1,5 @@
 <template>
-    <div class="dock bg-transparent">
+    <div v-if="!md" class="dock bg-transparent">
         <button :class="{
             'dock-active': route.path === item.path
         }" v-for="item in sortedMenuList" :key="item.id" @click="item.clickHandler()" v-motion-pop-visible-once>
@@ -10,6 +10,7 @@
 </template>
 
 <script lang="ts" setup>
+const { md } = useTailwindBreakpoints();
 const menubarInstance = MenuBar.getInstance();
 const menuList = menubarInstance.getMenuList();
 const sortedMenuList = computed(() =>

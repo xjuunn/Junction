@@ -1,5 +1,6 @@
 <template>
-    <div class="border-b border-base-content/10 navbar min-h-[3.5rem] px-3 select-none" data-tauri-drag-region>
+    <div v-if="md" class="border-b border-base-content/10 navbar min-h-[2.8rem] px-3 select-none"
+        data-tauri-drag-region>
         <div class="navbar-start" data-tauri-drag-region>
             <span class="font-modernia text-base-content" data-tauri-drag-region>Junc</span>
         </div>
@@ -21,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+const { md } = useTailwindBreakpoints();
 import { getCurrentWindow } from '@tauri-apps/api/window';
 const { $device } = useNuxtApp();
 
