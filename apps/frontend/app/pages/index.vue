@@ -1,5 +1,5 @@
 <template>
-    <layout-list-content>
+    <layout-list-content ref="layoutListContentRef">
         <template #list>
             <div class="flex flex-col h-full">
                 <main-mobile-nav></main-mobile-nav>
@@ -11,7 +11,7 @@
                     <input v-model="chatListType" type="radio" name="chat-tab" value="group" class="tab"
                         aria-label="群组" />
                 </div>
-                <ChatList></ChatList>
+                <ChatList @on-item-click="onItemClick"></ChatList>
             </div>
         </template>
         <template #content>
@@ -22,4 +22,10 @@
 <script lang="ts" setup>
 definePageMeta({ layout: "main-window" });
 const chatListType = ref<'message' | 'private' | 'group'>('message')
+const layoutListContentRef = useTemplateRef('layoutListContentRef');
+function onItemClick(item: any) {
+    console.log(item);
+    layoutListContentRef.value?.switchContent();
+}
+
 </script>
