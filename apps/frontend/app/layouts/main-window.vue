@@ -7,6 +7,6 @@
                 <slot></slot>
             </div>
         </div>
-        <main-modal-menubar class="relative"></main-modal-menubar>
+        <main-mobile-menubar class="relative"></main-mobile-menubar>
     </div>
 </template>
