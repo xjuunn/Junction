@@ -95,7 +95,7 @@ Issued At: ${new Date().toISOString()}`
     return verifyData.user
 }
 function test() {
-
+    navigateTo('/')
 }
 
 </script>
