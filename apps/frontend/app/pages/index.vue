@@ -2,7 +2,11 @@
     <layout-list-content ref="layoutListContentRef">
         <template #list>
             <div class="flex flex-col h-full">
-                <main-mobile-nav></main-mobile-nav>
+                <main-mobile-nav>
+                    <template #end>
+                        <main-common-window-control-buttons></main-common-window-control-buttons>
+                    </template>
+                </main-mobile-nav>
                 <div class="tabs tabs-border">
                     <input v-model="chatListType" type="radio" name="chat-tab" value="message" class="tab"
                         aria-label="消息" checked />
