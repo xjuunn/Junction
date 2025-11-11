@@ -1,10 +1,10 @@
 <template>
     <div class="flex h-full">
-        <div v-show="isShowList || md" class="border-r border-base-content/10"
+        <div v-motion-slide-visible-left v-show="isShowList || md" class="border-r border-base-content/10"
             :class="(isShowContent || md) ? 'w-[300px]' : 'flex-1'">
             <slot name="list" />
         </div>
-        <div v-show="isShowContent || md" class="flex-1">
+        <div v-motion-slide-visible-right v-show="isShowContent || md" class="flex-1">
             <slot name="content" />
         </div>
     </div>

@@ -1,6 +1,6 @@
 <template>
     <client-only>
-        <div v-if="!md" v-show="route.query.ui!== 'content'" class="dock bg-transparent">
+        <div v-motion-slide-bottom v-if="!md" v-show="route.query.ui!== 'content'" class="dock bg-transparent">
             <button :class="{
                 'dock-active': route.path === item.path
             }" v-for="item in sortedMenuList" :key="item.id" @click="item.clickHandler()" v-motion-pop-visible-once>

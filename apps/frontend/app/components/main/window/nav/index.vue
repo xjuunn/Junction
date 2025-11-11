@@ -1,6 +1,6 @@
 <template>
     <client-only>
-        <div v-if="md" class="border-b border-base-content/10 navbar min-h-[2.8rem] px-3 select-none"
+        <div v-motion-slide-top v-if="md" class="border-b border-base-content/10 navbar min-h-[2.8rem] px-3 select-none"
             data-tauri-drag-region>
             <div class="navbar-start" data-tauri-drag-region>
                 <span class="font-modernia text-base-content" data-tauri-drag-region>Junc</span>

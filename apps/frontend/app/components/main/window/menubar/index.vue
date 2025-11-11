@@ -1,6 +1,6 @@
 <template>
     <client-only>
-        <div v-if="md" class="border-r border-base-content/10 h-full min-w-16 flex flex-col items-center py-3 gap-2"
+        <div v-motion-slide-left v-if="md" class="border-r border-base-content/10 h-full min-w-16 flex flex-col items-center py-3 gap-2"
             data-tauri-drag-region>
             <button v-for="item in sortedMenuList" :key="item.id" @click="item.clickHandler()" v-motion-pop-visible-once
                 class="btn btn-sm btn-ghost text-base-content/80 hover:text-base-content transition hover:scale-105 hover:rotate-6"
