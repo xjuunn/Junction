@@ -12,6 +12,7 @@ import { EmailService } from './resource/email/email.service'
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
 import { HttpExceptionFilter } from './exception-filters/HttpExceptionFilter';
+import { FriendshipModule } from './resource/friendship/friendship.module';
 
 @Module({
   imports: [
@@ -25,10 +26,14 @@ import { HttpExceptionFilter } from './exception-filters/HttpExceptionFilter';
       imports: [EmailModule],
       inject: [EmailService],
       useFactory: (emailService: EmailService) => ({
-        auth: authFactory(emailService)
+        auth: authFactory(emailService),
+        disableGlobalAuthGuard: true,
+        disableBodyParser: false,
+        disableTrustedOriginsCors: false,
       })
     }),
     UserModule,
+    FriendshipModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService,
