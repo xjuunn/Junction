@@ -1,15 +1,13 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { FriendshipService } from './friendship.service';
-import { CreateFriendshipDto } from './dto/create-friendship.dto';
-import { UpdateFriendshipDto } from './dto/update-friendship.dto';
 
 @Controller('friendship')
 export class FriendshipController {
-  constructor(private readonly friendshipService: FriendshipService) {}
+  constructor(private readonly friendshipService: FriendshipService) { }
 
   @Post()
-  create(@Body() createFriendshipDto: CreateFriendshipDto) {
-    return this.friendshipService.create(createFriendshipDto);
+  create() {
+    return this.friendshipService.create();
   }
 
   @Get()
@@ -23,8 +21,8 @@ export class FriendshipController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFriendshipDto: UpdateFriendshipDto) {
-    return this.friendshipService.update(+id, updateFriendshipDto);
+  update(@Param('id') id: string) {
+    return this.friendshipService.update(+id);
   }
 
   @Delete(':id')

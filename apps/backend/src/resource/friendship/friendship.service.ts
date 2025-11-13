@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { CreateFriendshipDto } from './dto/create-friendship.dto';
-import { UpdateFriendshipDto } from './dto/update-friendship.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags("好友关系")
 @Injectable()
 export class FriendshipService {
-  create(createFriendshipDto: CreateFriendshipDto) {
-    return 'This action adds a new friendship';
+  constructor(
+    private readonly prisma: PrismaService,
+  ) { }
+  create() {
+    return `创建一个 friendship`;
   }
 
   findAll() {
@@ -16,7 +20,7 @@ export class FriendshipService {
     return `This action returns a #${id} friendship`;
   }
 
-  update(id: number, updateFriendshipDto: UpdateFriendshipDto) {
+  update(id: number) {
     return `This action updates a #${id} friendship`;
   }
 

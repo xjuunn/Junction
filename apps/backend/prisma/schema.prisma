@@ -9,23 +9,23 @@ datasource db {
 }
 
 model User {
-  id               String          @id
-  name             String
-  email            String
-  emailVerified    Boolean         @default(false)
-  image            String?
-  role             String          @default("user") /// 用户的角色。默认为“user”。管理员将拥有“admin”角色。
-  banned           Boolean         @default(false) /// 用户是否被禁止
-  banReason        String? /// 用户被封禁的原因
-  banExpires       DateTime? /// 用户封禁到期的日期
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @default(now()) @updatedAt
-  passkeys         passkey[]
-  sessions         Session[]
-  accounts         Account[]
-  wallets          walletAddress[]
-  sentRequests     Friendship[]    @relation("sentRequests")
-  receivedRequests Friendship[]    @relation("receivedRequests")
+  id                     String          @id
+  name                   String
+  email                  String
+  emailVerified          Boolean         @default(false)
+  image                  String?
+  role                   String          @default("user") /// 用户的角色。默认为“user”。管理员将拥有“admin”角色。
+  banned                 Boolean         @default(false) /// 用户是否被禁止
+  banReason              String? /// 用户被封禁的原因
+  banExpires             DateTime? /// 用户封禁到期的日期
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @default(now()) @updatedAt
+  passkeys               passkey[]
+  sessions               Session[]
+  accounts               Account[]
+  wallets                walletAddress[]
+  sentFriendRequests     Friendship[]    @relation("FriendRequestSender") /// 用户发起的好友请求
+  receivedFriendRequests Friendship[]    @relation("FriendRequestReceiver") /// 用户接收的好友请求
 
   @@unique([email])
   @@map("user")
@@ -107,17 +107,23 @@ model Verification {
 
 /// 好友关系
 model Friendship {
-  id          String           @id @default(uuid())
-  requesterId String // 发起者
-  requester   User             @relation("sentRequests", fields: [requesterId], references: [id])
-  addresseeId String // 接收者
-  addressee   User             @relation("receivedRequests", fields: [addresseeId], references: [id])
-  status      FriendshipStatus @default(PENDING)
-  remark      String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id         String           @id @default(cuid()) /// ID
+  senderId   String /// 发送请求一方的ID
+  sender     User             @relation("FriendRequestSender", fields: [senderId], references: [id]) /// 发送请求的一方
+  receiverId String /// 接受请求一方的ID
+  receiver   User             @relation("FriendRequestReceiver", fields: [receiverId], references: [id]) /// 接受请求的一方
+  status     FriendshipStatus @default(PENDING) /// 好友关系状态
+  isBlocked  Boolean          @default(false) /// 是否拉黑
+  note       String? /// 备注
+  source     String? /// 好友来源
+  requestMsg String? /// 请求附言
+  updatedAt  DateTime         @default(now()) @updatedAt /// 更新时间
+  createdAt  DateTime         @default(now()) /// 创建时间
+
+  @@unique([senderId, receiverId])
 }
 
+/// 好友关系状态
 enum FriendshipStatus {
   PENDING /// 等待确认
   ACCEPTED /// 已成为好友
