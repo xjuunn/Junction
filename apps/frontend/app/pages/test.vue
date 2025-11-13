@@ -94,8 +94,17 @@ Issued At: ${new Date().toISOString()}`
     console.log("登录成功:", verifyData)
     return verifyData.user
 }
-function test() {
-    navigateTo('/')
+async function test() {
+    const { data, error } = await useAuthClient().signIn.email({
+        email: "xjuunn@gmail.com",
+        password: "123123"
+    }, {
+        onSuccess: (ctx) => {
+            const authToken = ctx.response.headers.get("set-auth-token")
+            console.log("token:", authToken);
+        }
+    });
+
 }
 
 </script>

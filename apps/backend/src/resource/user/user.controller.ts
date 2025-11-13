@@ -30,19 +30,6 @@ export class UserController {
   async getOptional(@Session() session: UserSession) {
     return { authenticated: !!session };
   }
-
-  @ApiOperation({ summary: "登录", description: "用户API测试的登录" })
-  @Post("sign-in")
-  @AllowAnonymous()
-  async signIn(@Body() body: SignInBody) {
-    console.log(body);
-    return this.authService.api.signInEmail({
-      body: {
-        email: body.email,
-        password: body.password
-      }
-    })
-  }
 }
 
 export interface SignInBody {
