@@ -1,6 +1,5 @@
 {
   "name": "@junction/frontend",
-  "type": "module",
   "private": true,
   "scripts": {
     "build": "nuxt build",

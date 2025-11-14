@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { FriendshipService } from './friendship.service';
+import { Pagination, PaginationOptions } from '~/decorators/pagination.decorator';
 
 @Controller('friendship')
 export class FriendshipController {
@@ -11,7 +12,8 @@ export class FriendshipController {
   }
 
   @Get()
-  findAll() {
+  findAll(@Pagination() pagination: PaginationOptions) {
+    return pagination;
     // return this.friendshipService.findAll();
   }
 

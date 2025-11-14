@@ -27,16 +27,16 @@ export class PaginationMeta {
     // 页码
     page: number;
     // 分页大小
-    pageSize: number;
+    limit: number;
     /**
      * 创建分页元数据
      * @param page 页码
      * @param pageSize 分页大小
      * @param total 数据总量
      */
-    constructor(page: number, pageSize: number, total: number) {
+    constructor(page: number, limit: number, total: number) {
         this.page = page;
-        this.pageSize = pageSize;
+        this.limit = limit;
         this.total = total;
     }
 }
