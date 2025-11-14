@@ -14,7 +14,7 @@ export class FriendshipController {
   @ApiOperation({ summary: "创建好友关系" })
   create(
     @Session() session: UserSession,
-    @Body() data: PrismaTypes.Prisma.FriendshipUncheckedCreateInput
+    @Body() data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>
   ) {
     return this.friendshipService.create(session.user.id, data);
   }
@@ -24,31 +24,32 @@ export class FriendshipController {
   @ApiOperation({ summary: "好友关系列表", description: "查询好友关系列表" })
   findAll(
     @Session() session: UserSession,
-    @Query() data: PrismaTypes.Prisma.FriendshipWhereInput = {},
+    @Query() data: Omit<PrismaTypes.Prisma.FriendshipWhereInput, 'senderId'> = {},
     @Pagination() pagination: PaginationOptions
   ) {
     return this.friendshipService.findAll(session.user.id, data, pagination);
   }
 
-  @Get(':id')
+  @Get(':receiverId')
   @ApiOperation({ summary: "查找某个好友关系" })
-  findOne(@Session() session: UserSession, @Param('id') id: string) {
-    return this.friendshipService.findOne(session.user.id, id);
+  findOne(@Session() session: UserSession, @Param('receiverId') receiverId: string) {
+    return this.friendshipService.findOne(session.user.id, receiverId);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: "修改好友关系" })
-  update(
-    @Session() session: UserSession,
-    @Param('id') id: string,
-    @Body() data: PrismaTypes.Prisma.FriendshipUpdateInput
-  ) {
-    return this.friendshipService.update(id, session.user.id, data);
-  }
+  //// 禁止普通用户修改好友关系
+  // @Patch(':id')
+  // @ApiOperation({ summary: "修改好友关系" })
+  // update(
+  //   @Session() session: UserSession,
+  //   @Param('id') id: string,
+  //   @Body() data: Omit<PrismaTypes.Prisma.FriendshipUpdateInput, 'senderId'>
+  // ) {
+  //   return this.friendshipService.update(id, session.user.id, data);
+  // }
 
-  @Delete(':id')
+  @Delete(':receiverId')
   @ApiOperation({ summary: "删除好友关系" })
-  remove(@Param('id') id: string, @Session() session: UserSession) {
-    return this.friendshipService.remove(id, session.user.id);
+  remove(@Session() session: UserSession, @Param('receiverId') receiverId: string) {
+    return this.friendshipService.remove(session.user.id, receiverId);
   }
 }

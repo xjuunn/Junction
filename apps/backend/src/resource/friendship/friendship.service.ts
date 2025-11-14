@@ -11,20 +11,20 @@ export class FriendshipService {
 
   create(
     userId: string,
-    data: PrismaTypes.Prisma.FriendshipUncheckedCreateInput
+    data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>
   ) {
     return this.prisma.friendship.create({
       data: {
         ...data,
         senderId: userId,
       },
-      include: { receiver: true, sender: true }
+      include: { receiver: true }
     });
   }
 
   async findAll(
     userId: string,
-    whereData: PrismaTypes.Prisma.FriendshipWhereInput,
+    whereData: Omit<PrismaTypes.Prisma.FriendshipWhereInput, 'senderId'>,
     { take, skip }: PaginationOptions
   ) {
     const { page, limit, ...clearWhere } = whereData as any;
@@ -37,7 +37,7 @@ export class FriendshipService {
     const [data, total] = await Promise.all([
       this.prisma.friendship.findMany({
         where, take, skip,
-        include: { receiver: true, sender: true },
+        include: { receiver: true },
       }),
       this.prisma.friendship.count({ where })
     ])
@@ -49,26 +49,26 @@ export class FriendshipService {
       where: {
         senderId_receiverId: { senderId: userId, receiverId }
       },
-      include: { sender: true, receiver: true },
+      include: { receiver: true },
     });
   }
 
   update(
     id: string,
     userId: string,
-    data: PrismaTypes.Prisma.FriendshipUpdateInput
+    data: Omit<PrismaTypes.Prisma.FriendshipUpdateInput, 'senderId'>
   ) {
     return this.prisma.friendship.update({
       where: { id, senderId: userId },
       data,
-      include: { sender: true, receiver: true }
+      include: { receiver: true }
     })
   }
 
-  remove(id: string, userId: string) {
+  remove(userId: string, receiverId: string) {
     return this.prisma.friendship.delete({
-      where: { id, senderId: userId },
-      include: { sender: true, receiver: true }
+      where: { senderId_receiverId: { senderId: userId, receiverId } },
+      include: { receiver: true }
     })
   }
 }
