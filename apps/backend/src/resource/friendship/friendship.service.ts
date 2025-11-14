@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApiTags } from '@nestjs/swagger';
-import { PrismaTypes } from '@junction/types';
+import { PaginationData, PrismaTypes } from '@junction/types';
+import { PaginationOptions } from '~/decorators/pagination.decorator';
 
 @ApiTags("好友关系")
 @Injectable()
@@ -20,11 +21,23 @@ export class FriendshipService {
     });
   }
 
-  findAll<T extends Partial<PrismaTypes.Friendship>>(data: T) {
-    return this.prisma.friendship.findMany({
-      where: data,
-      include: { receiver: true, sender: true }
-    });
+  async findAll<T extends Partial<PrismaTypes.Prisma.FriendshipWhereInput>>
+    (userId: string, whereData: T, { take, skip }: PaginationOptions) {
+    const { page, limit, ...clearWhere } = whereData as any;
+    const where = {
+      AND: [
+        clearWhere,
+        { OR: [{ senderId: userId }, { receiverId: userId }] }
+      ]
+    }
+    const [data, total] = await Promise.all([
+      this.prisma.friendship.findMany({
+        where, take, skip,
+        include: { receiver: true, sender: true },
+      }),
+      this.prisma.friendship.count({ where })
+    ])
+    return new PaginationData(data, { total, limit, page })
   }
 
   findOne(senderId: string, receiverId: string) {

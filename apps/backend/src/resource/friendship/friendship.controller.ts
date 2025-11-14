@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { FriendshipService } from './friendship.service';
 import { Pagination, PaginationOptions } from '~/decorators/pagination.decorator';
+import { Session, UserSession } from '@thallesp/nestjs-better-auth';
+import { PrismaTypes } from '@junction/types';
 
 @Controller('friendship')
 export class FriendshipController {
@@ -12,9 +14,12 @@ export class FriendshipController {
   }
 
   @Get()
-  findAll(@Pagination() pagination: PaginationOptions) {
-    return pagination;
-    // return this.friendshipService.findAll();
+  findAll(
+    @Session() session: UserSession,
+    @Query() data: PrismaTypes.Prisma.FriendshipWhereInput = {},
+    @Pagination() pagination: PaginationOptions
+  ) {
+    return this.friendshipService.findAll(session.user.id, data, pagination);
   }
 
   @Get(':id')
