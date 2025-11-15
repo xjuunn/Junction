@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { json, urlencoded } from 'body-parser'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+const compression = require('compression');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -21,6 +21,7 @@ async function bootstrap() {
   app.enableCors({
     origin: '*', credentials: true,
   })
+  app.use(compression());
   await app.listen(process.env.BACKEND_PORT ?? 8080);
 }
 bootstrap();
