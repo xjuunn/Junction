@@ -16,6 +16,7 @@ import { HttpExceptionFilter } from './exception-filters/HttpExceptionFilter';
 import { UserModule } from './resource/user/user.module';
 import { FriendshipModule } from './resource/friendship/friendship.module';
 import { UploadModule } from './resource/upload/upload.module';
+import { AppGateway } from './app.gateway';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { UploadModule } from './resource/upload/upload.module';
   providers: [
     AppService,
     EmailService,
+    AppGateway,
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
