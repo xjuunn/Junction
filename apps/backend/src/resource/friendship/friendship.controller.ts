@@ -47,6 +47,33 @@ export class FriendshipController {
   //   return this.friendshipService.update(id, session.user.id, data);
   // }
 
+  @Patch('accept/:id')
+  @ApiOperation({ summary: "接受好友请求" })
+  accept(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ) {
+    return this.friendshipService.update(id, session.user.id, { status: 'ACCEPTED' });
+  }
+
+  @Patch('reject/:id')
+  @ApiOperation({ summary: "拒绝好友请求" })
+  reject(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ) {
+    return this.friendshipService.update(id, session.user.id, { status: 'REJECTED' });
+  }
+
+  @Patch('block/:id')
+  @ApiOperation({ summary: "拉黑好友" })
+  block(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ) {
+    return this.friendshipService.update(id, session.user.id, { status: 'BLOCKED' });
+  }
+
   @Delete(':receiverId')
   @ApiOperation({ summary: "删除好友关系" })
   remove(@Session() session: UserSession, @Param('receiverId') receiverId: string) {

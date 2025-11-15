@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, type PrismaTypes } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
@@ -9,14 +9,32 @@ export class FriendshipService {
     private readonly prisma: PrismaService,
   ) { }
 
-  create(
+  async create(
     userId: string,
     data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>
   ) {
-    return this.prisma.friendship.create({
+    const receiverId = data.receiverId;
+    const existing = await this.prisma.friendship.findUnique({
+      where: { senderId_receiverId: { senderId: userId, receiverId } }
+    });
+    if (!existing) {
+      return this.prisma.friendship.create({
+        data: {
+          ...data,
+          senderId: userId,
+          status: 'PENDING',
+        },
+        include: { receiver: true }
+      });
+    }
+    if (existing.status === 'ACCEPTED') {
+      throw new BadRequestException('对方已是你的好友');
+    }
+    return this.prisma.friendship.update({
+      where: { id: existing.id },
       data: {
-        ...data,
-        senderId: userId,
+        status: 'PENDING',
+        createdAt: new Date(),
       },
       include: { receiver: true }
     });
