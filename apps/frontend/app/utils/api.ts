@@ -1,9 +1,14 @@
-import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig, AxiosHeaders } from 'axios'
+import axios, { type AxiosInstance, type AxiosResponse, AxiosHeaders } from 'axios'
 import { ApiResponse } from '@junction/types';
 
 interface PaginationQuery {
     page?: number;
     limit?: number;
+}
+
+// ⭐新增：自定义 header 的最小类型
+interface RequestOptions {
+    headers?: Record<string, string>;
 }
 
 class Api {
@@ -17,7 +22,6 @@ class Api {
             headers: new AxiosHeaders({ 'Content-Type': 'application/json' }),
         })
 
-        // 请求拦截
         this.instance.interceptors.request.use(
             (config) => {
                 if (!config.headers) config.headers = new AxiosHeaders()
@@ -28,7 +32,6 @@ class Api {
             (error) => Promise.reject(error)
         )
 
-        // 响应拦截
         this.instance.interceptors.response.use(
             (response: AxiosResponse) => {
                 const res = response.data
@@ -52,27 +55,27 @@ class Api {
         }
     }
 
-    async get<T = any>(url: string, params?: any): Promise<ApiResponse<T>> {
+    async get<T = any>(url: string, params?: any, options?: RequestOptions): Promise<ApiResponse<T>> {
         params = this.applyPaginationOptions(params)
-        return await this.instance.get<ApiResponse<T>>(url, { params }) as any
+        return await this.instance.get<ApiResponse<T>>(url, { params, ...options, }) as any
     }
 
-    async post<T = any>(url: string, data?: any, params?: PaginationQuery): Promise<ApiResponse<T>> {
+    async post<T = any>(url: string, data?: any, params?: PaginationQuery, options?: RequestOptions): Promise<ApiResponse<T>> {
         const query = this.applyPaginationOptions(params)
-        return await this.instance.post<ApiResponse<T>>(url, data, { params: query }) as any
+        return await this.instance.post<ApiResponse<T>>(url, data, { params: query, ...options, }) as any
     }
 
-    async patch<T = any>(url: string, data?: any, params?: PaginationQuery): Promise<ApiResponse<T>> {
+    async patch<T = any>(url: string, data?: any, params?: PaginationQuery, options?: RequestOptions): Promise<ApiResponse<T>> {
         const query = this.applyPaginationOptions(params)
-        return await this.instance.patch<ApiResponse<T>>(url, data, { params: query }) as any
+        return await this.instance.patch<ApiResponse<T>>(url, data, { params: query, ...options, }) as any
     }
 
-    async put<T = any>(url: string, data?: any): Promise<ApiResponse<T>> {
-        return await this.instance.put<ApiResponse<T>>(url, data) as any
+    async put<T = any>(url: string, data?: any, options?: RequestOptions): Promise<ApiResponse<T>> {
+        return await this.instance.put<ApiResponse<T>>(url, data, { ...options, }) as any
     }
 
-    async delete<T = any>(url: string, data?: any): Promise<ApiResponse<T>> {
-        return await this.instance.delete<ApiResponse<T>>(url, { data }) as any
+    async delete<T = any>(url: string, data?: any, options?: RequestOptions): Promise<ApiResponse<T>> {
+        return await this.instance.delete<ApiResponse<T>>(url, { data, ...options, }) as any
     }
 }
 

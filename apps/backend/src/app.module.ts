@@ -1,21 +1,29 @@
 import { Module } from '@nestjs/common';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
-import { AuthModule } from '@thallesp/nestjs-better-auth';
+import { EmailModule } from './resource/email/email.module';
 import { PrismaModule } from './resource/prisma/prisma.module';
+import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { authFactory } from '~/utils/auth';
-import { UserModule } from './resource/user/user.module';
-import { EmailModule } from './resource/email/email.module'
-import { EmailService } from './resource/email/email.service'
+import { EmailService } from './resource/email/email.service';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
 import { HttpExceptionFilter } from './exception-filters/HttpExceptionFilter';
+import { UserModule } from './resource/user/user.module';
 import { FriendshipModule } from './resource/friendship/friendship.module';
+import { UploadModule } from './resource/upload/upload.module';
 
 @Module({
   imports: [
+    MulterModule.register({
+      storage: memoryStorage(),
+    }),
+
+    UploadModule,
     ConfigModule.forRoot({
       envFilePath: join(__dirname, '../../../.env'),
       isGlobal: true,
@@ -36,7 +44,9 @@ import { FriendshipModule } from './resource/friendship/friendship.module';
     FriendshipModule,
   ],
   controllers: [AppController],
-  providers: [AppService, EmailService,
+  providers: [
+    AppService,
+    EmailService,
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
@@ -44,7 +54,7 @@ import { FriendshipModule } from './resource/friendship/friendship.module';
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter
-    },
+    }
   ],
 })
 export class AppModule { }

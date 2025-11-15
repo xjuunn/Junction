@@ -5,13 +5,23 @@
 </template>
 
 <script setup lang="ts">
-import * as FriendshipApi from '~/api/friendship'
+import * as UploadApi from '@/api/upload'
 definePageMeta({
     layout: 'main-window'
 })
-async function test() {
-    const data = await FriendshipApi.remove("zRF583ZvyX0VtBDu16GuwJa6TC3fehve")
-    console.log(data);
+function test() {
+    const { open, files } = useFileDialog({
+        multiple: true
+    });
+
+    watch(files, (fileList) => {
+        if (!fileList || fileList.length === 0) return;
+
+        const arr = Array.from(fileList);
+        UploadApi.uploadFiles("test", arr);
+    });
+
+    open();
 }
 
 </script>

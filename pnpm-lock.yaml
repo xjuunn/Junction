@@ -109,6 +109,9 @@ importers:
       '@types/jest':
         specifier: ^29.5.14
         version: 29.5.14
+      '@types/multer':
+        specifier: ^2.0.0
+        version: 2.0.0
       '@types/node':
         specifier: ^22.10.7
         version: 22.18.10
@@ -2711,6 +2714,9 @@ packages:
 
   '@types/mjml@4.7.4':
     resolution: {integrity: sha512-vyi1vzWgMzFMwZY7GSZYX0GU0dmtC8vLHwpgk+NWmwbwRSrlieVyJ9sn5elodwUfklJM7yGl0zQeet1brKTWaQ==}
+
+  '@types/multer@2.0.0':
+    resolution: {integrity: sha512-C3Z9v9Evij2yST3RSBktxP9STm6OdMc5uR1xF1SGr98uv8dUlAL2hqwrZ3GVB3uyMyiegnscEK6PGtYvNrjTjw==}
 
   '@types/node@22.18.10':
     resolution: {integrity: sha512-anNG/V/Efn/YZY4pRzbACnKxNKoBng2VTFydVu8RRs5hQjikP8CQfaeAV59VFSCzKNp90mXiVXW2QzV56rwMrg==}
@@ -10424,6 +10430,10 @@ snapshots:
     dependencies:
       '@types/mjml-core': 4.15.2
     optional: true
+
+  '@types/multer@2.0.0':
+    dependencies:
+      '@types/express': 5.0.3
 
   '@types/node@22.18.10':
     dependencies:
