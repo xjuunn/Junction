@@ -7,7 +7,10 @@
     "dev": "nuxt dev --host",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "tauri": "tauri",
+    "tauri:android": "tauri android dev",
+    "tauri:android:build": "tauri android build"
   },
   "dependencies": {
     "@iconify-json/mingcute": "^1.2.5",
@@ -18,7 +21,6 @@
     "@nuxtjs/color-mode": "3.5.2",
     "@nuxtjs/device": "3.2.4",
     "@pinia/nuxt": "0.11.2",
-    "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-deep-link": "~2.4.5",
     "@tauri-apps/plugin-os": "~2.3.1",
     "@tauri-store/pinia": "^4.1.0",
