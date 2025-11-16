@@ -9,6 +9,7 @@ export type EmitAck<N extends keyof SocketNamespaces, E extends keyof NamespaceE
 export type OnReceive<N extends keyof SocketNamespaces, E extends keyof NamespaceEvents<N>>
     = NamespaceEvents<N>[E] extends EventDef<any, any, infer O> ? O : never;
 
+import { AppGateway } from '@junction/backend/src/app.gateway';
 
 export interface EventDef<Send = unknown, Ack = unknown, On = unknown> {
     send?: Send;  // send  客户端 -> 服务器
@@ -20,7 +21,7 @@ export interface EventDef<Send = unknown, Ack = unknown, On = unknown> {
 export interface SocketNamespaces {
     app: {
         events: {
-            "app-test": EventDef<string, string, string>;
+            "app-test": EventDef<string, AwaitedReturnType<AppGateway['handleAppTest']>, string>;
         };
     };
 }
