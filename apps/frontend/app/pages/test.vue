@@ -11,45 +11,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { io, Socket } from 'socket.io-client';
-import { useRuntimeConfig } from '#app';
-
-definePageMeta({
-    layout: 'main-window',
-});
-
+const socket = useSocket('app');
+definePageMeta({ layout: 'main-window' });
 const messages = ref<string[]>([]);
-let socket: Socket;
-
-// 使用 runtimeConfig 获取后端地址
-const config = useRuntimeConfig();
-const backendUrl = `${config.public.httpType}://${config.public.serverHost}:${config.public.backendPort}/app`; // 对应 Gateway namespace
-
-onMounted(() => {
-    // 初始化 Socket.IO 连接
-    socket = io(backendUrl, { transports: ['websocket'] });
-
-    // 监听服务器广播消息
-    socket.on('app-test', (data: string) => {
-        console.log('收到服务器消息:', data);
-        messages.value.push(data);
-    });
-});
-
 function sendTest() {
-    if (!socket) return;
-
-    const msg = 'Hello from Nuxt 3';
-
-    // 发送消息，并使用 ack 回调接收服务器返回
-    socket.emit('app-test', msg, (ack: string) => {
-        console.log('服务器 ack 返回:', ack);
-        messages.value.push(`ACK: ${ack}`);
+    const message = "向服务器发送消息";
+    socket.emit('app-test', message, (msg) => {
+        messages.value.push("服务器:" + msg);
     });
+    messages.value.push("客户端:" + message);
 }
-</script>
 
-<style scoped>
-/* 可选样式 */
-</style>
+</script>
