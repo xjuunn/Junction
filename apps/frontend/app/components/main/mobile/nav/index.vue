@@ -1,10 +1,9 @@
 <template>
     <client-only>
         <div v-motion-slide-top class="navbar min-h-[2.8rem] px-3 select-none" :class="{
-            'pt-6': hasMobileTaskBar
+            'pt-10': hasMobileTaskBar
         }" v-if="!md" data-tauri-drag-region>
             <div class="navbar-start">
-                {{ hasMobileTaskBar }}
                 <slot name="start"></slot>
             </div>
             <div class="navbar-end">
