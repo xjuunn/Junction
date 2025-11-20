@@ -2,7 +2,7 @@
     <client-only>
         <div v-motion-slide-bottom v-if="!md" v-show="route.query.ui!== 'content'" class="dock bg-transparent">
             <button :class="{
-                'dock-active': route.path === item.path
+                'dock-active text-primary scale-110': route.path === item.path
             }" v-for="item in sortedMenuList" :key="item.id" @click="item.clickHandler()" v-motion-pop-visible-once>
                 <icon :name="item.icon" size="1.2rem"></icon>
                 <span class="dock-label">{{ item.name }}</span>

@@ -40,7 +40,7 @@ export class MenuBar {
     private constructor() {
         this.addMenuItem(new MenuItem({
             id: 1,
-            name: "消息",
+            name: "会话",
             icon: "mingcute:chat-4-fill",
             path: "/",
             sort: 1,
@@ -51,9 +51,9 @@ export class MenuBar {
         }))
         this.addMenuItem(new MenuItem({
             id: 2,
-            name: "At",
-            icon: "mingcute:at-fill",
-            path: "/test",
+            name: "通讯录",
+            icon: "mingcute:contacts-3-fill",
+            path: "/contacts",
             sort: 2,
             clickHandler: function () {
                 navigateTo(this.path, { replace: true })
@@ -64,7 +64,7 @@ export class MenuBar {
             id: 3,
             name: "功能",
             icon: "mingcute:classify-2-fill",
-            path: "",
+            path: "/features",
             sort: 3,
             clickHandler: function () {
                 navigateTo(this.path, { replace: true })
@@ -73,9 +73,9 @@ export class MenuBar {
         }))
         this.addMenuItem(new MenuItem({
             id: 4,
-            name: "AI",
-            icon: "mingcute:ai-fill",
-            path: "",
+            name: "档案",
+            icon: "mingcute:profile-fill",
+            path: "/profile",
             sort: 4,
             clickHandler: function () {
                 navigateTo(this.path, { replace: true })
