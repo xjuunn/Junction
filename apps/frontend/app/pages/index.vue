@@ -2,19 +2,24 @@
     <layout-list-content ref="layoutListContentRef">
         <template #list>
             <div class="flex flex-col h-full">
-                <main-mobile-nav>
+                <main-mobile-nav class="">
                     <template #start>
-                        <base-avatar :size="40" :text="user?.name"></base-avatar>
+                        <base-avatar :size="35" :text="user?.name"></base-avatar>
+                        <div class="btn btn-ghost btn-sm">
+                            {{ user?.name }}
+                        </div>
                     </template>
                     <template #end>
-                        <main-common-window-control-buttons></main-common-window-control-buttons>
+                        <nuxt-link to="/search?ui=content" class="btn btn-circle btn-ghost btn-md">
+                            <icon name="mingcute:search-2-fill" size="1rem" class="text-base-content/60"></icon>
+                        </nuxt-link>
                     </template>
                 </main-mobile-nav>
-                <div class="p-2 hidden md:block">
+                <!-- <div class="p-2 hidden md:block">
                     <div class="input bg-base-content/1 border-0 input-sm focus-within:outline-0 w-full">
                         <input placeholder="输入关键词或用户名" type="text">
                     </div>
-                </div>
+                </div> -->
                 <div class="tabs tabs-border">
                     <input v-model="chatListType" type="radio" name="chat-tab" value="message" class="tab"
                         aria-label="消息" checked />
