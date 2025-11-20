@@ -1,4 +1,4 @@
-import { type UserController } from '@junction/backend/src/resource/user/user.controller'
+import type { UserController } from '@junction/backend/src/resource/user/user.controller'
 const base = '/user'
 
 /** 我的信息 */
@@ -13,5 +13,5 @@ export function isAuthenticated() {
 
 /** 搜索用户 */
 export function search(keyword: string, pagination: PaginationOptions) {
-    return api.get<AwaitedReturnType<UserController['searchUser']>>('/search', { keyword, ...pagination });
+    return api.get<AwaitedReturnType<UserController['searchUser']>>(base + '/search', { keyword, ...pagination });
 }
