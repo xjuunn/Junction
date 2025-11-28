@@ -8,7 +8,7 @@
 definePageMeta({ layout: 'main-window' });
 
 function test() {
-
+    useToast().success('成功');
 }
 
 </script>
