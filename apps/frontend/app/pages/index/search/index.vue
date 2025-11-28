@@ -1,6 +1,6 @@
 <template>
-    <div class="min-h-screen flex flex-col bg-base-200">
-        <main-mobile-nav :is-show-back="true" class="bg-base-100 shadow-sm z-50">
+    <div class="min-h-screen flex flex-col">
+        <main-mobile-nav :is-show-back="true" class="shadow-sm z-50">
             <template #start>
                 <span class="font-bold text-lg">搜索用户</span>
             </template>
@@ -10,7 +10,7 @@
             <div class="w-full max-w-lg mb-8">
                 <div class="join w-full shadow-sm">
                     <input type="text" v-model="keyword" @keyup.enter="btnSearch"
-                        class="input input-bordered join-item w-full focus:outline-none bg-base-100"
+                        class="input input-bordered join-item w-full focus:outline-none"
                         placeholder="输入用户名或关键词..." />
                     <button class="btn btn-primary join-item px-6" :class="{ 'btn-disabled': loading }"
                         @click="btnSearch">
@@ -22,7 +22,7 @@
 
             <div class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <template v-if="loading">
-                    <div v-for="i in 6" :key="i" class="card bg-base-100 shadow-sm border border-base-200">
+                    <div v-for="i in 6" :key="i" class="card shadow-sm border border-base-200">
                         <div class="card-body flex-row items-center p-4 gap-4">
                             <div class="skeleton w-12 h-12 rounded-full shrink-0"></div>
                             <div class="flex-1 min-w-0 flex flex-col gap-2">
@@ -36,7 +36,7 @@
 
                 <template v-else-if="data?.data?.items && data.data.items.length > 0">
                     <div v-for="user in data.data.items" :key="user.id"
-                        class="card bg-base-100 shadow-sm border border-base-200 hover:shadow-md transition-all duration-200">
+                        class="card shadow-sm border border-base-200 hover:shadow-md transition-all duration-200">
                         <div class="card-body flex-row items-center p-4 gap-4">
                             <div class="avatar">
                                 <div

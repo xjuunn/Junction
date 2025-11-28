@@ -1,6 +1,6 @@
 <template>
     <div>
-        功能
+        <button class="btn btn-primary" @click="test">test</button>
     </div>
 </template>
 
@@ -8,4 +8,7 @@
 definePageMeta({
     layout: "main-window"
 })
+function test() {
+    navigateTo('/auth/sign-in')
+}
 </script>
