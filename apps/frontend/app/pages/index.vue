@@ -10,6 +10,9 @@
                         </div>
                     </template>
                     <template #end>
+                        <nuxt-link to="/action/notification" class="btn btn-circle btn-ghost btn-md">
+                            <icon name="mingcute:notification-fill" size="1rem" class="text-base-content/60"></icon>
+                        </nuxt-link>
                         <nuxt-link to="/search?ui=content" class="btn btn-circle btn-ghost btn-md">
                             <icon name="mingcute:search-2-fill" size="1rem" class="text-base-content/60"></icon>
                         </nuxt-link>
