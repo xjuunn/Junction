@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, BadRequestException } from '@nestjs/common';
 import { FriendshipService } from './friendship.service';
 import { ApiPagination, Pagination, PaginationOptions } from '~/decorators/pagination.decorator';
 import { Session, UserSession } from '@thallesp/nestjs-better-auth';
@@ -16,6 +16,9 @@ export class FriendshipController {
     @Session() session: UserSession,
     @Body() data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>
   ) {
+    if (data.receiverId === session.user.id) {
+      throw new BadRequestException("不能添加自己为好友");
+    }
     return this.friendshipService.create(session.user.id, data);
   }
 
