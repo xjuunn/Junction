@@ -24,7 +24,6 @@ import { NotificationModule } from './resource/notification/notification.module'
     MulterModule.register({
       storage: memoryStorage(),
     }),
-
     UploadModule,
     ConfigModule.forRoot({
       envFilePath: join(__dirname, '../../../.env'),
