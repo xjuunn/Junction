@@ -5,10 +5,13 @@
 </template>
 
 <script setup lang="ts">
+
 definePageMeta({ layout: 'main-window' });
 
 function test() {
-    useToast().success('成功');
+    useSocket('notification').emit('test', (data) => {
+        console.log(data);
+    })
 }
 
 </script>

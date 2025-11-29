@@ -1,27 +1,39 @@
-export type NamespaceEvents<N extends keyof SocketNamespaces> = SocketNamespaces[N]["events"];
+import type { PrismaTypes } from '@junction/types';
 
-export type EmitSend<N extends keyof SocketNamespaces, E extends keyof NamespaceEvents<N>>
-    = NamespaceEvents<N>[E] extends EventDef<infer S, any, any> ? S : never;
-
-export type EmitAck<N extends keyof SocketNamespaces, E extends keyof NamespaceEvents<N>>
-    = NamespaceEvents<N>[E] extends EventDef<any, infer A, any> ? A : never;
-
-export type OnReceive<N extends keyof SocketNamespaces, E extends keyof NamespaceEvents<N>>
-    = NamespaceEvents<N>[E] extends EventDef<any, any, infer O> ? O : never;
-
-import { AppGateway } from '@junction/backend/src/app.gateway';
-
-export interface EventDef<Send = unknown, Ack = unknown, On = unknown> {
-    send?: Send;  // send  客户端 -> 服务器
-    ack?: Ack;    // ack   服务器 -> 客户端
-    on?: On;      // on    服务器 -> 客户端广播
+/**
+ * S = Send (发送给后端的数据), A = Ack (后端回调的数据), L = Listen (后端主动推送的数据)
+ */
+export interface SocketEvent<S = void, A = void, L = void> {
+    send: S;
+    ack: A;
+    listen: L;
 }
 
-// 所有命名空间事件定义
 export interface SocketNamespaces {
     app: {
-        events: {
-            "app-test": EventDef<string, AwaitedReturnType<AppGateway['handleAppTest']>, string>;
-        };
+        "app-test": SocketEvent<string, string, string>;
+    };
+    notification: {
+        "join": SocketEvent<
+            { userId: string },
+            { event: 'join'; status: 'success' | 'error'; userId?: string; message?: string }
+        >;
+        "new-notification": SocketEvent<void, void, { id: string; title: string }>;
+        "test": SocketEvent<void, PrismaTypes.User>;
     };
 }
+
+export type NSKeys = keyof SocketNamespaces;
+export type EventKeys<N extends NSKeys> = keyof SocketNamespaces[N];
+
+// 提取 Send 类型
+export type InferSend<N extends NSKeys, E extends EventKeys<N>> =
+    SocketNamespaces[N][E] extends SocketEvent<infer S, any, any> ? S : never;
+
+// 提取 Ack 类型
+export type InferAck<N extends NSKeys, E extends EventKeys<N>> =
+    SocketNamespaces[N][E] extends SocketEvent<any, infer A, any> ? A : never;
+
+// 提取 Listen 类型
+export type InferListen<N extends NSKeys, E extends EventKeys<N>> =
+    SocketNamespaces[N][E] extends SocketEvent<any, any, infer L> ? L : never;

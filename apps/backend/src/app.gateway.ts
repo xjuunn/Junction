@@ -10,4 +10,7 @@ export class AppGateway {
         console.log("收到消息", data);
         return data;
     }
+
+
+    
 }

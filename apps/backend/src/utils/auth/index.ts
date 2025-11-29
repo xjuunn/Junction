@@ -92,3 +92,5 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
         }),
     ],
 })
+
+export type BetterAuthInstance = ReturnType<typeof betterAuth>;

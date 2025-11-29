@@ -17,6 +17,7 @@ import { UserModule } from './resource/user/user.module';
 import { FriendshipModule } from './resource/friendship/friendship.module';
 import { UploadModule } from './resource/upload/upload.module';
 import { AppGateway } from './app.gateway';
+import { NotificationModule } from './resource/notification/notification.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AppGateway } from './app.gateway';
     }),
     UserModule,
     FriendshipModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

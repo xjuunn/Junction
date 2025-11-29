@@ -26,6 +26,7 @@ model User {
   wallets                walletAddress[]
   sentFriendRequests     Friendship[]    @relation("FriendRequestSender") /// 用户发起的好友请求
   receivedFriendRequests Friendship[]    @relation("FriendRequestReceiver") /// 用户接收的好友请求
+  notifications          Notification[]
 
   @@unique([email])
   @@map("user")
@@ -129,4 +130,43 @@ enum FriendshipStatus {
   ACCEPTED /// 已成为好友
   REJECTED /// 拒绝申请
   BLOCKED /// 已拉黑
+}
+
+/// 通知类型
+enum NotificationType {
+  SYSTEM
+  MESSAGE
+  FRIEND_REQUEST
+  MODULE_UPDATE
+  DOWNLOAD
+  WARNING
+  CUSTOM
+}
+
+/// 通知状态
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+/// 通知表
+model Notification {
+  id      String             @id @default(cuid())
+  type    NotificationType /// 通知类型
+  title   String /// 通知标题
+  content String? /// 通知内容
+  icon    String? /// 图标，例如 URL 或 emoji
+  status  NotificationStatus @default(UNREAD) /// 已读或未读
+
+  userId String /// 所属用户
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  actionPath    String? /// 点击通知跳转路径，例如 "/chat/123"
+  actionPayload Json? /// 点击通知附带参数
+  extra         Json? /// 模块扩展字段
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification")
 }

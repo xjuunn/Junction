@@ -1,44 +1,45 @@
 import { io, Socket } from "socket.io-client";
-import type { SocketNamespaces, EmitSend, EmitAck, OnReceive, NamespaceEvents } from "./socket.types";
+import type { SocketNamespaces, NSKeys, EventKeys, InferSend, InferAck, InferListen } from "./socket.types";
 
-class SocketClient<N extends keyof SocketNamespaces> {
+export class SocketClient<N extends NSKeys> {
     private static instances = new Map<string, any>();
-    private socket!: Socket;
+    private socket: Socket;
     private namespace: N;
-
-    /** 未连接前临时存储事件监听 */
-    private pendingListeners: Array<{
-        event: string;
-        listener: (...args: any[]) => void;
-    }> = [];
-
     private isConnected = false;
+
+    private pendingListeners: Array<{ event: string; listener: (...args: any[]) => void }> = [];
 
     private constructor(namespace: N) {
         this.namespace = namespace;
-
         const config = useRuntimeConfig();
+
         const backendUrl = `${config.public.httpType}://${config.public.serverHost}:${config.public.backendPort}/${namespace}`;
 
         this.socket = io(backendUrl, {
             transports: ["websocket"],
             reconnection: true,
-            reconnectionAttempts: 5,
+            withCredentials: true,
         });
 
         this.socket.on("connect", () => {
-            console.log(`[Socket] 已连接 (${namespace})`);
+            console.log(`[Socket] Connected: ${namespace}`);
             this.isConnected = true;
             this.flushPendingListeners();
         });
 
         this.socket.on("disconnect", () => {
-            console.log(`[Socket] 已断开 (${namespace})`);
+            console.log(`[Socket] Disconnected: ${namespace}`);
             this.isConnected = false;
         });
     }
 
-    /** 处理连接前注册的事件 */
+    static getInstance<N extends NSKeys>(namespace: N): SocketClient<N> {
+        if (!this.instances.has(namespace)) {
+            this.instances.set(namespace, new SocketClient(namespace));
+        }
+        return this.instances.get(namespace);
+    }
+
     private flushPendingListeners() {
         this.pendingListeners.forEach(({ event, listener }) => {
             this.socket.on(event, listener);
@@ -46,28 +47,53 @@ class SocketClient<N extends keyof SocketNamespaces> {
         this.pendingListeners = [];
     }
 
-    static getInstance<N extends keyof SocketNamespaces>(namespace: N): SocketClientTyped<N> {
-        if (!this.instances.has(namespace)) {
-            this.instances.set(namespace, new SocketClient(namespace));
+    emit<E extends EventKeys<N>>(
+        event: E
+    ): void;
+
+    emit<E extends EventKeys<N>>(
+        event: InferSend<N, E> extends void ? E : never,
+        callback: (ack: InferAck<N, E>) => void
+    ): void;
+
+    emit<E extends EventKeys<N>>(
+        event: E,
+        data: InferSend<N, E>
+    ): void;
+
+    emit<E extends EventKeys<N>>(
+        event: E,
+        data: InferSend<N, E>,
+        callback: (ack: InferAck<N, E>) => void
+    ): void;
+
+    emit(event: string, ...args: any[]) {
+        let data: any = undefined;
+        let callback: any = undefined;
+
+        if (args.length === 1) {
+            if (typeof args[0] === 'function') {
+                callback = args[0];
+            } else {
+                data = args[0];
+            }
+        } else if (args.length >= 2) {
+            data = args[0];
+            callback = args[1];
         }
-        return this.instances.get(namespace);
-    }
 
-    /** 发送事件（可选 ack 回调） */
-    emit<E extends keyof NamespaceEvents<N>>(
-        event: E,
-        data: EmitSend<N, E>,
-        callback?: (ack: EmitAck<N, E>) => void
-    ) {
-        this.socket.emit(event as string, data, callback);
+        if (callback) {
+            this.socket.emit(event, data, callback);
+        } else {
+            this.socket.emit(event, data);
+        }
     }
-
-    /** 监听事件 */
-    on<E extends keyof NamespaceEvents<N>>(
+    
+    on<E extends EventKeys<N>>(
         event: E,
-        listener: (data: OnReceive<N, E>) => void
+        listener: (data: InferListen<N, E>) => void
     ) {
-        const wrap = ((data: any) => listener(data)) as (...args: any[]) => void;
+        const wrap = (data: any) => listener(data);
 
         if (this.isConnected) {
             this.socket.on(event as string, wrap);
@@ -75,12 +101,12 @@ class SocketClient<N extends keyof SocketNamespaces> {
             this.pendingListeners.push({ event: event as string, listener: wrap });
         }
     }
+
+    off<E extends EventKeys<N>>(event: E) {
+        this.socket.off(event as string);
+    }
 }
 
-export type SocketClientTyped<N extends keyof SocketNamespaces> = SocketClient<N>;
-export { SocketClient };
-
-/** 全局钩子 */
-export function useSocket<N extends keyof SocketNamespaces>(namespace: N): SocketClientTyped<N> {
+export function useSocket<N extends NSKeys>(namespace: N): SocketClient<N> {
     return SocketClient.getInstance(namespace);
 }
