@@ -1,0 +1,58 @@
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import { INestApplicationContext, Logger } from '@nestjs/common';
+import { Server, Socket } from 'socket.io';
+import { AuthService } from '@thallesp/nestjs-better-auth';
+import type { BetterAuthInstance } from '~/utils/auth';
+import { ApiResponse } from '@junction/types';
+
+export class BetterAuthIoAdapter extends IoAdapter {
+    private readonly logger = new Logger(BetterAuthIoAdapter.name);
+
+    constructor(private readonly app: INestApplicationContext) {
+        super(app);
+    }
+
+    /**
+     * 客户端连接时，自动将认证数据绑定到 socket 上
+     */
+    createIOServer(port: number, options?: any): any {
+        const server: Server = super.createIOServer(port, { ...options });
+        const authService = this.app.get<AuthService<BetterAuthInstance>>(AuthService);
+        const authMiddleware = async (socket: Socket, next: (err?: any) => void) => {
+            try {
+                const req = socket.request;
+                const headers = new Headers();
+                Object.keys(req.headers).forEach((key) => {
+                    const value = req.headers[key];
+                    if (Array.isArray(value)) {
+                        value.forEach((v) => headers.append(key, v));
+                    } else if (value) {
+                        headers.append(key, value as string);
+                    }
+                });
+
+                const sessionData = await authService.api.getSession({
+                    headers: headers,
+                });
+
+                if (!sessionData) {
+                    return next(new ApiResponse(null, false, 'Unauthorized'));
+                }
+                socket.data.user = sessionData.user;
+                socket.data.session = sessionData.session;
+                next();
+            } catch (error) {
+                this.logger.error('Socket Middleware Error', error);
+                next(new ApiResponse(null, false, 'Internal Server Error'));
+            }
+        };
+        server.use(authMiddleware);
+        const originalOf = server.of.bind(server);
+        server.of = (name: string | RegExp | Function) => {
+            const nsp = originalOf(name);
+            nsp.use(authMiddleware);
+            return nsp;
+        };
+        return server;
+    }
+}

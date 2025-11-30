@@ -1,13 +1,13 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Socket } from 'socket.io';
 
-export const WsUser = createParamDecorator(
+export const WsSession = createParamDecorator(
     (data: keyof any, ctx: ExecutionContext) => {
         const client = ctx.switchToWs().getClient<Socket>();
-        const user = client.data?.user;
-        if (data && user) {
-            return user[data];
+        const session = client.data?.session;
+        if (data && session) {
+            return session[data];
         }
-        return user;
+        return session;
     },
 );
