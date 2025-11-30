@@ -17,6 +17,17 @@
     "core:window:allow-set-theme",
     "core:event:default",
     "pinia:default",
-    "deep-link:default"
+    "deep-link:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "http://*"
+        }
+      ]
+    }
   ]
 }

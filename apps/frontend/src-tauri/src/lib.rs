@@ -2,7 +2,7 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
 
     // single-instance 插件仅支持桌面平台（Windows、macOS、Linux）
     #[cfg(desktop)]
