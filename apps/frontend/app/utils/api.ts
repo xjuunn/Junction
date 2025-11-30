@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type AxiosResponse, AxiosHeaders } from 'axios'
+import axios, { type AxiosInstance, type AxiosResponse, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 import { ApiResponse } from '@junction/types';
 
 interface PaginationQuery {
@@ -6,7 +6,6 @@ interface PaginationQuery {
     limit?: number;
 }
 
-// ⭐新增：自定义 header 的最小类型
 interface RequestOptions {
     headers?: Record<string, string>;
 }
@@ -15,18 +14,25 @@ class Api {
     private instance: AxiosInstance
     private defaultPagination: PaginationQuery = { page: 1, limit: 20 }
 
-    constructor(baseURL: string) {
+    constructor() {
         this.instance = axios.create({
-            baseURL,
             timeout: 15000,
+            withCredentials: true,
             headers: new AxiosHeaders({ 'Content-Type': 'application/json' }),
         })
-
         this.instance.interceptors.request.use(
-            (config) => {
+            (config: InternalAxiosRequestConfig) => {
                 if (!config.headers) config.headers = new AxiosHeaders()
-                const token = localStorage.getItem('token')
-                if (token) config.headers.set('Authorization', `Bearer ${token}`)
+                const runtimeConfig = useRuntimeConfig()
+                const apiUrl = runtimeConfig.public.apiUrl as string
+                if (!config.baseURL && !config.url?.startsWith('http')) {
+                    config.baseURL = apiUrl
+                }
+                if (import.meta.client) {
+                    const token = localStorage.getItem('token')
+                    if (token) config.headers.set('Authorization', `Bearer ${token}`)
+                }
+
                 return config
             },
             (error) => Promise.reject(error)
@@ -42,7 +48,9 @@ class Api {
             },
             (error) => {
                 const message = error?.response?.data?.error || error?.message || '网络错误'
-                console.error('[API Error]', message)
+                if (import.meta.client) {
+                    useToast().error(message);
+                }
                 return Promise.reject(new Error(message))
             }
         )
@@ -79,4 +87,4 @@ class Api {
     }
 }
 
-export const api = new Api('/bgapi/')
+export const api = new Api()

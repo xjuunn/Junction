@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       appName: process.env.APP_NAME,
-      apiUrl: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
+      apiUrl: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.BACKEND_PORT}`,
       httpType: process.env.HTTP_TYPE,
       serverHost: process.env.SERVER_HOST,
       backendPort: process.env.BACKEND_PORT,
@@ -33,15 +33,6 @@ export default defineNuxtConfig({
     layoutTransition: { name: "layout", mode: 'out-in' },
     pageTransition: { name: "page", mode: "out-in" },
     viewTransition: "always"
-  },
-  nitro: {
-    devProxy: {
-      '/bgapi': {
-        target: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.BACKEND_PORT}`,
-        changeOrigin: true,
-        prependPath: true,
-      },
-    },
   },
   modules: [
     "@nuxt/icon",

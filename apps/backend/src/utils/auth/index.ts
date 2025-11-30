@@ -19,7 +19,21 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
         minPasswordLength: 6,
         requireEmailVerification: true,
     },
-    trustedOrigins: ["*"],
+    trustedOrigins: [
+        "http://localhost:3000",
+        `http://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
+        "*"
+    ],
+    advanced: {
+        cookie: {
+            secure: false,
+            sameSite: "lax",
+        },
+        // 确保你的前端 IP 被允许
+        defaultCookieAttributes: {
+            secure: process.env.NODE_ENV === 'production' || process.env.HTTP_TYPE === 'https',
+        }
+    },
     plugins: [
         bearer(),
         admin(),

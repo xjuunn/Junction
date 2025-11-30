@@ -5,7 +5,7 @@ export function useAuthClient() {
     const config = useRuntimeConfig();
     return createAuthClient({
         baseURL: config.public.apiUrl,
-        basePath: "bgapi/auth",
+        basePath: "/auth",
         plugins: [
             emailOTPClient(),
             passkeyClient(),
