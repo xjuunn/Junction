@@ -8,7 +8,9 @@ import { ApiResponse } from '@junction/types';
 export class BetterAuthIoAdapter extends IoAdapter {
     private readonly logger = new Logger(BetterAuthIoAdapter.name);
 
-    constructor(private readonly app: INestApplicationContext) {
+    constructor(
+        private readonly app: INestApplicationContext,
+        private readonly allowedOrigins: string[]) {
         super(app);
     }
 

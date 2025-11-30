@@ -18,12 +18,23 @@ async function bootstrap() {
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, documentConfig);
   SwaggerModule.setup('swagger', app, documentFactory, { jsonDocumentUrl: 'swagger/json' });
-  app.useWebSocketAdapter(new BetterAuthIoAdapter(app));
+
+  const HTTP_TYPE = process.env.HTTP_TYPE ?? 'http';
+  const SERVER_HOST = process.env.SERVER_HOST ?? 'localhost';
+  const FRONTEND_PORT = process.env.FRONTEND_PORT ?? '3000';
+  const allowedOrigins = [
+    `${HTTP_TYPE}://${SERVER_HOST}:${FRONTEND_PORT}`,
+    `${HTTP_TYPE}://localhost:${FRONTEND_PORT}`,
+    'http://tauri.localhost',
+    'tauri://localhost',
+  ];
 
   app.enableCors({
-    origin: "*",
-    // credentials: true,
+    origin: allowedOrigins,
+    credentials: true,
   });
+
+  app.useWebSocketAdapter(new BetterAuthIoAdapter(app, allowedOrigins));
 
   app.use(compression());
 
