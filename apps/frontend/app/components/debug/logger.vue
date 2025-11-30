@@ -43,7 +43,7 @@
                             <div class="flex justify-between items-center text-gray-400 mb-1.5 text-[10px]">
                                 <span
                                     class="uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-sm bg-gray-100 dark:bg-gray-800/50">{{
-                                    log.type }}</span>
+                                        log.type }}</span>
                                 <span class="opacity-70">{{ log.timestamp }}</span>
                             </div>
                             <div class="text-gray-700 dark:text-gray-300 mb-1 leading-relaxed whitespace-pre-wrap">{{
@@ -55,8 +55,13 @@
                                     Payload
                                 </summary>
                                 <div class="mt-2 relative">
+                                    <div class="absolute top-5 right-5" v-show="isSupported">
+                                        <button class="btn btn-ghost btn-sm hover:text-primary" @click="copy(log.data)">
+                                            <icon name="mingcute:copy-2-fill" size="1rem"></icon>
+                                        </button>
+                                    </div>
                                     <pre
-                                        class="p-3 bg-gray-50 dark:bg-black rounded-md border border-gray-100 dark:border-gray-800 overflow-x-auto text-[10px] text-gray-600 dark:text-gray-400 custom-scrollbar">{{ JSON.stringify(log.data, null, 2) }}</pre>
+                                        class="p-3 select-text bg-gray-50 dark:bg-black rounded-md border border-gray-100 dark:border-gray-800 overflow-x-auto text-[10px] text-gray-600 dark:text-gray-400 custom-scrollbar">{{ JSON.stringify(log.data, null, 2) }}</pre>
                                 </div>
                             </details>
                         </div>
@@ -69,7 +74,7 @@
 
 <script setup lang="ts">
 import { useLoggerStore } from '~/stores/logger'
-
+const { copy, isSupported } = useClipboard();
 const store = useLoggerStore()
 const { logs, showDebugger } = storeToRefs(store)
 const errorCount = computed(() => logs.value.filter(l => l.type === 'error').length)
