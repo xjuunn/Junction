@@ -2,9 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { BetterAuthIoAdapter } from './adapters/better-auth.adapter';
+import { Logger } from '@nestjs/common';
 const compression = require('compression');
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
   });
@@ -26,6 +28,6 @@ async function bootstrap() {
   app.use(compression());
 
   await app.listen(process.env.BACKEND_PORT ?? 8080);
-  console.log(`Listening on ${process.env.BACKEND_PORT ?? 8080}`);
+  logger.log(`Listening on ${process.env.BACKEND_PORT ?? 8080}`);
 }
 bootstrap();

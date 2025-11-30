@@ -12,14 +12,9 @@ export interface SocketEvent<S = void, A = void, L = void> {
 export interface SocketNamespaces {
     app: {
         "app-test": SocketEvent<string, string, string>;
-    };
-    notification: {
-        "join": SocketEvent<
-            { userId: string },
-            { event: 'join'; status: 'success' | 'error'; userId?: string; message?: string }
-        >;
-        "new-notification": SocketEvent<void, void, { id: string; title: string }>;
-        "test": SocketEvent<void, PrismaTypes.User>;
+        "init": SocketEvent<void, PrismaTypes.User, never>;
+        "new-notification": SocketEvent<never, never, PrismaTypes.Notification>;
+        "test": SocketEvent<void, void, string>;
     };
 }
 

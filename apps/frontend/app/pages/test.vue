@@ -8,10 +8,19 @@
 
 definePageMeta({ layout: 'main-window' });
 
-function test() {
-    useSocket('notification').emit('test', (data) => {
+onMounted(() => {
+    useSocket('app').emit('init', (data) => {
         console.log(data);
     })
+    useSocket('app').on('new-notification', (data) => {
+        console.log('收到新的通知:', data);
+    });
+});
+
+function test() {
+    useSocket('app').emit('test', undefined, (data) => {
+        console.log('test 回调:', data);
+    });
 }
 
 </script>

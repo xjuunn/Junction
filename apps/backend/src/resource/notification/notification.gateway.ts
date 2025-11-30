@@ -1,24 +1,25 @@
 import {
+    SubscribeMessage,
     WebSocketGateway,
     WebSocketServer,
-    SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { PrismaTypes } from '@junction/types';
 import { WsUser } from '~/decorators/ws-user.decorator';
-import type { PrismaTypes } from '@junction/types';
-@WebSocketGateway({
-    namespace: 'notification',
-    transports: ['websocket'],
-})
+@WebSocketGateway({ namespace: 'app' })
 export class NotificationGateway {
     @WebSocketServer()
     server: Server;
     private readonly logger = new Logger(NotificationGateway.name);
 
-    @SubscribeMessage('test')
-    test(@WsUser() user: PrismaTypes.User) {
+    sendNotificationToUser(userId: string, notification: PrismaTypes.Notification) {
+        this.server.to(`user-${userId}`).emit('new-notification', notification);
+    }
 
-        return user;
+    @SubscribeMessage('test')
+    handleTest(@WsUser() user: PrismaTypes.User) {
+        this.server.to(`user-${user.id}`).emit('new-notification', "测试通知");
+
     }
 }

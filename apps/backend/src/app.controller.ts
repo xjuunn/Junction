@@ -1,7 +1,5 @@
-import { BadRequestException, Controller, Get, HttpException, Query } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
-import { EmailService } from './resource/email/email.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('app')

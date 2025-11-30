@@ -2,16 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
+import { NotificationGateway } from './notification.gateway';
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationGateway: NotificationGateway,
+  ) { }
 
   /**
    * 创建通知
    * 通常由系统内部调用，或者通过消息队列触发
    */
   async create(data: PrismaTypes.Prisma.NotificationUncheckedCreateInput) {
+    this.notificationGateway.sendNotificationToUser(data.userId, data as PrismaTypes.Notification);
     return this.prisma.notification.create({
       data,
     });
