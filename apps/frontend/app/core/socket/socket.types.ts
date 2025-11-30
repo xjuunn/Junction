@@ -11,10 +11,8 @@ export interface SocketEvent<S = void, A = void, L = void> {
 
 export interface SocketNamespaces {
     app: {
-        "app-test": SocketEvent<string, string, string>;
         "init": SocketEvent<void, PrismaTypes.User, never>;
-        "new-notification": SocketEvent<never, never, PrismaTypes.Notification>;
-        "test": SocketEvent<void, void, string>;
+        "notification": SocketEvent<never, never, PrismaTypes.Notification>;
     };
 }
 

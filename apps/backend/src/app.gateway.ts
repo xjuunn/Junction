@@ -8,11 +8,7 @@ import { Server, Socket } from 'socket.io';
 @WebSocketGateway({ namespace: 'app', cors: true })
 export class AppGateway {
     server: Server;
-    @SubscribeMessage("app-test")
-    handleAppTest(@MessageBody() data: string): string {
-        return data;
-    }
-
+    
     @SubscribeMessage('init')
     init(@WsUser() user: PrismaTypes.User, @ConnectedSocket() client: Socket) {
         client.join(`user-${user.id}`);

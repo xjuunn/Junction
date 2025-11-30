@@ -16,10 +16,4 @@ export class NotificationGateway {
     sendNotificationToUser(userId: string, notification: PrismaTypes.Notification) {
         this.server.to(`user-${userId}`).emit('new-notification', notification);
     }
-
-    @SubscribeMessage('test')
-    handleTest(@WsUser() user: PrismaTypes.User) {
-        this.server.to(`user-${user.id}`).emit('new-notification', "测试通知");
-
-    }
 }
