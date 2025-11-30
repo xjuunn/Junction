@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 import { ApiResponse } from '@junction/types';
+import { logger } from './logger';
 
 interface PaginationQuery {
     page?: number;
@@ -41,6 +42,7 @@ class Api {
         this.instance.interceptors.response.use(
             (response: AxiosResponse) => {
                 const res = response.data
+                logger.api(response.config.url || '', response.status, res)
                 if (!res.success) {
                     return Promise.reject(new Error(res.error || '未知错误'))
                 }
@@ -48,6 +50,9 @@ class Api {
             },
             (error) => {
                 const message = error?.response?.data?.error || error?.message || '网络错误'
+                const status = error?.response?.status || 500
+                const url = error?.config?.url || 'Unknown URL'
+                logger.api(url, status, error.response?.data || error, true)
                 if (import.meta.client) {
                     useToast().error(message);
                 }

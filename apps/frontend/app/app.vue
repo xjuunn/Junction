@@ -4,5 +4,6 @@
     <nuxt-layout>
       <nuxt-page />
     </nuxt-layout>
+    <debug-logger></debug-logger>
   </div>
 </template>
