@@ -23,8 +23,6 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         `http://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
-        "http://192.168.82.133:3000",
-        "http://192.168.82.133:8080",
     ],
     advanced: {
         cookie: {

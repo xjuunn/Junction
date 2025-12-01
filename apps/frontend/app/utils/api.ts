@@ -30,10 +30,7 @@ class Api {
                     config.baseURL = apiUrl
                 }
                 if (import.meta.client) {
-                    // const token = localStorage.getItem('token')
-                    const token = "o5odFaaL60hjGVPBZUR9A3DVoWosLrFp.rtg87mDfCqy9A2CIxtToHJnCJ3buGamRPI6keT9XQpw%3D";
-                    console.log("设置token：", token);
-
+                    const token = useUserStore().authToken.value;
                     if (token) config.headers.set('Authorization', `Bearer ${token}`)
                 }
 
