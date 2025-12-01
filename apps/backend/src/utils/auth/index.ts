@@ -21,20 +21,25 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
     },
     trustedOrigins: [
         "http://localhost:3000",
+        "http://127.0.0.1:3000",
         `http://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
-        "*"
+        "http://192.168.82.133:3000",
+        "http://192.168.82.133:8080",
     ],
     advanced: {
         cookie: {
+            domain: "",
             secure: false,
             sameSite: "lax",
         },
+        disableCSRFCheck: true,
         // 确保你的前端 IP 被允许
         defaultCookieAttributes: {
             secure: process.env.NODE_ENV === 'production' || process.env.HTTP_TYPE === 'https',
         }
     },
     plugins: [
+        // jwt(),
         bearer(),
         admin(),
         emailOTP({

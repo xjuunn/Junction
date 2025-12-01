@@ -25,6 +25,7 @@ async function bootstrap() {
   const allowedOrigins = [
     `${HTTP_TYPE}://${SERVER_HOST}:${FRONTEND_PORT}`,
     `${HTTP_TYPE}://localhost:${FRONTEND_PORT}`,
+    `${HTTP_TYPE}://127.0.0.1:${FRONTEND_PORT}`,
     'http://tauri.localhost',
     'tauri://localhost',
   ];
@@ -32,6 +33,7 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
+    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
   app.useWebSocketAdapter(new BetterAuthIoAdapter(app, allowedOrigins));

@@ -60,6 +60,14 @@ model walletAddress {
   @@map("wallet_address")
 }
 
+model jwks {
+  id         String    @id @default(cuid())
+  publicKey  String
+  privateKey String
+  createdAt  DateTime
+  expiresAt  DateTime?
+}
+
 model Session {
   id             String   @id
   expiresAt      DateTime
