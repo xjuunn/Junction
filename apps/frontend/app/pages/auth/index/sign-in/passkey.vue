@@ -142,7 +142,14 @@ async function handlePasskeyVerify() {
     statusMessage.value = '正在验证...'
     statusDescription.value = '请完成您的生物识别认证'
     startLoadingAnimation()
-    const result = await useAuthClient().signIn.passkey();
+    const result = await useAuthClient().signIn.passkey({
+        fetchOptions: {
+            onResponse(context) {
+                const t = context.response.headers.get("set-auth-token") ?? "";
+                useUserStore().setAuthToken(t)
+            },
+        }
+    });
     stopLoadingAnimation()
     if (result.error) {
         stopLoadingAnimation()

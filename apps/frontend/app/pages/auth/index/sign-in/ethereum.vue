@@ -294,7 +294,7 @@ Issued At: ${issuedAt}`
         // @ts-ignore
         signature = await window.ethereum.request({
             method: 'personal_sign',
-            params: [message, checksumAddress]
+            params: [message, checksumAddress],
         })
     } catch (err: any) {
         if (err.code === 4001) {
@@ -315,6 +315,12 @@ Issued At: ${issuedAt}`
         signature,
         walletAddress: checksumAddress,
         chainId: 1,
+        fetchOptions: {
+            onResponse(context) {
+                const t = context.response.headers.get("set-auth-token") ?? "";
+                useUserStore().setAuthToken(t)
+            },
+        }
     })
 
     if (verifyError) {
@@ -397,6 +403,12 @@ Issued At: ${issuedAt}`
         signature,
         walletAddress: walletAddressForSign,
         chainId: 1,
+        fetchOptions: {
+            onResponse(context) {
+                const t = context.response.headers.get("set-auth-token") ?? "";
+                useUserStore().setAuthToken(t)
+            },
+        }
     })
 
     if (verifyError) {

@@ -127,7 +127,13 @@ async function handleVerify() {
         const client = useAuthClient()
         const result = await client.signIn.emailOtp({
             email: email.value,
-            otp: otp.value
+            otp: otp.value,
+            fetchOptions: {
+                onResponse(context) {
+                    const t = context.response.headers.get("set-auth-token") ?? "";
+                    useUserStore().setAuthToken(t)
+                },
+            }
         })
 
         if (result.error) {
