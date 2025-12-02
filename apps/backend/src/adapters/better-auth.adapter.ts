@@ -21,6 +21,7 @@ export class BetterAuthIoAdapter extends IoAdapter {
         const server: Server = super.createIOServer(port, { ...options });
         const authService = this.app.get<AuthService<BetterAuthInstance>>(AuthService);
         const authMiddleware = async (socket: Socket, next: (err?: any) => void) => {
+
             try {
                 const req = socket.request;
                 const headers = new Headers();
@@ -32,6 +33,10 @@ export class BetterAuthIoAdapter extends IoAdapter {
                         headers.append(key, value as string);
                     }
                 });
+                const authToken = socket.handshake.auth.token;
+                if (authToken) {
+                    headers.set('Authorization', `Bearer ${authToken}`);
+                }
 
                 const sessionData = await authService.api.getSession({
                     headers: headers,

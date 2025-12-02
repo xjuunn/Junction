@@ -12,6 +12,7 @@ export class SocketClient<N extends NSKeys> {
     private constructor(namespace: N) {
         this.namespace = namespace;
         const config = useRuntimeConfig();
+        const userStore = useUserStore();
 
         const backendUrl = `${config.public.httpType}://${config.public.serverHost}:${config.public.backendPort}/${namespace}`;
 
@@ -19,6 +20,9 @@ export class SocketClient<N extends NSKeys> {
             transports: ["websocket"],
             reconnection: true,
             withCredentials: true,
+            auth: {
+                token: userStore.authToken.value
+            }
         });
 
         this.socket.on("connect", () => {
@@ -88,7 +92,7 @@ export class SocketClient<N extends NSKeys> {
             this.socket.emit(event, data);
         }
     }
-    
+
     on<E extends EventKeys<N>>(
         event: E,
         listener: (data: InferListen<N, E>) => void
