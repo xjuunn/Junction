@@ -92,6 +92,12 @@ async function signIn() {
         const result = await client.signIn.email({
             email: email.value,
             password: password.value,
+            fetchOptions: {
+                onResponse(context) {
+                    const t = context.response.headers.get("set-auth-token") ?? "";
+                    useUserStore().setAuthToken(t)
+                },
+            }
         })
         if (result.error) {
             switch (result.error.code) {
