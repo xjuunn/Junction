@@ -5,10 +5,18 @@
 </template>
 
 <script setup lang="ts">
+import { useDialog } from '../composables/useDialog';
+
 definePageMeta({ layout: 'main-window' });
 
 function test() {
-
+    useDialog().confirm({
+        title: "确认框",
+        content: "确认框内容",
+        cancelText: "取消",
+        confirmText: "确认",
+        type: "info"
+    })
 }
 
 </script>
