@@ -1,22 +1,20 @@
 <template>
-    <div class="grid grid-cols-4 gap-4 p-4">
+    <div>
         <button class="btn btn-primary" @click="test">test</button>
+        <base-modal v-model="isShow" title="测试Modal">
+            <p>测试Modal</p>
+            <template #actions>
+                <button class="btn btn-primary" @click="isShow = false">确定</button>
+            </template>
+        </base-modal>
     </div>
 </template>
 
 <script setup lang="ts">
-import { useDialog } from '../composables/useDialog';
-
 definePageMeta({ layout: 'main-window' });
-
+const isShow = ref(false);
 function test() {
-    useDialog().confirm({
-        title: "确认框",
-        content: "确认框内容",
-        cancelText: "取消",
-        confirmText: "确认",
-        type: "info"
-    })
+    isShow.value = true
 }
 
 </script>
