@@ -144,7 +144,7 @@ export class MenuService {
             id: 'chat',
             name: '会话',
             icon: 'mingcute:chat-4-line',
-            path: '/',
+            path: '/chat',
             group: 'main'
         });
 
