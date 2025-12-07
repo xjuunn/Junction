@@ -1,21 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+
 interface Props {
-    /** 
-     * 当前是否处于详情模式（仅在移动端生效）
-     * true = 显示右侧详情, false = 显示左侧列表
-     */
     showDetail?: boolean;
-
-    /** 
-     * 侧边栏在桌面端的宽度 
-     * @default '340px'
-     */
     listWidth?: string;
-
-    /** 
-     * 触发分栏的断点，低于此断点将变为单栏模式
-     * @default 'lg' (1024px)
-     */
     breakpoint?: 'md' | 'lg' | 'xl';
 }
 
@@ -26,23 +14,24 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (e: 'back'): void; // 移动端点击返回时触发
+    (e: 'back'): void;
 }>();
 
-// 侧边栏容器样式
+// 左侧列表容器样式
 const listClasses = computed(() => {
-    const base = 'flex-none h-full border-r border-base-content/5 overflow-hidden transition-all';
-    const mobileLogic = props.showDetail ? 'hidden' : 'block';
-    const desktopLogic = `${props.breakpoint}:block`;
+    const base = 'flex-none h-full border-r border-base-content/5 bg-base-200 overflow-hidden transition-all duration-300 ease-in-out';
+    const mobileLogic = props.showDetail ? 'hidden' : 'w-full block';
+    const desktopLogic = `${props.breakpoint}:block ${props.breakpoint}:w-[var(--list-w)]`;
 
     return `${base} ${mobileLogic} ${desktopLogic}`;
 });
 
-// 详情容器样式
+// 右侧详情容器样式
 const detailClasses = computed(() => {
-    const base = 'flex-1 h-full min-w-0 overflow-hidden relative';
+    const base = 'flex-1 h-full min-w-0 bg-base-100 overflow-hidden relative';
     const mobileLogic = props.showDetail ? 'block' : 'hidden';
     const desktopLogic = `${props.breakpoint}:block`;
+
     return `${base} ${mobileLogic} ${desktopLogic}`;
 });
 </script>
@@ -50,30 +39,41 @@ const detailClasses = computed(() => {
 <template>
     <div class="flex h-full w-full overflow-hidden relative">
 
-        <!-- 左侧：列表/Master -->
-        <!-- 在小屏下宽度为 100%，大屏下为固定宽度 -->
-        <aside :class="listClasses" :style="`--list-w: ${listWidth}`" class="w-full lg:w-[var(--list-w)]">
+        <!-- 1. 左侧列表 -->
+        <aside :class="listClasses" :style="`--list-w: ${listWidth}`">
             <slot name="list"></slot>
         </aside>
-        <!-- 右侧：详情/Detail -->
+
+        <!-- 2. 右侧区域 -->
         <main :class="detailClasses">
-            <slot name="mobile-header" v-if="showDetail">
-                <!-- TODO 默认返回按钮 -->
-            </slot>
+            <div v-if="showDetail" class="h-full flex flex-col">
+                <!-- 移动端头部插槽 -->
+                <slot name="mobile-header">
+                    <div class="lg:hidden flex items-center h-14 px-4 border-b border-base-content/5 shrink-0">
+                        <button @click="$emit('back')" class="btn btn-sm btn-circle btn-ghost -ml-2">
+                            <Icon name="mingcute:left-line" size="20" />
+                        </button>
+                        <span class="ml-2 font-bold text-lg">详情</span>
+                    </div>
+                </slot>
 
-            <slot name="detail"></slot>
+                <!-- 详情内容插槽 -->
+                <div class="flex-1 overflow-hidden relative">
+                    <slot name="detail"></slot>
+                </div>
+            </div>
 
-            <!-- 如果没有选中内容且在大屏下，显示 Empty State -->
-            <div v-if="!showDetail"
-                class="hidden lg:flex h-full w-full items-center justify-center text-base-content/30">
+            <div v-else
+                class="hidden lg:flex h-full w-full items-center justify-center text-base-content/30 select-none animate-fade-in">
                 <slot name="empty">
                     <div class="flex flex-col items-center gap-3">
-                        <Icon name="mingcute:layout-left-line" size="48" />
+                        <div class="w-16 h-16 bg-base-200 rounded-2xl flex items-center justify-center">
+                            <Icon name="mingcute:layout-left-line" size="32" class="opacity-50" />
+                        </div>
                         <p class="text-sm font-medium">请选择左侧列表查看详情</p>
                     </div>
                 </slot>
             </div>
         </main>
-
     </div>
 </template>
