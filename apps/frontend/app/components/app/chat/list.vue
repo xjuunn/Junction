@@ -81,7 +81,7 @@ const handleChatClick = (id: number) => {
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-base-200 select-none text-base-content font-sans overflow-hidden">
+    <div class="flex flex-col h-full bg-base-100 select-none text-base-content font-sans overflow-hidden">
 
         <!-- 头部区域 -->
         <div class="px-6 pt-7 pb-4 shrink-0 flex items-center justify-between">
