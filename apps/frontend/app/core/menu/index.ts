@@ -19,12 +19,21 @@ export interface MenuOptions<Ctx = MenuClickContext> {
     group?: string;
     /** 扩展元数据 (权限、标签等) */
     meta?: Record<string, any>;
+    /** 额外的自定义 CSS 类名，用于样式定制 */
+    extraClass?: string;
     /** 
      * 跳转模式配置 
      * - boolean: 强制指定 (true=replace, false=push)
      * - function: 运行时动态计算
      */
     replace?: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
+    /**
+     * 显示状态配置
+     * - boolean: 固定显示或隐藏
+     * - function: 运行时动态判断 (例如基于权限或状态)
+     * @default true
+     */
+    show?: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
     /** 
      * 自定义点击事件 
      * 若存在，将优先执行此回调，不再自动触发 path 跳转(除非回调内手动处理)
@@ -49,16 +58,24 @@ export class MenuItem<Ctx = MenuClickContext> {
     public group: string;
     /** 元数据 */
     public meta: Record<string, any>;
+    /** 自定义类名 */
+    public extraClass?: string;
 
     /**
      * @internal
-     * 内部存储 replace 配置，受保护字段
+     * 内部存储 replace 配置
      */
     protected _replaceOption: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
 
     /**
      * @internal
-     * 内部存储 handler 配置，受保护字段
+     * 内部存储 show 配置
+     */
+    protected _showOption: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
+
+    /**
+     * @internal
+     * 内部存储 handler 配置
      */
     protected _handler?: (item: MenuItem<Ctx>, context?: Ctx) => void;
 
@@ -73,9 +90,11 @@ export class MenuItem<Ctx = MenuClickContext> {
         this.path = options.path;
         this.group = options.group || 'default';
         this.meta = options.meta || {};
+        this.extraClass = options.extraClass;
 
         // 初始化内部状态
         this._replaceOption = options.replace ?? false;
+        this._showOption = options.show ?? true;
         this._handler = options.handler;
     }
 
@@ -88,6 +107,17 @@ export class MenuItem<Ctx = MenuClickContext> {
             return this._replaceOption(this, context);
         }
         return this._replaceOption;
+    }
+
+    /**
+     * 计算当前菜单项是否应该显示
+     * @param context 运行时上下文
+     */
+    public getShouldShow(context?: Ctx): boolean {
+        if (typeof this._showOption === 'function') {
+            return this._showOption(this, context);
+        }
+        return this._showOption;
     }
 
     /**
@@ -163,7 +193,7 @@ export class MenuService {
             icon: 'mingcute:classify-2-line',
             path: '/features',
             group: 'main',
-            replace: true
+            replace: true,
         });
 
         this.add({
@@ -173,10 +203,31 @@ export class MenuService {
             path: "/profile",
             group: 'main',
             replace: true
-        })
+        });
+
         this.addBatch([
-            { id: 'settings', name: '设置', icon: 'mingcute:settings-3-line', path: '/settings', group: 'system' },
-            { id: 'help', name: '帮助', icon: 'mingcute:lifebuoy-line', path: '/help', group: 'system' }
+            {
+                id: 'notification',
+                name: '通知',
+                icon: 'mingcute:notification-line',
+                path: '/notification',
+                group: 'system',
+                extraClass: 'xl:hidden'
+            },
+            {
+                id: 'settings',
+                name: '设置',
+                icon: 'mingcute:settings-3-line',
+                path: '/settings',
+                group: 'system'
+            },
+            {
+                id: 'help',
+                name: '帮助',
+                icon: 'mingcute:lifebuoy-line',
+                path: '/help',
+                group: 'system',
+            }
         ]);
     }
 
@@ -234,6 +285,8 @@ export class MenuService {
             const groups: Record<string, MenuItem[]> = {};
 
             this.menuList.value.forEach((item) => {
+                // 在分组获取时，可选择性过滤掉不显示的项，或者交给UI层处理
+                // 这里为了通用性保留所有项，UI层调用 getShouldShow 判断
                 const groupName = item.group;
                 if (!groups[groupName]) {
                     groups[groupName] = [];

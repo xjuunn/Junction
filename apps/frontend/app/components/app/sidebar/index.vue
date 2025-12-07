@@ -21,6 +21,14 @@ const toggleSidebar = () => {
 };
 
 onMounted(() => {
+    menuService.add({
+        id: 'fold',
+        name: '折叠',
+        icon: 'mingcute:layout-right-line',
+        group: 'system',
+        extraClass: 'xl:hidden',
+        handler: toggleSidebar
+    })
     if (window.innerWidth < 1280) {
         isCollapsed.value = true;
     }
@@ -32,6 +40,10 @@ onMounted(() => {
         }
     });
 });
+
+onUnmounted(() => {
+    menuService.remove('fold');
+})
 </script>
 
 <template>
@@ -66,22 +78,15 @@ onMounted(() => {
             <!-- 图标按钮 -->
             <div class="flex items-center gap-1 overflow-hidden transition-all duration-300"
                 :class="isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'">
-                <button class="btn btn-square btn-ghost btn-sm text-base-content/60 hover:text-base-content">
+                <nuxt-link to="/notification"
+                    class="btn btn-square btn-ghost btn-sm text-base-content/60 hover:text-base-content">
                     <Icon name="mingcute:notification-line" size="18" />
-                </button>
+                </nuxt-link>
                 <button class="btn btn-square btn-ghost btn-sm text-base-content/60 hover:text-base-content"
                     @click="toggleSidebar">
                     <Icon name="mingcute:layout-left-line" size="18" />
                 </button>
             </div>
-        </div>
-
-        <!-- 折叠状态下的展开按钮 -->
-        <div v-if="isCollapsed" class="w-full flex justify-center mb-4 shrink-0">
-            <button class="btn btn-square btn-ghost btn-sm text-base-content/60 hover:text-base-content"
-                @click="toggleSidebar">
-                <Icon name="mingcute:layout-right-line" size="18" />
-            </button>
         </div>
 
         <!-- ================= Search ================= -->
@@ -108,12 +113,14 @@ onMounted(() => {
         <nav class="flex flex-col gap-1 mb-8 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
             <template v-if="groups['main']">
                 <div v-for="item in groups['main']" :key="item.id" @click="handleItemClick(item)"
+                    v-show="item.getShouldShow"
                     class="flex items-center py-2.5 rounded-xl cursor-pointer transition-all duration-200 group h-10"
                     :class="[
                         isActive(item.path)
                             ? 'bg-base-100 text-base-content shadow-sm'
                             : 'text-base-content/60 hover:bg-base-content/5 hover:text-base-content',
-                        isCollapsed ? 'justify-center px-0' : 'justify-start px-3 gap-3'
+                        isCollapsed ? 'justify-center px-0' : 'justify-start px-3 gap-3',
+                        item.extraClass
                     ]">
                     <Icon :name="item.icon" size="20" class="transition-colors shrink-0"
                         :class="isActive(item.path) ? 'text-base-content' : 'group-hover:text-base-content'" />
@@ -142,7 +149,7 @@ onMounted(() => {
         <div class="flex-1"></div>
 
         <!-- ================= Help Card ================= -->
-        <div class="transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
+        <!-- <div class="transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
             <div class="card bg-base-300/50 border border-base-content/5 shadow-none rounded-2xl mt-6 relative overflow-hidden transition-all duration-300"
                 :class="isCollapsed ? 'w-0 h-0 opacity-0 p-0' : 'w-auto h-auto opacity-100 p-4'">
                 <button
@@ -165,17 +172,30 @@ onMounted(() => {
                     Reach out
                 </button>
             </div>
-        </div>
+        </div> -->
 
+        <!-- 折叠状态下的展开按钮 -->
+        <!-- <div v-if="isCollapsed" class="w-full flex flex-col items-center gap-2 justify-center mb-4 shrink-0">
+            <button class="btn btn-square btn-ghost btn-sm text-base-content/60 hover:text-base-content"
+                @click="toggleSidebar">
+                <Icon name="mingcute:layout-right-line" size="18" />
+            </button>
+            <nuxt-link to="/notification"
+                class="btn btn-square w-full btn-ghost btn-sm text-base-content/60 hover:text-base-content">
+                <Icon name="mingcute:notification-line" size="18" />
+            </nuxt-link>
+        </div> -->
         <!-- ================= Footer (System Menu) ================= -->
-        <div class="flex flex-col gap-1 mt-4 pt-2 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
+        <div class="flex flex-col gap-1 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
             <template v-if="groups['system']">
                 <div v-for="item in groups['system']" :key="item.id" @click="handleItemClick(item)"
+                    v-show="item.getShouldShow"
                     class="flex items-center py-2 rounded-xl cursor-pointer transition-colors group h-10" :class="[
                         isActive(item.path)
                             ? 'bg-base-100 text-base-content'
                             : 'text-base-content/60 hover:bg-base-content/5 hover:text-base-content',
-                        isCollapsed ? 'justify-center px-0' : 'justify-start px-3 gap-3'
+                        isCollapsed ? 'justify-center px-0' : 'justify-start px-3 gap-3',
+                        item.extraClass,
                     ]">
                     <Icon :name="item.icon" size="20" class="transition-colors shrink-0"
                         :class="isActive(item.path) ? 'text-base-content' : 'group-hover:text-base-content'" />
