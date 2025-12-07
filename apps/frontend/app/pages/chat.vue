@@ -1,19 +1,32 @@
-<template>
-    <div class="flex h-full w-full">
-
-        <!-- 中间：消息列表-->
-        <div class="flex-none w-80 h-full border-r border-base-content/5 bg-base-200">
-            <AppChatList />
-        </div>
-
-        <!-- 右侧：详情区域 -->
-        <main class="flex-1 h-full bg-base-100 relative min-w-0">
-            <NuxtPage />
-        </main>
-
-    </div>
-</template>
-
 <script lang="ts" setup>
-definePageMeta({ layout: 'main' })
+import { useRoute, useRouter } from 'vue-router';
+
+definePageMeta({ layout: 'main' });
+const route = useRoute();
+const router = useRouter();
+const isDetailOpen = computed(() => !!route.params.id);
+
+const handleBack = () => {
+    router.push('/chat');
+};
 </script>
+
+<template>
+    <LayoutListDetail :show-detail="isDetailOpen" sidebar-width="340px" @back="handleBack">
+        <template #list>
+            <AppChatList />
+        </template>
+        <template #detail>
+            <NuxtPage />
+        </template>
+        <template #empty>
+            <div class="flex flex-col items-center justify-center h-full text-base-content/30 select-none">
+                <div class="w-20 h-20 bg-base-200 rounded-[24px] flex items-center justify-center mb-4">
+                    <Icon name="mingcute:chat-4-fill" size="40" class="opacity-50" />
+                </div>
+                <p class="text-sm font-medium">选择一个会话开始聊天</p>
+            </div>
+        </template>
+
+    </LayoutListDetail>
+</template>

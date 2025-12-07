@@ -85,7 +85,7 @@ const handleChatClick = (id: number) => {
 
         <!-- 头部区域 -->
         <div class="px-6 pt-7 pb-4 shrink-0 flex items-center justify-between">
-            <h1 class="text-[20px] font-bold tracking-tight text-base-content">消息通知</h1>
+            <h1 class="text-[20px] font-bold tracking-tight text-base-content">会话</h1>
 
             <!-- 右侧操作组 -->
             <div class="flex items-center gap-2">
