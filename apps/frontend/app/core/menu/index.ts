@@ -28,12 +28,13 @@ export interface MenuOptions<Ctx = MenuClickContext> {
      */
     replace?: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
     /**
-     * 显示状态配置
+     * 显示状态配置 (支持响应式数据)
      * - boolean: 固定显示或隐藏
-     * - function: 运行时动态判断 (例如基于权限或状态)
+     * - Ref<boolean> | ComputedRef<boolean>: 响应式数据控制
+     * - function: 运行时动态判断
      * @default true
      */
-    show?: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
+    show?: boolean | Ref<boolean> | ComputedRef<boolean> | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
     /** 
      * 自定义点击事件 
      * 若存在，将优先执行此回调，不再自动触发 path 跳转(除非回调内手动处理)
@@ -71,7 +72,7 @@ export class MenuItem<Ctx = MenuClickContext> {
      * @internal
      * 内部存储 show 配置
      */
-    protected _showOption: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
+    protected _showOption: boolean | Ref<boolean> | ComputedRef<boolean> | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
 
     /**
      * @internal
@@ -111,13 +112,22 @@ export class MenuItem<Ctx = MenuClickContext> {
 
     /**
      * 计算当前菜单项是否应该显示
+     * 支持 Boolean、Ref、Function
      * @param context 运行时上下文
      */
     public getShouldShow(context?: Ctx): boolean {
+        // 1. 优先检查响应式 Ref/Computed
+        if (isRef(this._showOption)) {
+            return this._showOption.value;
+        }
+
+        // 2. 检查函数 (回调)
         if (typeof this._showOption === 'function') {
             return this._showOption(this, context);
         }
-        return this._showOption;
+
+        // 3. 返回基础布尔值
+        return !!this._showOption;
     }
 
     /**
@@ -278,6 +288,7 @@ export class MenuService {
 
     /**
      * 获取分组后的菜单
+     * 自动过滤掉 show 为 false 的项，并保持响应式更新
      * @returns 计算属性：按 group 分组的菜单对象
      */
     public getGroupedMenus(): ComputedRef<Record<string, MenuItem[]>> {
@@ -285,8 +296,9 @@ export class MenuService {
             const groups: Record<string, MenuItem[]> = {};
 
             this.menuList.value.forEach((item) => {
-                // 在分组获取时，可选择性过滤掉不显示的项，或者交给UI层处理
-                // 这里为了通用性保留所有项，UI层调用 getShouldShow 判断
+                // 在此进行显隐判断，确保 computed 收集到 item 内部 Ref 的依赖
+                if (!item.getShouldShow()) return;
+
                 const groupName = item.group;
                 if (!groups[groupName]) {
                     groups[groupName] = [];

@@ -26,7 +26,8 @@ onMounted(() => {
         name: '折叠',
         icon: 'mingcute:layout-right-line',
         group: 'system',
-        extraClass: 'xl:hidden',
+        // extraClass: 'xl:hidden',
+        show: isCollapsed,
         handler: toggleSidebar
     })
     if (window.innerWidth < 1280) {
@@ -55,12 +56,6 @@ onUnmounted(() => {
             :class="isCollapsed ? 'justify-center px-2' : 'justify-between px-5'">
             <div class="flex items-center transition-all duration-300" :class="isCollapsed ? 'gap-0' : 'gap-3'">
                 <!-- 头像 -->
-                <!-- <div class="avatar avatar-placeholder shrink-0">
-                    <div class="bg-success text-success-content rounded-full transition-all duration-300"
-                        :class="isCollapsed ? 'w-10 h-10' : 'w-11 h-11'">
-                        <span class="text-sm font-bold">Jun</span>
-                    </div>
-                </div> -->
                 <BaseAvatar text="Ju" :placeholder-length="2" size="42px" />
                 <!-- 信息 -->
                 <div class="flex flex-col justify-center gap-0.5 overflow-hidden transition-all duration-300 whitespace-nowrap"
@@ -174,17 +169,6 @@ onUnmounted(() => {
             </div>
         </div> -->
 
-        <!-- 折叠状态下的展开按钮 -->
-        <!-- <div v-if="isCollapsed" class="w-full flex flex-col items-center gap-2 justify-center mb-4 shrink-0">
-            <button class="btn btn-square btn-ghost btn-sm text-base-content/60 hover:text-base-content"
-                @click="toggleSidebar">
-                <Icon name="mingcute:layout-right-line" size="18" />
-            </button>
-            <nuxt-link to="/notification"
-                class="btn btn-square w-full btn-ghost btn-sm text-base-content/60 hover:text-base-content">
-                <Icon name="mingcute:notification-line" size="18" />
-            </nuxt-link>
-        </div> -->
         <!-- ================= Footer (System Menu) ================= -->
         <div class="flex flex-col gap-1 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
             <template v-if="groups['system']">
