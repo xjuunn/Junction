@@ -137,13 +137,13 @@ export class MenuService {
     }
 
     /**
-     * 初始化默认菜单 (示例)
+     * 初始化默认菜单
      */
     private initDefault() {
         this.add({
             id: 'chat',
             name: '会话',
-            icon: 'mingcute:chat-4-fill',
+            icon: 'mingcute:chat-4-line',
             path: '/',
             group: 'main'
         });
@@ -151,7 +151,7 @@ export class MenuService {
         this.add({
             id: 'contacts',
             name: '通讯录',
-            icon: 'mingcute:contacts-3-fill',
+            icon: 'mingcute:contacts-3-line',
             path: '/contacts',
             group: 'main',
             replace: true
@@ -160,7 +160,7 @@ export class MenuService {
         this.add({
             id: 'features',
             name: '功能',
-            icon: 'mingcute:classify-2-fill',
+            icon: 'mingcute:classify-2-line',
             path: '/features',
             group: 'main',
             replace: true
@@ -169,11 +169,15 @@ export class MenuService {
         this.add({
             id: 'profile',
             name: "档案",
-            icon: "mingcute:profile-fill",
+            icon: "mingcute:profile-line",
             path: "/profile",
             group: 'main',
             replace: true
         })
+        this.addBatch([
+            { id: 'settings', name: '设置', icon: 'mingcute:settings-3-line', path: '/settings', group: 'system' },
+            { id: 'help', name: '帮助', icon: 'mingcute:lifebuoy-line', path: '/help', group: 'system' }
+        ]);
     }
 
     /**

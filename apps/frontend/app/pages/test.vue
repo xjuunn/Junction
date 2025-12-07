@@ -1,9 +1,5 @@
 <template>
-    <div>
-
+    <div class="h-full">
+        <app-sidebar></app-sidebar>
     </div>
 </template>
-
-<script lang="ts" setup>
-
-</script>
