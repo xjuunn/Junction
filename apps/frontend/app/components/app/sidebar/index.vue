@@ -35,7 +35,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-base-200 text-base-content rounded-box py-4 select-none overflow-y-auto overflow-x-hidden font-sans border border-base-content/5 transition-[width] duration-300 ease-in-out will-change-[width]"
+    <div class="flex flex-col h-full bg-base-200 text-base-content rounded-box py-4 select-none overflow-y-auto overflow-x-hidden font-sans border border-base-content/5 transition-[width] duration-200 ease-in-out will-change-[width]"
         :class="isCollapsed ? 'w-20' : 'w-80'">
 
         <!-- ================= User Profile ================= -->
@@ -43,12 +43,13 @@ onMounted(() => {
             :class="isCollapsed ? 'justify-center px-2' : 'justify-between px-5'">
             <div class="flex items-center transition-all duration-300" :class="isCollapsed ? 'gap-0' : 'gap-3'">
                 <!-- 头像 -->
-                <div class="avatar avatar-placeholder shrink-0">
+                <!-- <div class="avatar avatar-placeholder shrink-0">
                     <div class="bg-success text-success-content rounded-full transition-all duration-300"
                         :class="isCollapsed ? 'w-10 h-10' : 'w-11 h-11'">
                         <span class="text-sm font-bold">Jun</span>
                     </div>
-                </div>
+                </div> -->
+                <BaseAvatar text="Ju" :placeholder-length="2" size="42px" />
                 <!-- 信息 -->
                 <div class="flex flex-col justify-center gap-0.5 overflow-hidden transition-all duration-300 whitespace-nowrap"
                     :class="isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'">

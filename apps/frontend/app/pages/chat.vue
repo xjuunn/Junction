@@ -7,7 +7,8 @@ const router = useRouter();
 const isDetailOpen = computed(() => !!route.params.id);
 
 const handleBack = () => {
-    router.push('/chat');
+    // router.push('/chat');
+    router.back();
 };
 </script>
 
