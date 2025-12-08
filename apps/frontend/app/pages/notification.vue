@@ -10,7 +10,7 @@ const isDetailOpen = computed(() => !!route.params.id);
             list
         </template>
         <template #detail>
-            detail
+            <NuxtPage />
         </template>
         <template #empty>
             empty

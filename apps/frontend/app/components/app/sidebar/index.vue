@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { menuService } from '~/core/menu';
 
 const route = useRoute();
+const router = useRouter();
 const groups = menuService.getGroupedMenus();
 const isActive = (path?: string) => {
     if (!path) return false;
@@ -15,9 +16,22 @@ const handleItemClick = (item: any) => {
 };
 
 const isCollapsed = ref(false);
+const searchQuery = ref('');
 
 const toggleSidebar = () => {
     isCollapsed.value = !isCollapsed.value;
+};
+
+const handleSearch = () => {
+    if (searchQuery.value.trim()) {
+        router.push({ path: '/search', query: { q: searchQuery.value } });
+    }
+};
+
+const handleIconClick = () => {
+    if (isCollapsed.value) {
+        router.push('/search');
+    }
 };
 
 onMounted(() => {
@@ -26,7 +40,6 @@ onMounted(() => {
         name: '折叠',
         icon: 'mingcute:layout-right-line',
         group: 'system',
-        // extraClass: 'xl:hidden',
         show: isCollapsed,
         handler: toggleSidebar
     })
@@ -50,7 +63,6 @@ onUnmounted(() => {
 <template>
     <div class="flex flex-col h-full bg-base-200 text-base-content rounded-box py-4 select-none overflow-y-auto overflow-x-hidden font-sans border border-base-content/5 transition-[width] duration-200 ease-in-out will-change-[width]"
         :class="isCollapsed ? 'w-20' : 'w-80'">
-
         <!-- ================= User Profile ================= -->
         <div class="flex items-center mb-6 px-2 pt-2 shrink-0 transition-all duration-300"
             :class="isCollapsed ? 'justify-center px-2' : 'justify-between px-5'">
@@ -87,11 +99,13 @@ onUnmounted(() => {
         <!-- ================= Search ================= -->
         <div class="pb-4 shrink-0 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-5'">
             <div class="relative group flex" :class="isCollapsed ? 'justify-center' : 'block'">
-                <div class="flex items-center justify-center pointer-events-none text-base-content/50 group-focus-within:text-base-content/80 transition-colors z-10"
-                    :class="isCollapsed ? 'static w-10 h-10' : 'absolute inset-y-0 left-3'">
+                <div class="flex items-center justify-center text-base-content/50 group-focus-within:text-base-content/80 transition-colors z-10"
+                    :class="[
+                        isCollapsed ? 'static w-10 h-10 cursor-pointer' : 'absolute inset-y-0 left-3 pointer-events-none'
+                    ]" @click="handleIconClick">
                     <Icon name="mingcute:search-line" size="18" />
                 </div>
-                <input type="text" placeholder="搜索"
+                <input type="text" placeholder="搜索" v-model="searchQuery" @keydown.enter="handleSearch"
                     class="input input-sm h-10 bg-base-300 focus:bg-base-100 rounded-xl border-transparent focus:border-base-content/10 placeholder:text-base-content/40 transition-all duration-300 p-0 text-sm"
                     :class="isCollapsed ? 'w-0 opacity-0 pl-0 pr-0' : 'w-full opacity-100 pl-10 pr-12'">
                 <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none transition-opacity duration-300"
@@ -142,32 +156,6 @@ onUnmounted(() => {
         </nav>
 
         <div class="flex-1"></div>
-
-        <!-- ================= Help Card ================= -->
-        <!-- <div class="transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
-            <div class="card bg-base-300/50 border border-base-content/5 shadow-none rounded-2xl mt-6 relative overflow-hidden transition-all duration-300"
-                :class="isCollapsed ? 'w-0 h-0 opacity-0 p-0' : 'w-auto h-auto opacity-100 p-4'">
-                <button
-                    class="btn btn-circle btn-ghost btn-xs absolute top-2 right-2 text-base-content/40 hover:text-base-content z-10">
-                    <Icon name="mingcute:close-line" size="14" />
-                </button>
-
-                <div
-                    class="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center text-base-content/70 mb-3 border border-base-content/5">
-                    <Icon name="mingcute:mail-line" size="16" />
-                </div>
-
-                <h3 class="text-sm font-bold text-base-content mb-1 whitespace-nowrap">Have questions?</h3>
-                <p class="text-xs text-base-content/50 mb-3 leading-relaxed whitespace-nowrap">
-                    Feel free to reach out...
-                </p>
-
-                <button
-                    class="btn btn-sm btn-block bg-base-100 hover:bg-base-100/80 border-base-content/5 text-base-content shadow-sm text-xs h-9 min-h-0 normal-case rounded-lg whitespace-nowrap">
-                    Reach out
-                </button>
-            </div>
-        </div> -->
 
         <!-- ================= Footer (System Menu) ================= -->
         <div class="flex flex-col gap-1 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
