@@ -1,34 +1,17 @@
 <template>
-    <layout-list-detail :show-detail="isDetailOpen">
-
-        <template #list>
-            <div class="p-4">列表内容</div>
-        </template>
-
-        <template #detail>
-            <div class="p-4 h-full">详情内容</div>
-        </template>
-
-        <template #empty>
-            <div class="flex items-center justify-center h-full text-gray-400">
-                选择列表项
-            </div>
-        </template>
-
-        <!-- <template #mobile-header>
-            <div class="p-2 border-b">返回按钮</div>
-        </template> -->
-
-    </layout-list-detail>
+    <div>
+        <button class="btn btn-primary" @click="test">test</button>
+    </div>
 </template>
 
-<script lang="ts" setup>
-import { useRoute } from 'vue-router'
-definePageMeta({ layout: 'main' })
+<script setup lang="ts">
+async function test() {
+    const authClient = useAuthClient();
+    const data = await authClient.signIn.email({
+        email: "xjuunn@gmail.com",
+        password: "123123"
+    })
+    console.log(data);
 
-const route = useRoute()
-// 如果路由中存在id，则显示详情
-const isDetailOpen = computed(() => {
-    return !!route.params.id
-})
+}
 </script>
