@@ -54,4 +54,33 @@ export class UserService {
         })
     }
 
+    async findOne(id: string) {
+        return this.prisma.user.findUnique({
+            where: {
+                id
+            },
+            select: {
+                id: true,
+                name: true,
+                role: true,
+                image: true,
+                email: true,
+                banned: true,
+                createdAt: true,
+                updatedAt: true,
+                emailVerified: true,
+                wallets: {
+                    select: {
+                        id: true,
+                        address: true,
+                        chainId: true,
+                        createdAt: true,
+                        isPrimary: true,
+                    },
+                    take: 5
+                }
+            }
+        })
+    }
+
 }

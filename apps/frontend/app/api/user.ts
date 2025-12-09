@@ -15,3 +15,11 @@ export function isAuthenticated() {
 export function search(keyword: string, pagination: PaginationOptions) {
     return api.get<AwaitedReturnType<UserController['searchUser']>>(base + '/search', { keyword, ...pagination });
 }
+
+/**
+ * 获取用户详细信息
+ * @param id 用户ID
+ */
+export function findOne(id: string) {
+    return api.get<AwaitedReturnType<UserController['findOne']>>(base + '/findOne/' + id);
+}

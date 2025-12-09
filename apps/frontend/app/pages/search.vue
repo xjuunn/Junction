@@ -180,7 +180,6 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router';
 import * as User from '~/api/user';
 
 definePageMeta({ layout: "main" })

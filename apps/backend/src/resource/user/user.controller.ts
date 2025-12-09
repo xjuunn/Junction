@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Session, UserSession, AllowAnonymous, OptionalAuth, AuthService } from '@thallesp/nestjs-better-auth';
 import { authFactory } from '~/utils/auth';
@@ -39,6 +39,12 @@ export class UserController {
   @Get("/search")
   async searchUser(@Query("keyword") keyword: string, @Pagination() pagination: PaginationOptions) {
     return this.userService.search(keyword, pagination);
+  }
+
+  @ApiOperation({ summary: "用户详情", description: "获取用户详细信息" })
+  @Get('/findOne/:id')
+  async findOne(@Param('id') id: string) {
+    return this.userService.findOne(id);
   }
 
 }
