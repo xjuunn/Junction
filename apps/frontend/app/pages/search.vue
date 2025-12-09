@@ -1,5 +1,5 @@
 <template>
-    <LayoutListDetail :show-detail="isDetailOpen">
+    <LayoutListDetail :show-detail="isDetailOpen" @back="router.back()">
         <template #list>
             <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-200">
                 <div class="px-5 pt-8 pb-4 shrink-0 space-y-5">
@@ -165,14 +165,6 @@
                 <span class="text-sm font-medium tracking-wide">选择左侧项目以查看详情</span>
             </div>
         </template>
-
-        <template #mobile-header>
-            <div class="navbar bg-base-100/90 backdrop-blur-md border-b border-base-200 sticky top-0 z-30">
-                <div class="flex-1">
-                    <span class="text-lg font-bold pl-2">搜索</span>
-                </div>
-            </div>
-        </template>
     </LayoutListDetail>
 </template>
 
@@ -184,7 +176,7 @@ definePageMeta({ layout: "main" })
 const route = useRoute();
 const router = useRouter();
 
-const isDetailOpen = computed(() => !!route.query.q || !!activeItemId.value);
+const isDetailOpen = computed(() => !!route.params.id);
 
 type ItemType = 'module' | 'file' | 'contact' | 'chat' | 'system';
 
@@ -281,6 +273,7 @@ const selectedItem = computed(() => mockData.find(i => i.id === activeItemId.val
 
 const handleItemClick = (item: SearchItem) => {
     activeItemId.value = item.id;
+    navigateTo('/search/user/' + item.id)
 };
 
 const getTypeIcon = (type: ItemType) => {
@@ -348,4 +341,4 @@ const getSecondaryActions = (type: ItemType) => {
     mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
     -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
 }
-</style>                                                                                                                               
+</style>
