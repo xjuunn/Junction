@@ -37,14 +37,14 @@ export class UserController {
   @ApiOperation({ summary: "搜索用户", description: "通过关键词搜索用户" })
   @ApiPagination()
   @Get("/search")
-  async searchUser(@Query("keyword") keyword: string, @Pagination() pagination: PaginationOptions) {
-    return this.userService.search(keyword, pagination);
+  async searchUser(@Query("keyword") keyword: string, @Pagination() pagination: PaginationOptions, @Session() session: UserSession) {
+    return this.userService.search(keyword, pagination, session.user.id);
   }
 
   @ApiOperation({ summary: "用户详情", description: "获取用户详细信息" })
   @Get('/findOne/:id')
-  async findOne(@Param('id') id: string) {
-    return this.userService.findOne(id);
+  async findOne(@Param('id') id: string, @Session() session: UserSession) {
+    return this.userService.findOne(id, session.user.id);
   }
 
 }
