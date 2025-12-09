@@ -1,5 +1,5 @@
 <template>
-    <LayoutListDetail :show-detail="isDetailOpen" @back="router.back()">
+    <LayoutListDetail :show-detail="isDetailOpen" @back="handleBack">
         <template #list>
             <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-200">
                 <div class="px-5 pt-8 pb-4 shrink-0 space-y-5">
@@ -101,71 +101,7 @@
         </template>
 
         <template #detail>
-            <div class="flex flex-col h-full bg-base-100 relative">
-                <div v-if="selectedItem"
-                    class="shrink-0 px-10 py-8 bg-base-100/80 backdrop-blur-xl z-20 border-b border-base-100">
-                    <div class="max-w-3xl mx-auto w-full">
-                        <div class="flex items-start gap-6 mb-8">
-                            <div
-                                class="w-20 h-20 rounded-[24px] shadow-sm bg-base-200/50 flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-base-content/5">
-                                <img v-if="selectedItem.avatar" :src="selectedItem.avatar"
-                                    class="w-full h-full object-cover" />
-                                <Icon v-else :name="selectedItem.icon" size="40"
-                                    :class="selectedItem.iconColor || 'text-base-content/70'" />
-                            </div>
-
-                            <div class="flex-1 pt-1 min-w-0">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center gap-2">
-                                        <span
-                                            class="px-2.5 py-1 rounded-lg bg-base-200/60 text-base-content/60 text-[11px] font-bold uppercase tracking-wider">
-                                            {{ getTypeName(selectedItem.type) }}
-                                        </span>
-                                        <span v-if="selectedItem.tags" v-for="tag in selectedItem.tags" :key="tag"
-                                            class="px-2.5 py-1 rounded-lg border border-base-content/10 text-base-content/50 text-[11px] font-medium">
-                                            {{ tag }}
-                                        </span>
-                                    </div>
-                                    <div class="flex gap-1">
-                                        <button
-                                            class="btn btn-sm btn-square btn-ghost text-base-content/40 hover:text-base-content hover:bg-base-200 rounded-lg">
-                                            <Icon name="mingcute:share-forward-line" size="18" />
-                                        </button>
-                                        <button
-                                            class="btn btn-sm btn-square btn-ghost text-base-content/40 hover:text-base-content hover:bg-base-200 rounded-lg">
-                                            <Icon name="mingcute:more-2-line" size="18" />
-                                        </button>
-                                    </div>
-                                </div>
-                                <h1 class="text-3xl font-extrabold text-base-content tracking-tight mb-1">{{
-                                    selectedItem.title }}</h1>
-                                <p class="text-base text-base-content/50 font-medium truncate">{{
-                                    selectedItem.detailInfo || selectedItem.subtitle }}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                            <button
-                                class="btn btn-neutral rounded-xl px-6 min-w-[140px] shadow-sm hover:shadow-md transition-all gap-2 h-11 border-none">
-                                <Icon :name="getPrimaryAction(selectedItem.type).icon" size="18" />
-                                <span class="font-bold">{{ getPrimaryAction(selectedItem.type).label }}</span>
-                            </button>
-
-                            <button v-for="action in getSecondaryActions(selectedItem.type)" :key="action.label"
-                                class="btn btn-ghost bg-base-200/50 hover:bg-base-200 rounded-xl px-5 h-11 text-base-content/70 font-medium gap-2 border-none">
-                                <Icon :name="action.icon" size="18" />
-                                {{ action.label }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex-1 overflow-y-auto bg-base-50/50">
-                    <div class="max-w-3xl mx-auto w-full p-10">
-                        <NuxtPage />
-                    </div>
-                </div>
-            </div>
+            <NuxtPage></NuxtPage>
         </template>
 
         <template #empty>
@@ -226,41 +162,69 @@ const filteredList = computed(() => {
 });
 
 onMounted(() => {
+    initializeState();
+});
+
+watch(
+    () => route.query.q,
+    (newQ) => {
+        const newVal = (newQ as string) || '';
+        if (newVal !== searchQuery.value) {
+            searchQuery.value = newVal;
+            performSearch();
+        }
+    }
+);
+
+watch(
+    () => route.params.id,
+    (newId) => {
+        activeItemId.value = (newId as string) || null;
+    },
+    { immediate: true }
+);
+
+function initializeState() {
     if (route.query.q) {
         searchQuery.value = route.query.q as string;
         performSearch();
     }
-});
-
-watch(() => route.query.q, (newQ) => {
-    if (newQ !== searchQuery.value) {
-        searchQuery.value = (newQ as string) || '';
-        performSearch();
-    }
-});
+}
 
 function handleInput() {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-        updateUrlQuery();
+        if (activeItemId.value) {
+            activeItemId.value = null;
+        }
+        router.replace({
+            path: '/search',
+            query: { q: searchQuery.value }
+        });
         performSearch();
     }, 300);
 }
 
-function updateUrlQuery() {
-    router.replace({ query: { ...route.query, q: searchQuery.value || undefined } });
+function handleBack() {
+    activeItemId.value = null;
+    router.push({
+        path: '/search',
+        query: { q: searchQuery.value }
+    });
 }
 
 function clearSearch() {
     searchQuery.value = '';
     searchResults.value = [];
     activeItemId.value = null;
-    updateUrlQuery();
+    router.replace({ path: '/search' });
 }
 
 async function performSearch() {
     if (!searchQuery.value.trim()) {
-        searchResults.value = [];
+        if (!activeItemId.value) {
+            searchResults.value = [];
+        }
         return;
     }
 
@@ -294,7 +258,10 @@ function mapUserToItem(user: any): SearchItem {
 
 function handleItemClick(item: SearchItem) {
     activeItemId.value = item.id;
-    navigateTo('/search/user/' + item.id);
+    navigateTo({
+        path: `/search/user/${item.id}`,
+        query: { ...route.query, q: searchQuery.value }
+    });
 }
 
 function isActive(id: string) {
@@ -313,22 +280,6 @@ function highlightText(text: string, query: string) {
     const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const reg = new RegExp(`(${safeQuery})`, 'gi');
     return text.replace(reg, '<span class="text-primary font-bold bg-primary/10 px-0.5 rounded-sm">$1</span>');
-}
-
-function getPrimaryAction(type: ItemType) {
-    switch (type) {
-        case 'module': return { label: '打开', icon: 'mingcute:rocket-line' };
-        case 'contact': return { label: '发消息', icon: 'mingcute:message-2-line' };
-        case 'file': return { label: '预览', icon: 'mingcute:eye-2-line' };
-        default: return { label: '查看', icon: 'mingcute:arrow-right-line' };
-    }
-}
-
-function getSecondaryActions(type: ItemType) {
-    if (type === 'contact') {
-        return [{ label: '资料', icon: 'mingcute:idcard-line' }];
-    }
-    return [];
 }
 </script>
 
