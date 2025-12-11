@@ -10,54 +10,53 @@ export class FriendshipService {
     private readonly prisma: PrismaService,
     private readonly eventBus: EventBus,
   ) { }
-
   async create(
     userId: string,
     data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>
   ) {
-    const receiverId = data.receiverId;
-    const existing = await this.prisma.friendship.findUnique({
-      where: { senderId_receiverId: { senderId: userId, receiverId } }
-    });
+    const receiverId = data.receiverId
+    const existing = await this.prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { senderId: userId, receiverId },
+          { senderId: receiverId, receiverId: userId }
+        ]
+      }
+    })
     if (!existing) {
       const result = await this.prisma.friendship.create({
         data: {
           ...data,
           senderId: userId,
-          status: 'PENDING',
+          status: 'PENDING'
         },
-        include: { receiver: true, sender: true }
-      });
+        include: { sender: true, receiver: true }
+      })
       await this.eventBus.emit('notification.create', {
-        title: "好友请求",
+        title: '好友请求',
         type: 'FRIEND_REQUEST',
         userId: result.receiverId,
         icon: 'mingcute:user-add-fill',
         content: `用户${result.sender.name}想要添加你为好友。`,
-        extra: result,
+        extra: result
       })
-      return result;
+      return result
     }
-    if (existing.status === 'ACCEPTED') {
-      throw new BadRequestException('对方已是你的好友');
-    }
+    if (existing.status === 'ACCEPTED') throw new BadRequestException('对方已是你的好友')
     const result = await this.prisma.friendship.update({
       where: { id: existing.id },
-      data: {
-        status: 'PENDING',
-        createdAt: new Date(),
-      },
-      include: { receiver: true, sender: true }
-    });
+      data: { status: 'PENDING', createdAt: new Date() },
+      include: { sender: true, receiver: true }
+    })
     await this.eventBus.emit('notification.create', {
-      title: "好友请求",
+      title: '好友请求',
       type: 'FRIEND_REQUEST',
       userId: result.receiverId,
       icon: 'mingcute:user-add-fill',
       content: `用户${result.sender.name}想要添加你为好友。`,
-      extra: result,
+      extra: result
     })
-    return result;
+    return result
   }
 
   async findAll(
@@ -65,7 +64,7 @@ export class FriendshipService {
     whereData: Omit<PrismaTypes.Prisma.FriendshipWhereInput, 'senderId'>,
     { take, skip }: PaginationOptions
   ) {
-    const { page, limit, ...clearWhere } = whereData as any;
+    const { page, limit, ...clearWhere } = whereData as any
     const where = {
       AND: [
         clearWhere,
@@ -74,44 +73,77 @@ export class FriendshipService {
     }
     const [data, total] = await Promise.all([
       this.prisma.friendship.findMany({
-        where, take, skip,
-        include: { receiver: true },
+        where,
+        take,
+        skip,
+        include: { sender: true, receiver: true }
       }),
       this.prisma.friendship.count({ where })
     ])
-    return new PaginationData(data, { total, limit, page })
+    const formatted = data.map(i => {
+      const friend = i.senderId === userId ? i.receiver : i.sender
+      return { ...i, friend }
+    })
+    return new PaginationData(formatted, { total, limit, page })
   }
 
-  findOne(userId: string, receiverId: string) {
-    return this.prisma.friendship.findUnique({
+  findOne(userId: string, friendId: string) {
+    return this.prisma.friendship.findFirst({
       where: {
-        senderId_receiverId: { senderId: userId, receiverId }
+        OR: [
+          { senderId: userId, receiverId: friendId },
+          { senderId: friendId, receiverId: userId }
+        ]
       },
-      include: { receiver: true },
-    });
+      include: { sender: true, receiver: true }
+    }).then(i => {
+      if (!i) return null
+      const friend = i.senderId === userId ? i.receiver : i.sender
+      return { ...i, friend }
+    })
   }
 
-  update(
+  async update(
     currentUserId: string,
     friendId: string,
     data: Omit<PrismaTypes.Prisma.FriendshipUpdateInput, 'senderId'>
   ) {
-    return this.prisma.friendship.update({
+    const record = await this.prisma.friendship.findFirst({
       where: {
-        senderId_receiverId: {
-          receiverId: currentUserId,
-          senderId: friendId
-        }
-      },
+        OR: [
+          { senderId: currentUserId, receiverId: friendId },
+          { senderId: friendId, receiverId: currentUserId }
+        ]
+      }
+    })
+    if (!record) throw new BadRequestException('好友关系不存在')
+    return this.prisma.friendship.update({
+      where: { id: record.id },
       data,
-      include: { receiver: true }
+      include: { sender: true, receiver: true }
+    }).then(i => {
+      const friend = i.senderId === currentUserId ? i.receiver : i.sender
+      return { ...i, friend }
     })
   }
 
-  remove(userId: string, receiverId: string) {
+  async remove(userId: string, friendId: string) {
+    const record = await this.prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: friendId },
+          { senderId: friendId, receiverId: userId }
+        ]
+      }
+    })
+    if (!record) throw new BadRequestException('好友关系不存在')
     return this.prisma.friendship.delete({
-      where: { senderId_receiverId: { senderId: userId, receiverId } },
-      include: { receiver: true }
+      where: { id: record.id },
+      include: { sender: true, receiver: true }
+    }).then(i => {
+      const friend = i.senderId === userId ? i.receiver : i.sender
+      return { ...i, friend }
     })
   }
+
 }

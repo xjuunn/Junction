@@ -26,15 +26,15 @@ export function findOne(receiverId: string) {
 /**
  * 同意好友请求
  */
-export function accept(id: string) {
-    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/accept/${id}`);
+export function accept(friendId: string) {
+    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/accept/${friendId}`);
 }
 
 /**
  * 拒绝好友请求
  */
-export function reject(id: string) {
-    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/reject/${id}`);
+export function reject(friendId: string) {
+    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/reject/${friendId}`);
 }
 
 /**

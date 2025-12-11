@@ -33,10 +33,10 @@ export class FriendshipController {
     return this.friendshipService.findAll(session.user.id, data, pagination);
   }
 
-  @Get(':receiverId')
+  @Get(':friendId')
   @ApiOperation({ summary: "查找某个好友关系" })
-  findOne(@Session() session: UserSession, @Param('receiverId') receiverId: string) {
-    return this.friendshipService.findOne(session.user.id, receiverId);
+  findOne(@Session() session: UserSession, @Param('friendId') friendId: string) {
+    return this.friendshipService.findOne(session.user.id, friendId);
   }
 
   //// 禁止普通用户修改好友关系
@@ -68,18 +68,18 @@ export class FriendshipController {
     return this.friendshipService.update(session.user.id, friendId, { status: 'REJECTED' });
   }
 
-  @Patch('block/:id')
+  @Patch('block/:friendId')
   @ApiOperation({ summary: "拉黑好友" })
   block(
     @Session() session: UserSession,
-    @Param('id') id: string,
+    @Param('friendId') friendId: string,
   ) {
-    return this.friendshipService.update(id, session.user.id, { status: 'BLOCKED' });
+    return this.friendshipService.update(session.user.id, friendId, { status: 'BLOCKED' });
   }
 
-  @Delete(':receiverId')
+  @Delete(':friendId')
   @ApiOperation({ summary: "删除好友关系" })
-  remove(@Session() session: UserSession, @Param('receiverId') receiverId: string) {
-    return this.friendshipService.remove(session.user.id, receiverId);
+  remove(@Session() session: UserSession, @Param('friendId') friendId: string) {
+    return this.friendshipService.remove(session.user.id, friendId);
   }
 }
