@@ -5,6 +5,8 @@ import { ApiPagination, Pagination, PaginationOptions } from '~/decorators/pagin
 import { PrismaTypes } from '@junction/types';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NotificationGateway } from './notification.gateway';
+import { EventPayloadMap } from '../events/event-types';
+import { OnEvent } from '@nestjs/event-emitter';
 
 @ApiTags("通知管理")
 @Controller('notification')
@@ -75,4 +77,12 @@ export class NotificationController {
 
   //   return notification;
   // }
+
+
+  @OnEvent('notification.created', { async: true, suppressErrors: false })
+  async handleNotificationEvent(payload: EventPayloadMap['notification.created']) {
+    console.log("收到通知：", payload);
+
+  }
+
 }

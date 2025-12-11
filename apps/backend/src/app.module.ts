@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -18,6 +19,7 @@ import { FriendshipModule } from './resource/friendship/friendship.module';
 import { UploadModule } from './resource/upload/upload.module';
 import { AppGateway } from './app.gateway';
 import { NotificationModule } from './resource/notification/notification.module';
+import { EventsModule } from './resource/events/events.module';
 
 @Module({
   imports: [
@@ -41,9 +43,19 @@ import { NotificationModule } from './resource/notification/notification.module'
         disableTrustedOriginsCors: false,
       })
     }),
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      newListener: false,
+      removeListener: false,
+      maxListeners: 50,
+      verboseMemoryLeak: false,
+      ignoreErrors: false
+    }),
     UserModule,
     FriendshipModule,
     NotificationModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [
