@@ -12,7 +12,7 @@ export interface SocketEvent<S = void, A = void, L = void> {
 export interface SocketNamespaces {
     app: {
         "init": SocketEvent<void, PrismaTypes.User, never>;
-        "notification": SocketEvent<never, never, PrismaTypes.Notification>;
+        "new-notification": SocketEvent<never, never, PrismaTypes.Notification>;
     };
 }
 

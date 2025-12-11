@@ -92,12 +92,17 @@ export class FriendshipService {
   }
 
   update(
-    id: string,
-    userId: string,
+    currentUserId: string,
+    friendId: string,
     data: Omit<PrismaTypes.Prisma.FriendshipUpdateInput, 'senderId'>
   ) {
     return this.prisma.friendship.update({
-      where: { id, senderId: userId },
+      where: {
+        senderId_receiverId: {
+          receiverId: currentUserId,
+          senderId: friendId
+        }
+      },
       data,
       include: { receiver: true }
     })

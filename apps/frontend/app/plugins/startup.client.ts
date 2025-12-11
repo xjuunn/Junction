@@ -7,7 +7,9 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     socket.emit('init', (user) => {
         // console.log('socket初始化:', user);
     });
-    socket.on('notification', (notification) => {
+    socket.on('new-notification', (notification) => {
         console.log('收到通知:', notification);
+        if (notification.content)
+            useToast().info(notification.content)
     });
 })

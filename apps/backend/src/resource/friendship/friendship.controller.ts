@@ -50,22 +50,22 @@ export class FriendshipController {
   //   return this.friendshipService.update(id, session.user.id, data);
   // }
 
-  @Patch('accept/:id')
+  @Patch('accept/:friendId')
   @ApiOperation({ summary: "接受好友请求" })
   accept(
     @Session() session: UserSession,
-    @Param('id') id: string,
+    @Param('friendId') friendId: string,
   ) {
-    return this.friendshipService.update(id, session.user.id, { status: 'ACCEPTED' });
+    return this.friendshipService.update(session.user.id, friendId, { status: 'ACCEPTED' });
   }
 
-  @Patch('reject/:id')
+  @Patch('reject/:friendId')
   @ApiOperation({ summary: "拒绝好友请求" })
   reject(
     @Session() session: UserSession,
-    @Param('id') id: string,
+    @Param('friendId') friendId: string,
   ) {
-    return this.friendshipService.update(id, session.user.id, { status: 'REJECTED' });
+    return this.friendshipService.update(session.user.id, friendId, { status: 'REJECTED' });
   }
 
   @Patch('block/:id')

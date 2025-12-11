@@ -146,7 +146,7 @@
                                     class="text-base-content/40 group-hover:text-primary shrink-0" />
                                 <span class="font-medium text-base-content/80 group-hover:text-primary truncate">{{
                                     userInfo.email
-                                    }}</span>
+                                }}</span>
                             </div>
                             <div class="tooltip tooltip-right shrink-0"
                                 :data-tip="userInfo.emailVerified ? '已验证' : '未验证'">
