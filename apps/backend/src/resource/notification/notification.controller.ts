@@ -7,13 +7,13 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NotificationGateway } from './notification.gateway';
 import { EventPayloadMap } from '../events/event-types';
 import { OnEvent } from '@nestjs/event-emitter';
+import { EventBus } from '../events/event-bus.service';
 
 @ApiTags("通知管理")
 @Controller('notification')
 export class NotificationController {
   constructor(
     private readonly notificationService: NotificationService,
-    private readonly notificationGateway: NotificationGateway
   ) { }
 
   @Get()
@@ -63,26 +63,9 @@ export class NotificationController {
     return this.notificationService.remove(session.user.id, id);
   }
 
-  // @Post('test-push')
-  // @ApiOperation({ summary: "测试发送通知", description: "给自己发送一条测试通知并触发 WebSocket" })
-  // async sendTestNotification(
-  //   @Session() session: UserSession,
-  //   @Body() data: Omit<PrismaTypes.Prisma.NotificationUncheckedCreateInput, 'userId' | 'id'>
-  // ) {
-  //   const notification = await this.notificationService.create({
-  //     ...data,
-  //     userId: session.user.id,
-  //   });
-  //   this.notificationGateway.notifyUser(session.user.id, notification);
-
-  //   return notification;
-  // }
-
-
-  @OnEvent('notification.created', { async: true, suppressErrors: false })
-  async handleNotificationEvent(payload: EventPayloadMap['notification.created']) {
-    console.log("收到通知：", payload);
-
+  @OnEvent('notification.create', { async: true, suppressErrors: false })
+  async handleNotificationEvent(payload: EventPayloadMap['notification.create']) {
+    this.notificationService.create(payload)
   }
 
 }

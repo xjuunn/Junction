@@ -1,7 +1,7 @@
 import { PrismaTypes } from "@junction/types";
 
 export interface EventPayloadMap {
-    'notification.created': PrismaTypes.Prisma.NotificationCreateInput
+    'notification.create': PrismaTypes.Prisma.NotificationUncheckedCreateInput
 }
 
 export type EventName = keyof EventPayloadMap;

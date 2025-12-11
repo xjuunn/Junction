@@ -9,11 +9,6 @@ export class AppService {
     private readonly eventBus: EventBus,
   ) { }
   getHello(): string {
-    this.eventBus.emit('notification.created', {
-      title: "通知标题",
-      type: 'SYSTEM',
-      user: { connect: { id: '' } }
-    })
     return 'Hello World!';
   }
 }

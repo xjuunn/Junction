@@ -2,11 +2,13 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, type PrismaTypes } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
+import { EventBus } from '../events/event-bus.service';
 
 @Injectable()
 export class FriendshipService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly eventBus: EventBus,
   ) { }
 
   async create(
@@ -18,26 +20,44 @@ export class FriendshipService {
       where: { senderId_receiverId: { senderId: userId, receiverId } }
     });
     if (!existing) {
-      return this.prisma.friendship.create({
+      const result = await this.prisma.friendship.create({
         data: {
           ...data,
           senderId: userId,
           status: 'PENDING',
         },
-        include: { receiver: true }
+        include: { receiver: true, sender: true }
       });
+      await this.eventBus.emit('notification.create', {
+        title: "好友请求",
+        type: 'FRIEND_REQUEST',
+        userId: result.receiverId,
+        icon: 'mingcute:user-add-fill',
+        content: `用户${result.sender.name}想要添加你为好友。`,
+        extra: result,
+      })
+      return result;
     }
     if (existing.status === 'ACCEPTED') {
       throw new BadRequestException('对方已是你的好友');
     }
-    return this.prisma.friendship.update({
+    const result = await this.prisma.friendship.update({
       where: { id: existing.id },
       data: {
         status: 'PENDING',
         createdAt: new Date(),
       },
-      include: { receiver: true }
+      include: { receiver: true, sender: true }
     });
+    await this.eventBus.emit('notification.create', {
+      title: "好友请求",
+      type: 'FRIEND_REQUEST',
+      userId: result.receiverId,
+      icon: 'mingcute:user-add-fill',
+      content: `用户${result.sender.name}想要添加你为好友。`,
+      extra: result,
+    })
+    return result;
   }
 
   async findAll(
