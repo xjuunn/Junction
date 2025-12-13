@@ -31,6 +31,10 @@ export function markAllAsRead() {
     return api.patch<AwaitedReturnType<NotificationController['markAllAsRead']>>(base + '/read-all');
 }
 
+export function updateStatus(id: string, processStatus: PrismaTypes.NotificationProcessStatus) {
+    return api.patch<AwaitedReturnType<NotificationController['updateStatus']>>(base + `/${id}/status`, { processStatus })
+}
+
 /**
  * 标记指定通知为已读
  */

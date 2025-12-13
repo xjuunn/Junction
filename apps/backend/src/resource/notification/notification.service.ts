@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
@@ -62,6 +62,34 @@ export class NotificationService {
       },
     });
   }
+
+  async updateStatus(
+    userId: string,
+    id: string,
+    processStatus: PrismaTypes.NotificationProcessStatus
+  ) {
+    const notification = await this.prisma.notification.findFirst({
+      where: { id, userId },
+      select: { processStatus: true }
+    })
+
+    if (!notification) {
+      throw new NotFoundException('通知不存在')
+    }
+
+    if (notification.processStatus !== 'PENDING') {
+      return notification
+    }
+
+    return this.prisma.notification.update({
+      where: { id },
+      data: {
+        processStatus,
+        processedAt: new Date()
+      }
+    })
+  }
+
 
   /**
    * 获取未读数量

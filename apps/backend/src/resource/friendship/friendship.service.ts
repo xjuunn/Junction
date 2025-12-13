@@ -52,7 +52,10 @@ export class FriendshipService {
         icon: 'mingcute:user-add-fill',
         cover: result.sender.image,
         content: `用户${result.sender.name}想要添加你为好友。`,
-        payload: result
+        payload: {
+          id: result.id,
+          type: 'friendship'
+        }
       })
 
       return result
@@ -74,7 +77,10 @@ export class FriendshipService {
       icon: 'mingcute:user-add-fill',
       cover: result.sender.image,
       content: `用户${result.sender.name}想要添加你为好友。`,
-      payload: result
+      payload: {
+        id: result.id,
+        type: 'friendship'
+      }
     })
 
     return result

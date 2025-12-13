@@ -48,6 +48,21 @@ export class NotificationController {
     return this.notificationService.markAllAsReadForUser(session.user.id);
   }
 
+  @Patch(':id/status')
+  @ApiOperation({ summary: '更新通知处理状态' })
+  updateStatus(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() body: { processStatus: PrismaTypes.NotificationProcessStatus }
+  ) {
+    return this.notificationService.updateStatus(
+      session.user.id,
+      id,
+      body.processStatus
+    )
+  }
+
+
   @Patch(':id/read')
   @ApiOperation({ summary: "标记已读", description: "将指定通知标记为已读" })
   markAsRead(
