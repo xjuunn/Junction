@@ -157,24 +157,59 @@ enum NotificationStatus {
   READ
 }
 
+/// 通知处理状态
+enum NotificationProcessStatus {
+  PENDING
+  PROCESSED
+  EXPIRED
+  CANCELED
+}
+
+/// 通知优先级
+enum NotificationLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 /// 通知表
 model Notification {
-  id      String             @id @default(cuid())
-  type    NotificationType /// 通知类型
-  title   String /// 通知标题
-  content String? /// 通知内容
-  icon    String? /// 图标，例如 URL 或 emoji
-  status  NotificationStatus @default(UNREAD) /// 已读或未读
+  id String @id @default(cuid())
 
-  userId String /// 所属用户
+  /// 基础信息
+  type    NotificationType
+  title   String
+  cover   String? /// 封面
+  content String?
+  icon    String?
+
+  /// 阅读 & 处理状态
+  status        NotificationStatus        @default(UNREAD)
+  processStatus NotificationProcessStatus @default(PENDING)
+  level         NotificationLevel         @default(NORMAL)
+
+  /// 所属用户
+  userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  actionPath    String? /// 点击通知跳转路径，例如 "/chat/123"
-  actionPayload Json? /// 点击通知附带参数
-  extra         Json? /// 模块扩展字段
+  /// 行为相关
+  actionPath    String?
+  actionPayload Json?
+
+  /// 统一负载（核心）
+  payload Json?
+
+  /// 模块扩展（兼容旧逻辑）
+  extra Json?
+
+  /// 处理时间
+  processedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId, status])
+  @@index([userId, processStatus])
   @@map("notification")
 }
