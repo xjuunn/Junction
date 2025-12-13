@@ -1,4 +1,4 @@
-import { NotificationController } from '@junction/backend/src/resource/notification/notification.controller'
+import type { NotificationController } from '@junction/backend/src/resource/notification/notification.controller'
 import type { PrismaTypes } from "@junction/types";
 
 const base = '/notification';
@@ -8,6 +8,13 @@ const base = '/notification';
  */
 export function findAll(data: PrismaTypes.Prisma.NotificationWhereInput & PaginationOptions) {
     return api.get<AwaitedReturnType<NotificationController['findAll']>>(base, data);
+}
+
+/**
+ * 获取通知详情
+ */
+export function findOne(id: string) {
+    return api.get<AwaitedReturnType<NotificationController['findOne']>>(base + '/' + id);
 }
 
 /**

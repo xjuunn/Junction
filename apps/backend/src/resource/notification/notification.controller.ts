@@ -27,6 +27,15 @@ export class NotificationController {
     return this.notificationService.findAll(session.user.id, query, pagination);
   }
 
+  @Get('/:id')
+  @ApiOperation({ summary: "通知详情", description: "获取通知详情" })
+  findOne(
+    @Param('id') id: string,
+    @Session() session: UserSession
+  ) {
+    return this.notificationService.findOne(session.user.id, id);
+  }
+
   @Get('unread-count')
   @ApiOperation({ summary: "未读数量", description: "获取未读通知数量" })
   getUnreadCount(@Session() session: UserSession) {
