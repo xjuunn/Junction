@@ -268,7 +268,7 @@ function formatTimeAgo(dateStr: Date | string): string {
                                             ? 'bg-base-100 shadow-sm scale-100'
                                             : 'bg-base-200/50 group-hover:bg-base-200 group-hover:scale-105'
                                     ]">
-                                    <img v-if="item.icon && item.icon.startsWith('http')" :src="item.icon"
+                                    <img v-if="item.cover && item.cover.startsWith('http')" :src="item.cover"
                                         class="w-full h-full object-cover" />
                                     <Icon v-else :name="getIconByType(item.type)" size="22" class="transition-colors"
                                         :class="activeItemId === item.id ? 'text-primary' : getColorByType(item.type)" />
