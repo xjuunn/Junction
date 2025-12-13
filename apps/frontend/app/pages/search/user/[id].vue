@@ -88,10 +88,11 @@
                         </template>
 
                         <template v-else-if="userInfo.relation === 'WAITING_ACCEPT'">
-                            <button disabled
-                                class="btn btn-sm btn-neutral rounded-xl px-4 gap-2 font-bold shadow-sm cursor-not-allowed opacity-70">
-                                <Icon name="mingcute:time-line" />
-                                等待同意
+                            <button @click="handleAddFriend" :disabled="isActionLoading"
+                                class="btn btn-sm btn-neutral rounded-xl px-4 gap-2 font-bold shadow-sm hover:shadow-md transition-all">
+                                <Icon v-if="isActionLoading" name="mingcute:loading-fill" class="animate-spin" />
+                                <Icon v-else name="mingcute:send-plane-fill" />
+                                再次发送
                             </button>
                         </template>
 
@@ -146,7 +147,7 @@
                                     class="text-base-content/40 group-hover:text-primary shrink-0" />
                                 <span class="font-medium text-base-content/80 group-hover:text-primary truncate">{{
                                     userInfo.email
-                                }}</span>
+                                    }}</span>
                             </div>
                             <div class="tooltip tooltip-right shrink-0"
                                 :data-tip="userInfo.emailVerified ? '已验证' : '未验证'">

@@ -10,11 +10,14 @@ export class FriendshipService {
     private readonly prisma: PrismaService,
     private readonly eventBus: EventBus,
   ) { }
+
   async create(
     userId: string,
     data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>
   ) {
     const receiverId = data.receiverId
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+
     const existing = await this.prisma.friendship.findFirst({
       where: {
         OR: [
@@ -23,15 +26,25 @@ export class FriendshipService {
         ]
       }
     })
-    if (!existing) {
-      const result = await this.prisma.friendship.create({
+
+    if (existing) {
+      if (existing.status === 'ACCEPTED') {
+        throw new BadRequestException('对方已是你的好友')
+      }
+
+      if (existing.senderId === userId && existing.createdAt > oneHourAgo) {
+        throw new BadRequestException('每小时只能发送一次好友请求')
+      }
+
+      const result = await this.prisma.friendship.update({
+        where: { id: existing.id },
         data: {
-          ...data,
-          senderId: userId,
-          status: 'PENDING'
+          status: 'PENDING',
+          createdAt: new Date()
         },
         include: { sender: true, receiver: true }
       })
+
       await this.eventBus.emit('notification.create', {
         title: '好友请求',
         type: 'FRIEND_REQUEST',
@@ -40,14 +53,19 @@ export class FriendshipService {
         content: `用户${result.sender.name}想要添加你为好友。`,
         extra: result
       })
+
       return result
     }
-    if (existing.status === 'ACCEPTED') throw new BadRequestException('对方已是你的好友')
-    const result = await this.prisma.friendship.update({
-      where: { id: existing.id },
-      data: { status: 'PENDING', createdAt: new Date() },
+
+    const result = await this.prisma.friendship.create({
+      data: {
+        ...data,
+        senderId: userId,
+        status: 'PENDING'
+      },
       include: { sender: true, receiver: true }
     })
+
     await this.eventBus.emit('notification.create', {
       title: '好友请求',
       type: 'FRIEND_REQUEST',
@@ -56,8 +74,10 @@ export class FriendshipService {
       content: `用户${result.sender.name}想要添加你为好友。`,
       extra: result
     })
+
     return result
   }
+
 
   async findAll(
     userId: string,
