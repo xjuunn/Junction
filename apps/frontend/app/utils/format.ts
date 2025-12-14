@@ -19,3 +19,4 @@ export function formatTimeAgo(dateStr: Date | string): string {
     const d = date.getDate().toString().padStart(2, '0');
     return `${y}-${m}-${d}`;
 }
+
