@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { menuService } from '~/core/menu';
-
+const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 const groups = menuService.getGroupedMenus();
@@ -68,18 +68,19 @@ onUnmounted(() => {
             :class="isCollapsed ? 'justify-center px-2' : 'justify-between px-5'">
             <div class="flex items-center transition-all duration-300" :class="isCollapsed ? 'gap-0' : 'gap-3'">
                 <!-- 头像 -->
-                <BaseAvatar text="Ju" :placeholder-length="2" size="42px" />
+                <BaseAvatar :text="userStore.user.value?.name" :src="resolveAssetUrl(userStore.user.value?.image)"
+                    :placeholder-length="2" size="42px" />
                 <!-- 信息 -->
                 <div class="flex flex-col justify-center gap-0.5 overflow-hidden transition-all duration-300 whitespace-nowrap"
                     :class="isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'">
                     <div class="flex items-center gap-2">
-                        <span class="text-sm font-bold text-base-content">Junhsiun</span>
+                        <span class="text-sm font-bold text-base-content">{{ userStore.user.value?.name }}</span>
                         <span
                             class="badge badge-sm badge-success badge-soft border-base-content/10 text-[10px] h-5 px-1.5 font-medium text-base-content/60">
                             在线
                         </span>
                     </div>
-                    <div class="text-xs text-base-content/50">xjuunn@gmail.com</div>
+                    <div class="text-xs text-base-content/50">{{ userStore.user.value?.email }}</div>
                 </div>
             </div>
             <!-- 图标按钮 -->

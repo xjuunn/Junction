@@ -47,7 +47,7 @@ function triggerFileInput() {
 </script>
 
 <template>
-    <div class="min-h-full bg-base-200 p-4 md:p-8">
+    <div class="h-full bg-base-200 p-4 md:p-8 overflow-y-auto">
         <div class="mx-auto max-w-6xl space-y-6">
 
             <div class="card bg-base-100 shadow-sm border border-base-200">
