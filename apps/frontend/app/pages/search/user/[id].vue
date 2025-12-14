@@ -37,7 +37,8 @@
                         <div class="relative shrink-0">
                             <div
                                 class="w-[72px] h-[72px] rounded-[20px] ring-1 ring-base-content/10 overflow-hidden bg-base-200/50 flex items-center justify-center">
-                                <img v-if="userInfo.image" :src="userInfo.image" class="w-full h-full object-cover" />
+                                <img v-if="userInfo.image" :src="resolveAssetUrl(userInfo.image)"
+                                    class="w-full h-full object-cover" />
                                 <span v-else class="text-xl font-bold text-base-content/40">{{
                                     userInfo.name?.charAt(0).toUpperCase() }}</span>
                             </div>
@@ -147,7 +148,7 @@
                                     class="text-base-content/40 group-hover:text-primary shrink-0" />
                                 <span class="font-medium text-base-content/80 group-hover:text-primary truncate">{{
                                     userInfo.email
-                                    }}</span>
+                                }}</span>
                             </div>
                             <div class="tooltip tooltip-right shrink-0"
                                 :data-tip="userInfo.emailVerified ? '已验证' : '未验证'">

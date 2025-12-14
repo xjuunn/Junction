@@ -62,9 +62,9 @@ onUnmounted(() => {
 
 <template>
     <div class="flex flex-col h-full bg-base-200 text-base-content rounded-box py-4 select-none overflow-y-auto overflow-x-hidden font-sans border border-base-content/5 transition-[width] duration-200 ease-in-out will-change-[width]"
-        :class="isCollapsed ? 'w-20' : 'w-80'">
+        data-tauri-drag-region :class="isCollapsed ? 'w-20' : 'w-80'">
         <!-- ================= User Profile ================= -->
-        <div class="flex items-center mb-6 px-2 pt-2 shrink-0 transition-all duration-300"
+        <div class="flex items-center mb-6 px-2 pt-2 shrink-0 transition-all duration-300" data-tauri-drag-region
             :class="isCollapsed ? 'justify-center px-2' : 'justify-between px-5'">
             <div class="flex items-center transition-all duration-300" :class="isCollapsed ? 'gap-0' : 'gap-3'">
                 <!-- 头像 -->
@@ -84,7 +84,7 @@ onUnmounted(() => {
                 </div>
             </div>
             <!-- 图标按钮 -->
-            <div class="flex items-center gap-1 overflow-hidden transition-all duration-300"
+            <div class="flex items-center gap-1 overflow-hidden transition-all duration-300" data-tauri-drag-region
                 :class="isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'">
                 <nuxt-link to="/notification"
                     class="btn btn-square btn-ghost btn-sm text-base-content/60 hover:text-base-content">
@@ -98,7 +98,7 @@ onUnmounted(() => {
         </div>
 
         <!-- ================= Search ================= -->
-        <div class="pb-4 shrink-0 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-5'">
+        <div class="pb-4 shrink-0 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-5'" data-tauri-drag-region>
             <div class="relative group flex" :class="isCollapsed ? 'justify-center' : 'block'">
                 <div class="flex items-center justify-center text-base-content/50 group-focus-within:text-base-content/80 transition-colors z-10"
                     :class="[
@@ -120,7 +120,7 @@ onUnmounted(() => {
         </div>
 
         <!-- ================= Main Menu ================= -->
-        <nav class="flex flex-col gap-1 mb-8 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
+        <nav class="flex flex-col gap-1 mb-8 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'" data-tauri-drag-region>
             <template v-if="groups['main']">
                 <div v-for="item in groups['main']" :key="item.id" @click="handleItemClick(item)"
                     v-show="item.getShouldShow"
@@ -156,10 +156,10 @@ onUnmounted(() => {
             </template>
         </nav>
 
-        <div class="flex-1"></div>
+        <div class="flex-1" data-tauri-drag-region></div>
 
         <!-- ================= Footer (System Menu) ================= -->
-        <div class="flex flex-col gap-1 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'">
+        <div class="flex flex-col gap-1 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'" data-tauri-drag-region>
             <template v-if="groups['system']">
                 <div v-for="item in groups['system']" :key="item.id" @click="handleItemClick(item)"
                     v-show="item.getShouldShow"
