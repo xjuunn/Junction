@@ -20,3 +20,28 @@ export function formatTimeAgo(dateStr: Date | string): string {
     return `${y}-${m}-${d}`;
 }
 
+/**
+ * 转换为可渲染的资源路径
+ * 自动拼接baseurl
+ * @param input 文件路径
+ * @param options 配置
+ */
+export function resolveAssetUrl(
+    input?: string | null,
+    options?: {
+        baseUrl?: string
+        fallback?: string
+    }
+): string {
+    if (!input) return options?.fallback ?? '';
+    const value = input.trim();
+    if (!value) return options?.fallback ?? '';
+    if (/^(data:|blob:)/.test(value)) return value;
+    if (/^(https?:)?\/\//.test(value)) return value;
+    const config = useRuntimeConfig();
+    const base = options?.baseUrl ?? config.public.apiUrl;
+    if (!base) return value;
+    if (value.startsWith('/'))
+        return `${base}${value}`;
+    return `${base}/${value}`;
+}

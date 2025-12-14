@@ -56,8 +56,8 @@ function triggerFileInput() {
                         <div class="avatar">
                             <div
                                 class="w-24 h-24 rounded-full ring ring-base-200 ring-offset-2 ring-offset-base-100 overflow-hidden">
-                                <img v-if="userStore.user.value?.image" :src="userStore.user.value.image"
-                                    class="object-cover" />
+                                <img v-if="userStore.user.value?.image"
+                                    :src="resolveAssetUrl(userStore.user.value.image)" class="object-cover" />
                                 <div v-else
                                     class="w-full h-full bg-neutral text-neutral-content grid place-items-center text-3xl font-bold">
                                     {{ userStore.user.value?.name?.charAt(0).toUpperCase() }}
