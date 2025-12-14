@@ -8,7 +8,7 @@ const router = useRouter();
 const groups = menuService.getGroupedMenus();
 const isActive = (path?: string) => {
     if (!path) return false;
-    return route.path === path;
+    return path === '/' ? route.path === '/' : route.path.startsWith(path);
 };
 
 const handleItemClick = (item: any) => {
