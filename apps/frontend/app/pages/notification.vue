@@ -24,7 +24,7 @@ const pagination = reactive({
 
 // 计算详情页是否打开
 const isDetailOpen = computed(() => {
-    return route.name === 'notification-id';
+    return route.name === 'notification-friend-request-id';
 });
 
 // 当前选中的ID
@@ -111,7 +111,14 @@ async function handleItemClick(item: PrismaTypes.Notification) {
         handleReadSideEffect(item.id);
         await NotificationApi.markAsRead(item.id);
     }
-    router.push(`/notification/${item.id}`);
+    switch (item.type) {
+        case 'FRIEND_REQUEST':
+            router.push(`/notification/friend-request/${item.id}`);
+            break;
+        default:
+            console.warn("未处理的通知类型");
+
+    }
 }
 
 /** 乐观更新已读状态 */
@@ -175,28 +182,6 @@ function getColorByType(type: string): string {
         CUSTOM: 'text-neutral-content'
     };
     return map[type] || 'text-base-content';
-}
-
-/** 相对时间格式化 */
-function formatTimeAgo(dateStr: Date | string): string {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-
-    const minute = 60 * 1000;
-    const hour = 60 * minute;
-    const day = 24 * hour;
-
-    if (diff < minute) return '刚刚';
-    if (diff < hour) return `${Math.floor(diff / minute)}分钟前`;
-    if (diff < day) return `${Math.floor(diff / hour)}小时前`;
-    if (diff < day * 7) return `${Math.floor(diff / day)}天前`;
-
-    const y = date.getFullYear();
-    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-    const d = date.getDate().toString().padStart(2, '0');
-    return `${y}-${m}-${d}`;
 }
 </script>
 
@@ -331,15 +316,6 @@ function formatTimeAgo(dateStr: Date | string): string {
                     <Icon name="mingcute:inbox-line" size="40" />
                 </div>
                 <span class="text-sm font-medium tracking-wide">选择一条通知查看详情</span>
-            </div>
-        </template>
-
-        <template #mobile-header>
-            <div class="flex items-center gap-2">
-                <span class="text-lg font-bold">通知中心</span>
-                <span v-if="totalUnread > 0" class="badge badge-primary badge-sm border-none">
-                    {{ totalUnread > 99 ? '99+' : totalUnread }}
-                </span>
             </div>
         </template>
     </LayoutListDetail>
