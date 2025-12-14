@@ -37,7 +37,6 @@ const closeWindow = async () => {
     <div v-if="isTauriEnv" data-tauri-drag-region
         class="flex items-center justify-between h-7 min-h-0 px-3 backdrop-blur select-none z-50 shrink-0">
         <div class="flex-1 h-full" data-tauri-drag-region></div>
-
         <div class="flex items-center gap-1.5 shrink-0" data-tauri-drag-region>
             <span v-if="isTauriEnv && isDesktop" class="flex items-center gap-1">
                 <button @click="minimizeWindow"

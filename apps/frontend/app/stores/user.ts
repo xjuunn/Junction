@@ -23,6 +23,10 @@ export const useUserStore = defineStore("user", () => {
         refresh();
     }
 
+    function setUser(user: User) {
+        _user.value = user;
+    }
+
     // onMounted(refresh);
 
     return {
@@ -34,6 +38,7 @@ export const useUserStore = defineStore("user", () => {
         authToken,
         refresh,
         setAuthToken,
+        setUser,
     };
 }, {
     persist: true

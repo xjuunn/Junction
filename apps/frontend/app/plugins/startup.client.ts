@@ -6,6 +6,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     const socket = useSocket('app');
     socket.emit('init', (user) => {
         // console.log('socket初始化:', user);
+        useUserStore().setUser(user);
     });
     socket.on('new-notification', (notification) => {
         console.log('收到通知:', notification);
