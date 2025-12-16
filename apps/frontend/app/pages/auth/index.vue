@@ -1,6 +1,6 @@
 <template>
     <div class="flex h-full">
-        <div class="w-5/12 flex flex-1 md:flex-none items-center justify-center pl-5 overflow-hidden relative">
+        <div class="w-5/12 flex flex-1 md:flex-none items-center justify-center overflow-hidden relative">
             <transition name="page">
                 <div class="mb-10 min-w-80 absolute" :key="$route.path">
                     <nuxt-page></nuxt-page>
