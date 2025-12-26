@@ -5,29 +5,29 @@ const base = "/friendship"
 /**
  * 创建好友关系
  */
-export function create(data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId'>) {
+export function create(data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>) {
     return api.post<AwaitedReturnType<FriendshipService['create']>>(base, data);
 }
 
 /**
- * 查找好友关系
+ * 查找好友关系列表
  */
 export function findAll(data: Omit<PrismaTypes.Prisma.FriendshipWhereInput, 'senderId'> & PaginationOptions) {
     return api.get<AwaitedReturnType<FriendshipService['findAll']>>(base, data)
 }
 
 /**
- * 查找某个好友关系
+ * 查找某个好友详情
  */
-export function findOne(receiverId: string) {
-    return api.get<AwaitedReturnType<FriendshipService['findOne']>>(base + "/" + receiverId)
+export function findOne(friendId: string) {
+    return api.get<AwaitedReturnType<FriendshipService['findOne']>>(base + "/" + friendId)
 }
 
 /**
  * 同意好友请求
  */
 export function accept(friendId: string) {
-    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/accept/${friendId}`);
+    return api.patch<AwaitedReturnType<FriendshipService['accept']>>(base + `/accept/${friendId}`);
 }
 
 /**
@@ -40,13 +40,13 @@ export function reject(friendId: string) {
 /**
  * 拉黑好友
  */
-export function block(id: string) {
-    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/block/${id}`);
+export function block(friendId: string) {
+    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/block/${friendId}`);
 }
 
 /**
  * 删除好友关系
  */
-export function remove(receiverId: string) {
-    return api.delete<AwaitedReturnType<FriendshipService['remove']>>(base + "/" + receiverId)
+export function remove(friendId: string) {
+    return api.delete<AwaitedReturnType<FriendshipService['remove']>>(base + "/" + friendId)
 }

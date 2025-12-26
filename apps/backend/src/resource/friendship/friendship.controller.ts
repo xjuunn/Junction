@@ -16,15 +16,13 @@ export class FriendshipController {
     @Session() session: UserSession,
     @Body() data: Omit<PrismaTypes.Prisma.FriendshipUncheckedCreateInput, 'senderId' | 'status'>
   ) {
-    if (data.receiverId === session.user.id) {
-      throw new BadRequestException("不能添加自己为好友");
-    }
+    if (data.receiverId === session.user.id) throw new BadRequestException("不能添加自己为好友");
     return this.friendshipService.create(session.user.id, data);
   }
 
   @Get()
   @ApiPagination()
-  @ApiOperation({ summary: "好友关系列表", description: "查询好友关系列表" })
+  @ApiOperation({ summary: "好友关系列表" })
   findAll(
     @Session() session: UserSession,
     @Query() data: Omit<PrismaTypes.Prisma.FriendshipWhereInput, 'senderId'> = {},
@@ -39,42 +37,22 @@ export class FriendshipController {
     return this.friendshipService.findOne(session.user.id, friendId);
   }
 
-  //// 禁止普通用户修改好友关系
-  // @Patch(':id')
-  // @ApiOperation({ summary: "修改好友关系" })
-  // update(
-  //   @Session() session: UserSession,
-  //   @Param('id') id: string,
-  //   @Body() data: Omit<PrismaTypes.Prisma.FriendshipUpdateInput, 'senderId'>
-  // ) {
-  //   return this.friendshipService.update(id, session.user.id, data);
-  // }
-
   @Patch('accept/:friendId')
   @ApiOperation({ summary: "接受好友请求" })
-  accept(
-    @Session() session: UserSession,
-    @Param('friendId') friendId: string,
-  ) {
-    return this.friendshipService.update(session.user.id, friendId, { status: 'ACCEPTED' });
+  accept(@Session() session: UserSession, @Param('friendId') friendId: string) {
+    return this.friendshipService.accept(session.user.id, friendId);
   }
 
   @Patch('reject/:friendId')
   @ApiOperation({ summary: "拒绝好友请求" })
-  reject(
-    @Session() session: UserSession,
-    @Param('friendId') friendId: string,
-  ) {
+  reject(@Session() session: UserSession, @Param('friendId') friendId: string) {
     return this.friendshipService.update(session.user.id, friendId, { status: 'REJECTED' });
   }
 
   @Patch('block/:friendId')
   @ApiOperation({ summary: "拉黑好友" })
-  block(
-    @Session() session: UserSession,
-    @Param('friendId') friendId: string,
-  ) {
-    return this.friendshipService.update(session.user.id, friendId, { status: 'BLOCKED' });
+  block(@Session() session: UserSession, @Param('friendId') friendId: string) {
+    return this.friendshipService.update(session.user.id, friendId, { status: 'BLOCKED', isBlocked: true });
   }
 
   @Delete(':friendId')
