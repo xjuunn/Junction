@@ -1,8 +1,8 @@
 <template>
     <div class="flex items-center justify-center overflow-hidden bg-neutral text-neutral-content shrink-0 transition-all"
         :class="[radiusClass, sizeClass]" :style="customStyle">
-        <img v-if="src" :src="src" class="object-cover w-full h-full" :style="{ borderRadius: radiusStyle }"
-            alt="avatar" />
+        <img v-if="src" :src="resolveAssetUrl(src)" class="object-cover w-full h-full"
+            :style="{ borderRadius: radiusStyle }" alt="avatar" />
         <span v-else class="font-medium whitespace-nowrap select-none">
             {{ displayText }}
         </span>
@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+const runtimeConfig = useRuntimeConfig();
 
 interface Props {
     src?: string | null
