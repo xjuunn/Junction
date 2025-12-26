@@ -1,139 +1,141 @@
 <script setup lang="ts">
-import { type ChatItemProps } from './item.vue';
-const chatList = ref<ChatItemProps[]>([
-    {
-        id: 1,
-        name: '欧强',
-        time: '12分钟前',
-        preview: '太酷了，你是怎么做到的？非常有创意...',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ochieng',
-        isPinned: true,
-        status: 'online',
-        unreadCount: 0
-    },
-    {
-        id: 2,
-        name: '阿里',
-        time: '2小时前',
-        preview: '那你觉得怎么样？',
-        avatarColor: 'bg-[#5B4D88]',
-        initials: 'AM',
-        isMuted: true,
-        status: 'sleep',
-        unreadCount: 3
-    },
-    {
-        id: 3,
-        name: '尤兰达',
-        time: '2小时前',
-        preview: '语音消息 (0:12)',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Yolonda',
-        isActive: true,
-        isVoice: true,
-        isRead: true,
-        status: 'none'
-    },
-    {
-        id: 4,
-        name: '莎奈',
-        time: '3小时前',
-        preview: '哇，非常感谢！',
-        avatarColor: 'bg-[#7A3E4D]',
-        initials: 'SM',
-        status: 'love',
-        unreadCount: 0
-    },
-    {
-        id: 5,
-        name: '杰德',
-        time: '5小时前',
-        preview: '发送了一张图片',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jed',
-        isPhoto: true,
-        unreadCount: 0
-    },
-    {
-        id: 6,
-        name: '设计团队',
-        time: '昨天',
-        preview: '下周的会议提纲已经发到群里了。',
-        avatarColor: 'bg-primary',
-        initials: 'DT',
-        unreadCount: 5
+import { ref, computed, onMounted } from 'vue';
+import * as conversationApi from '~/api/conversation';
+
+type ConversationItem = NonNullable<
+    NonNullable<Awaited<ReturnType<typeof conversationApi.findAll>>['data']>['items']
+>[number];
+
+const searchQuery = ref('');
+const activeTab = ref<'all' | 'personal' | 'group'>('all');
+const loading = ref(true);
+const conversations = ref<ConversationItem[]>([]);
+
+/**
+ * 异步获取会话列表并同步状态
+ */
+const fetchConversations = async (): Promise<void> => {
+    loading.value = true;
+    try {
+        const res = await conversationApi.findAll({ page: 1, limit: 50 });
+        if (res.success && res.data) {
+            conversations.value = res.data.items;
+        } else {
+            conversations.value = [];
+        }
+    } catch (e) {
+        conversations.value = [];
+    } finally {
+        loading.value = false;
     }
-]);
-
-// 标签数据
-const tabs = [
-    { key: 'all', label: '全部', count: 6 },
-    { key: 'personal', label: '个人', count: 4 },
-    { key: 'other', label: '其他', count: 2 }
-];
-
-const activeTab = ref('all');
-
-// 点击处理
-const handleChatClick = (id: number) => {
-    chatList.value.forEach(chat => {
-        chat.isActive = chat.id === id;
-    });
 };
+
+/**
+ * 根据搜索词、分类标签以及置顶设置计算最终显示列表
+ */
+const filteredList = computed<ConversationItem[]>(() => {
+    return conversations.value.filter(item => {
+        const title = item.title || '';
+        const matchesSearch = title.toLowerCase().includes(searchQuery.value.toLowerCase());
+        const matchesTab = activeTab.value === 'all'
+            ? true
+            : activeTab.value === 'personal' ? item.type === 'PRIVATE' : item.type === 'GROUP';
+        return matchesSearch && matchesTab;
+    }).sort((a, b) => {
+        // 置顶排序逻辑权重
+        const aWeight = a.mySettings?.pinned ? 1 : 0;
+        const bWeight = b.mySettings?.pinned ? 1 : 0;
+        if (aWeight !== bWeight) return bWeight - aWeight;
+        // 时间倒序排序
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+});
+
+onMounted(() => {
+    fetchConversations();
+});
 </script>
 
 <template>
-    <div class="flex flex-col h-full select-none text-base-content font-sans overflow-hidden">
+    <div class="flex flex-col h-full bg-base-100 overflow-hidden border-r border-base-200/50 select-none">
 
-        <!-- 头部区域 -->
-        <div class="px-6 pt-7 pb-4 shrink-0 flex items-center justify-between">
-            <h1 class="text-[20px] font-bold tracking-tight text-base-content">会话</h1>
+        <!-- 头部搜索与操作 -->
+        <div class="px-6 pt-8 pb-4 space-y-4 shrink-0">
+            <div class="flex items-center justify-between">
+                <h1 class="text-2xl font-black tracking-tighter text-base-content">消息</h1>
+                <div class="flex gap-1">
+                    <button class="btn btn-ghost btn-circle btn-sm" @click="fetchConversations">
+                        <Icon name="mingcute:refresh-3-line" size="18" :class="{ 'animate-spin': loading }" />
+                    </button>
+                    <button class="btn btn-ghost btn-circle btn-sm">
+                        <Icon name="mingcute:add-line" size="18" />
+                    </button>
+                </div>
+            </div>
 
-            <!-- 右侧操作组 -->
-            <div class="flex items-center gap-2">
-                <!-- 全读按钮 -->
-                <button
-                    class="btn btn-sm btn-square border-none bg-base-content/5 hover:bg-base-content/10 text-base-content/60 rounded-lg transition-colors">
-                    <Icon name="mingcute:check-line" size="18" />
-                </button>
-                <!-- 设置按钮 -->
-                <button
-                    class="btn btn-sm btn-square border-none bg-base-content/5 hover:bg-base-content/10 text-base-content/60 rounded-lg transition-colors">
-                    <Icon name="mingcute:settings-3-line" size="18" />
-                </button>
+            <div class="relative group">
+                <div
+                    class="input input-sm h-10 w-full bg-base-200 border-none focus:bg-base-100 text-base-content/50 group-focus-within:text-base-content/80 focus:ring-2 focus:ring-primary/20 transition-all text-[13px] rounded-xl">
+                    <Icon name="mingcute:search-line" size="18" />
+                    <input v-model="searchQuery" type="text" placeholder="搜索联系人或群组..." class="" />
+                </div>
             </div>
         </div>
 
-        <!-- 标签切换 -->
-        <div
-            class="px-6 flex items-center gap-6 text-[13px] font-medium shrink-0 border-b border-base-content/5 relative">
-            <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
-                class="pb-3 relative flex items-center gap-2 transition-all outline-none group"
-                :class="activeTab === tab.key ? 'text-base-content' : 'text-base-content/40 hover:text-base-content/70'">
-                <!-- 标签文字 -->
-                <span :class="activeTab === tab.key ? 'font-bold' : 'font-medium'">
-                    {{ tab.label }}
-                </span>
-
-                <!-- 计数胶囊 -->
-                <span
-                    class="h-[18px] min-w-[18px] px-1.5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors"
-                    :class="activeTab === tab.key
-                        ? 'bg-primary text-primary-content shadow-[0_2px_8px_rgba(var(--p)/0.4)]'
-                        : 'bg-base-content/5 text-base-content/40 group-hover:bg-base-content/10'">
-                    {{ tab.count }}
-                </span>
-
-                <!-- 底部激活条 -->
-                <div v-if="activeTab === tab.key"
-                    class="absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-t-full shadow-[0_-1px_6px_rgba(var(--p)/0.6)]">
-                </div>
+        <!-- 过滤标签卡片组 -->
+        <div class="px-4 flex gap-1.5 mb-3 shrink-0 overflow-x-auto no-scrollbar">
+            <button
+                v-for="tab in ([{ k: 'all', l: '全部' }, { k: 'personal', l: '私人' }, { k: 'group', l: '群组' }] as const)"
+                :key="tab.k" class="btn btn-xs h-8 px-4 border-none rounded-lg font-bold transition-all" :class="activeTab === tab.k
+                    ? 'bg-primary text-primary-content shadow-md shadow-primary/10'
+                    : 'bg-base-200 hover:bg-base-300 text-base-content/50'" @click="activeTab = tab.k">
+                {{ tab.l }}
             </button>
         </div>
 
-        <!-- 列表 -->
-        <div class="flex-1 overflow-y-auto px-3 py-3 space-y-1 scroll-smooth">
-            <div class="pb-4 space-y-1.5">
-                <AppChatItem v-for="chat in chatList" :key="chat.id" :data="chat" @click="handleChatClick(chat.id)" />
+        <!-- 滚动列表容器 -->
+        <div class="flex-1 overflow-y-auto pb-8 scroll-smooth custom-scrollbar">
+            <!-- 加载骨架屏 -->
+            <div v-if="loading && conversations.length === 0" class="p-4 space-y-3">
+                <div v-for="i in 8" :key="i" class="flex items-center gap-4 animate-pulse px-2">
+                    <div class="w-12 h-12 bg-base-300 rounded-[18px]"></div>
+                    <div class="flex-1 space-y-2.5">
+                        <div class="h-4 bg-base-300 rounded-md w-1/3"></div>
+                        <div class="h-3 bg-base-300 rounded-md w-5/6"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-else-if="filteredList.length === 0"
+                class="h-full flex flex-col items-center justify-center opacity-20 p-12 text-center">
+                <Icon name="mingcute:chat-4-line" size="56" class="mb-4" />
+                <p class="text-sm font-bold tracking-tight">暂无相关会话</p>
+            </div>
+
+            <!-- 渲染会话项 -->
+            <div v-else class="space-y-0.5 py-1">
+                <AppChatItem v-for="chat in filteredList" :key="chat.id" :data="chat" />
             </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--bc) / 0.1);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+</style>

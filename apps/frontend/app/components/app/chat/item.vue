@@ -1,129 +1,108 @@
 <script setup lang="ts">
-export interface ChatItemProps {
-    id: number;
-    name: string;
-    time: string;
-    preview: string;
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
+
+// 对接后端 Conversation 格式
+interface ConversationItem {
+    id: string;
+    type: 'PRIVATE' | 'GROUP' | 'SYSTEM';
+    title: string;
     avatar?: string;
-    avatarColor?: string;
-    initials?: string;
-    isPinned?: boolean;
-    status?: 'online' | 'sleep' | 'love' | 'none';
+    lastMessage?: {
+        content: string;
+        type: string;
+        createdAt: string;
+        sender?: { name: string };
+    };
+    memberCount: number;
+    mySettings?: {
+        pinned: boolean;
+        muted: boolean;
+    };
     unreadCount?: number;
-    isActive?: boolean;
-    isMuted?: boolean;
-    isVoice?: boolean;
-    isPhoto?: boolean;
-    isRead?: boolean;
 }
 
-defineProps<{
-    data: ChatItemProps
+const props = defineProps<{
+    data: ConversationItem
 }>();
+
+const route = useRoute();
+
+/**
+ * 判断当前项是否处于选中激活状态
+ */
+const isActive = computed(() => route.params.id === props.data.id);
+
+/**
+ * 格式化显示时间
+ */
+const displayTime = computed(() => {
+    if (!props.data.lastMessage) return '';
+    const date = new Date(props.data.lastMessage.createdAt);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+});
+
+/**
+ * 处理消息预览文字的展示逻辑
+ */
+const previewText = computed(() => {
+    if (!props.data.lastMessage) return '暂无消息';
+    const prefix = props.data.type === 'GROUP' ? `${props.data.lastMessage.sender?.name}: ` : '';
+    return `${prefix}${props.data.lastMessage.content}`;
+});
 </script>
 
 <template>
-    <div class="group relative flex items-center gap-3.5 px-3.5 py-3 rounded-[18px] cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] will-change-transform active:scale-[0.98]"
+    <div class="relative group flex items-center gap-4 px-4 py-3 cursor-pointer transition-all duration-200 rounded-2xl select-none mx-2"
         :class="[
-            data.isActive
-                ? 'bg-base-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] scale-[1.02] z-10 ring-1 ring-base-content/5'
-                : 'hover:bg-base-100/40 hover:shadow-sm hover:ring-1 hover:ring-white/5 bg-transparent'
+            isActive
+                ? 'bg-primary text-primary-content shadow-lg shadow-primary/20'
+                : 'hover:bg-base-200 active:scale-95'
         ]" @click="navigateTo('/chat/' + data.id)">
-
-        <!-- 激活态：左侧极光指示条 -->
-        <div v-if="data.isActive"
-            class="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] bg-primary rounded-r-full shadow-[0_0_12px_rgba(var(--p)/0.8)] opacity-90">
+        <!-- 置顶标记 -->
+        <div v-if="data.mySettings?.pinned" class="absolute top-0 right-0 w-4 h-4 overflow-hidden">
+            <div class="absolute top-[-8px] right-[-8px] w-4 h-4 rotate-45"
+                :class="isActive ? 'bg-primary-content/20' : 'bg-primary/20'"></div>
         </div>
 
-        <!-- 头像容器 -->
+        <!-- 头像 -->
         <div class="relative shrink-0">
-            <BaseAvatar :src="data.avatar" :text="data.initials" :size="48" :radius="16" :placeholder-length="2"
-                class="transition-all duration-500 ease-out will-change-transform" :class="[
-                    (!data.avatar && data.avatarColor) ? data.avatarColor : '',
-                    data.isActive
-                        ? 'ring-2 ring-primary/20 shadow-md'
-                        : 'ring-1 ring-base-content/5 shadow-sm group-hover:rotate-1 group-hover:scale-105'
-                ]" />
-
-            <!-- 状态指示器 -->
-            <div class="absolute -bottom-1 -right-1 z-10">
-                <div
-                    class="relative flex items-center justify-center w-[18px] h-[18px] bg-base-100 rounded-full ring-2 ring-base-100 transition-transform duration-300 group-hover:scale-110">
-
-                    <!-- 在线指示器 -->
-                    <span v-if="data.status === 'online'" class="relative flex h-2.5 w-2.5">
-                        <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75 duration-1000"></span>
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-success shadow-sm"></span>
-                    </span>
-
-                    <!-- 勿扰 -->
-                    <div v-else-if="data.status === 'sleep'"
-                        class="flex items-center justify-center w-full h-full bg-base-200 rounded-full text-base-content/60">
-                        <Icon name="mingcute:moon-fill" size="10" />
-                    </div>
-
-                    <!-- 喜爱 -->
-                    <div v-else-if="data.status === 'love'"
-                        class="flex items-center justify-center w-full h-full bg-error/10 rounded-full text-error">
-                        <Icon name="mingcute:heart-fill" size="10" />
-                    </div>
+            <div class="avatar" :class="{ 'placeholder': !data.avatar }">
+                <div class="w-12 h-12 rounded-2xl transition-transform group-hover:scale-105"
+                    :class="isActive ? 'bg-primary-content/20' : 'bg-neutral text-neutral-content'">
+                    <img v-if="data.avatar" :src="data.avatar" :alt="data.title" />
+                    <span v-else class="text-lg font-bold">{{ data.title?.charAt(0) }}</span>
                 </div>
+            </div>
+            <!-- 在线状态或类型图标 -->
+            <div v-if="data.type === 'GROUP'" class="absolute -bottom-1 -right-1 badge badge-xs p-1"
+                :class="isActive ? 'badge-primary-content text-primary' : 'badge-neutral'">
+                <Icon name="mingcute:group-fill" size="10" />
             </div>
         </div>
 
-        <!-- 文本内容 -->
-        <div class="flex-1 min-w-0 flex flex-col gap-[2px]">
-            <!-- 第一行：名称与时间 -->
-            <div class="flex items-center justify-between">
+        <!-- 内容区 -->
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-0.5">
                 <div class="flex items-center gap-1.5 min-w-0">
-                    <span
-                        class="font-bold text-[15px] leading-tight truncate tracking-tight transition-colors duration-200"
-                        :class="data.isActive ? 'text-base-content' : 'text-base-content/90 group-hover:text-base-content'">
-                        {{ data.name }}
-                    </span>
-                    <!-- 隐式图标，悬浮显示 -->
-                    <div
-                        class="flex items-center gap-1 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 ease-out">
-                        <Icon v-if="data.isPinned" name="mingcute:pin-fill"
-                            class="text-[11px] text-primary -rotate-45" />
-                        <Icon v-if="data.isMuted" name="mingcute:notification-off-fill"
-                            class="text-[11px] text-base-content/40" />
-                    </div>
+                    <h3 class="font-bold text-[15px] truncate tracking-tight">
+                        {{ data.title }}
+                    </h3>
+                    <Icon v-if="data.mySettings?.muted" name="mingcute:notification-off-line" size="12"
+                        class="opacity-50 shrink-0" />
                 </div>
-
-                <span class="text-xs font-medium tabular-nums transition-colors duration-200" :class="[
-                    (data.unreadCount || 0) > 0 ? 'text-primary font-semibold' : 'text-base-content/40',
-                    data.isActive ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'
-                ]">
-                    {{ data.time }}
-                </span>
+                <time class="text-[11px] font-medium tabular-nums opacity-60">
+                    {{ displayTime }}
+                </time>
             </div>
 
-            <!-- 第二行：预览与未读数 -->
-            <div class="flex items-center justify-between h-[18px]">
-                <div class="flex items-center gap-1.5 min-w-0 pr-3">
-                    <!-- 状态图标 -->
-                    <Icon v-if="data.isRead" name="mingcute:check-2-line" class="text-primary text-[14px] shrink-0" />
-                    <span v-if="data.isVoice" class="flex items-center text-base-content/70 shrink-0">
-                        <Icon name="mingcute:mic-fill" size="12" />
-                    </span>
-                    <span v-if="data.isPhoto" class="flex items-center text-base-content/70 shrink-0">
-                        <Icon name="mingcute:pic-fill" size="12" />
-                    </span>
-
-                    <!-- 预览文字 -->
-                    <span class="text-[13px] truncate leading-tight transition-colors duration-200" :class="[
-                        (data.unreadCount || 0) > 0 ? 'text-base-content font-medium' : 'text-base-content/50',
-                        data.isActive ? 'text-base-content/80' : 'group-hover:text-base-content/70'
-                    ]">
-                        {{ data.preview }}
-                    </span>
-                </div>
-
-                <!-- 未读徽标 (发光效果) -->
-                <div v-if="(data.unreadCount || 0) > 0"
-                    class="shrink-0 relative flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-[10px] font-bold text-primary-content shadow-[0_2px_8px_rgba(var(--p)/0.5)] transition-transform duration-300 group-hover:scale-110">
+            <div class="flex items-center justify-between gap-2">
+                <p class="text-[13px] truncate leading-tight opacity-70 flex-1">
+                    {{ previewText }}
+                </p>
+                <!-- 未读数 -->
+                <div v-if="data.unreadCount" class="badge badge-sm font-black border-none"
+                    :class="isActive ? 'bg-primary-content text-primary' : 'badge-primary'">
                     {{ data.unreadCount }}
                 </div>
             </div>
