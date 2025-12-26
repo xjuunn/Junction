@@ -58,7 +58,7 @@ const previewText = computed(() => {
             isActive
                 ? 'bg-primary text-primary-content shadow-lg shadow-primary/20'
                 : 'hover:bg-base-200 active:scale-95'
-        ]" @click="navigateTo('/chat/' + data.id)">
+        ]" @click="navigateTo('/chat/' + data.id, { replace: true })">
         <!-- 置顶标记 -->
         <div v-if="data.mySettings?.pinned" class="absolute top-0 right-0 w-4 h-4 overflow-hidden">
             <div class="absolute top-[-8px] right-[-8px] w-4 h-4 rotate-45"
@@ -67,13 +67,10 @@ const previewText = computed(() => {
 
         <!-- 头像 -->
         <div class="relative shrink-0">
-            <div class="avatar" :class="{ 'placeholder': !data.avatar }">
-                <div class="w-12 h-12 rounded-2xl transition-transform group-hover:scale-105"
-                    :class="isActive ? 'bg-primary-content/20' : 'bg-neutral text-neutral-content'">
-                    <img v-if="data.avatar" :src="data.avatar" :alt="data.title" />
-                    <span v-else class="text-lg font-bold">{{ data.title?.charAt(0) }}</span>
-                </div>
-            </div>
+            <BaseAvatar :text="data.title" :height="48" :width="48" :radius="10" :placeholder-length="2"
+                :src="data.avatar" :alt="data.title"
+                :class="isActive ? 'bg-primary-content/20' : 'bg-neutral text-neutral-content'">
+            </BaseAvatar>
             <!-- 在线状态或类型图标 -->
             <div v-if="data.type === 'GROUP'" class="absolute -bottom-1 -right-1 badge badge-xs p-1"
                 :class="isActive ? 'badge-primary-content text-primary' : 'badge-neutral'">
