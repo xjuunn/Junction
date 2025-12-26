@@ -8,29 +8,222 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+// --- 用户模块 ---
+
 model User {
-  id                     String          @id
-  name                   String
-  email                  String
-  emailVerified          Boolean         @default(false)
-  image                  String?
-  role                   String          @default("user") /// 用户的角色。默认为“user”。管理员将拥有“admin”角色。
-  banned                 Boolean         @default(false) /// 用户是否被禁止
-  banReason              String? /// 用户被封禁的原因
-  banExpires             DateTime? /// 用户封禁到期的日期
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @default(now()) @updatedAt
-  passkeys               passkey[]
-  sessions               Session[]
-  accounts               Account[]
-  wallets                walletAddress[]
-  sentFriendRequests     Friendship[]    @relation("FriendRequestSender") /// 用户发起的好友请求
-  receivedFriendRequests Friendship[]    @relation("FriendRequestReceiver") /// 用户接收的好友请求
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("user")
+  banned        Boolean   @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  // 认证相关
+  passkeys passkey[]
+  sessions Session[]
+  accounts Account[]
+  wallets  walletAddress[]
+
+  // 社交与通知
+  sentFriendRequests     Friendship[]   @relation("FriendRequestSender")
+  receivedFriendRequests Friendship[]   @relation("FriendRequestReceiver")
   notifications          Notification[]
+
+  // IM 扩展
+  ownedConversations Conversation[]       @relation("ConversationOwner")
+  conversations      ConversationMember[]
+  messages           Message[]
 
   @@unique([email])
   @@map("user")
 }
+
+// --- 社交模块 ---
+
+model Friendship {
+  id         String           @id @default(cuid())
+  senderId   String
+  sender     User             @relation("FriendRequestSender", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User             @relation("FriendRequestReceiver", fields: [receiverId], references: [id])
+  status     FriendshipStatus @default(PENDING)
+  isBlocked  Boolean          @default(false)
+  note       String?
+  source     String?
+  requestMsg String?
+  updatedAt  DateTime         @default(now()) @updatedAt
+  createdAt  DateTime         @default(now())
+
+  @@unique([senderId, receiverId])
+  @@map("friendship")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
+// --- IM 会话模块 ---
+
+model Conversation {
+  id          String           @id @default(cuid())
+  type        ConversationType
+  title       String?
+  avatar      String?
+  isTemporary Boolean          @default(false)
+
+  // 归属设置
+  ownerId String?
+  owner   User?              @relation("ConversationOwner", fields: [ownerId], references: [id])
+  status  ConversationStatus @default(ACTIVE)
+
+  // 消息统计与预览
+  lastMessageId String?  @unique
+  lastMessage   Message? @relation("LastMessage", fields: [lastMessageId], references: [id])
+
+  extra     Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  ConversationMember[]
+  messages Message[]            @relation("ConversationMessages")
+
+  @@index([type])
+  @@map("conversation")
+}
+
+model ConversationMember {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role ConversationMemberRole @default(MEMBER)
+
+  // 个人偏好设置
+  muted    Boolean @default(false)
+  pinned   Boolean @default(false)
+  isActive Boolean @default(true) // 用于软删除/隐藏会话
+
+  // 已读回执进度
+  lastReadMessageId String?
+
+  joinedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_member")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+
+  content String?
+  type    String  @default("TEXT") // TEXT, IMAGE, FILE, SYSTEM...
+  payload Json? // 存储富文本或多媒体结构
+
+  isEdited  Boolean @default(false)
+  isRevoked Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联会话的最后一条消息预览
+  lastMessageOf Conversation? @relation("LastMessage")
+
+  @@index([conversationId, createdAt])
+  @@map("message")
+}
+
+enum ConversationType {
+  PRIVATE
+  GROUP
+  TEMPORARY
+  SYSTEM
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  DISABLED
+}
+
+enum ConversationMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// --- 通知模块 ---
+
+model Notification {
+  id            String                    @id @default(cuid())
+  type          NotificationType
+  title         String
+  cover         String?
+  content       String?
+  icon          String?
+  status        NotificationStatus        @default(UNREAD)
+  processStatus NotificationProcessStatus @default(PENDING)
+  level         NotificationLevel         @default(NORMAL)
+  userId        String
+  user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionPath    String?
+  actionPayload Json?
+  payload       Json?
+  extra         Json?
+  processedAt   DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, processStatus])
+  @@map("notification")
+}
+
+enum NotificationType {
+  SYSTEM
+  MESSAGE
+  FRIEND_REQUEST
+  MODULE_UPDATE
+  DOWNLOAD
+  WARNING
+  CUSTOM
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum NotificationProcessStatus {
+  PENDING
+  PROCESSED
+  EXPIRED
+  CANCELED
+}
+
+enum NotificationLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// --- 基础认证模块 (保持不变) ---
 
 model passkey {
   id           String   @id @default(cuid())
@@ -77,7 +270,7 @@ model Session {
   ipAddress      String?
   userAgent      String?
   userId         String
-  impersonatedBy String? ///模拟此会话的管理员的 ID
+  impersonatedBy String?
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
@@ -112,104 +305,4 @@ model Verification {
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@map("verification")
-}
-
-/// 好友关系
-model Friendship {
-  id         String           @id @default(cuid()) /// ID
-  senderId   String /// 发送请求一方的ID
-  sender     User             @relation("FriendRequestSender", fields: [senderId], references: [id]) /// 发送请求的一方
-  receiverId String /// 接受请求一方的ID
-  receiver   User             @relation("FriendRequestReceiver", fields: [receiverId], references: [id]) /// 接受请求的一方
-  status     FriendshipStatus @default(PENDING) /// 好友关系状态
-  isBlocked  Boolean          @default(false) /// 是否拉黑
-  note       String? /// 备注
-  source     String? /// 好友来源
-  requestMsg String? /// 请求附言
-  updatedAt  DateTime         @default(now()) @updatedAt /// 更新时间
-  createdAt  DateTime         @default(now()) /// 创建时间
-
-  @@unique([senderId, receiverId])
-}
-
-/// 好友关系状态
-enum FriendshipStatus {
-  PENDING /// 等待确认
-  ACCEPTED /// 已成为好友
-  REJECTED /// 拒绝申请
-  BLOCKED /// 已拉黑
-}
-
-/// 通知类型
-enum NotificationType {
-  SYSTEM
-  MESSAGE
-  FRIEND_REQUEST
-  MODULE_UPDATE
-  DOWNLOAD
-  WARNING
-  CUSTOM
-}
-
-/// 通知状态
-enum NotificationStatus {
-  UNREAD
-  READ
-}
-
-/// 通知处理状态
-enum NotificationProcessStatus {
-  PENDING
-  PROCESSED
-  EXPIRED
-  CANCELED
-}
-
-/// 通知优先级
-enum NotificationLevel {
-  LOW
-  NORMAL
-  HIGH
-  URGENT
-}
-
-/// 通知表
-model Notification {
-  id String @id @default(cuid())
-
-  /// 基础信息
-  type    NotificationType
-  title   String
-  cover   String? /// 封面
-  content String?
-  icon    String?
-
-  /// 阅读 & 处理状态
-  status        NotificationStatus        @default(UNREAD)
-  processStatus NotificationProcessStatus @default(PENDING)
-  level         NotificationLevel         @default(NORMAL)
-
-  /// 所属用户
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  /// 行为相关
-  actionPath    String?
-  actionPayload Json?
-
-  /// 统一负载（核心）
-  payload Json?
-
-  /// 模块扩展（兼容旧逻辑）
-  extra Json?
-
-  /// 处理时间
-  processedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, status])
-  @@index([userId, processStatus])
-  @@map("notification")
 }

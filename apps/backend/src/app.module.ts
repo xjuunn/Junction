@@ -21,6 +21,7 @@ import { UploadModule } from './resource/upload/upload.module';
 import { AppGateway } from './app.gateway';
 import { NotificationModule } from './resource/notification/notification.module';
 import { EventsModule } from './resource/events/events.module';
+import { ConversationModule } from './resource/conversation/conversation.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { EventsModule } from './resource/events/events.module';
     FriendshipModule,
     NotificationModule,
     EventsModule,
+    ConversationModule,
   ],
   controllers: [AppController],
   providers: [
