@@ -125,27 +125,76 @@ model ConversationMember {
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id String @id @default(cuid())
+
+  /// 所属会话
   conversationId String
   conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId       String
-  sender         User         @relation(fields: [senderId], references: [id])
 
+  /// 发送者（系统 / 机器人消息可为空）
+  senderId String?
+  sender   User?   @relation(fields: [senderId], references: [id])
+
+  /// 消息类型（文本 / 图片 / 文件 / 系统 / 插件等）
+  type MessageType @default(TEXT)
+
+  /// 文本内容（TEXT / SYSTEM 消息使用）
   content String?
-  type    String  @default("TEXT") // TEXT, IMAGE, FILE, SYSTEM...
-  payload Json? // 存储富文本或多媒体结构
 
-  isEdited  Boolean @default(false)
-  isRevoked Boolean @default(false)
+  /// 富媒体 / 结构化负载（图片、文件、卡片、插件消息）
+  payload Json?
+
+  /// 消息生命周期状态（删除 / 撤回 / 屏蔽）
+  status MessageStatus @default(NORMAL)
+
+  /// 是否被编辑（用于 UI 显示“已编辑”）
+  isEdited Boolean @default(false)
+
+  /// 被回复 / 引用的消息
+  replyToId String?
+  replyTo   Message?  @relation("MessageReply", fields: [replyToId], references: [id])
+  replies   Message[] @relation("MessageReply")
+
+  /// 客户端生成的消息 ID（用于幂等、防重发）
+  clientMessageId String?
+
+  /// 会话内消息顺序号（保证顺序稳定，不依赖时间）
+  sequence Int
+
+  /// 消息归属模块 / 插件（如：投票、交易、游戏等）
+  moduleId String?
+
+  /// 消息过期时间（临时聊天 / 阅后即焚）
+  expiresAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // 关联会话的最后一条消息预览
+  /// 反向关联：作为会话的最后一条消息
   lastMessageOf Conversation? @relation("LastMessage")
 
+  @@unique([conversationId, clientMessageId])
+  @@index([conversationId, sequence])
   @@index([conversationId, createdAt])
   @@map("message")
+}
+
+enum MessageType {
+  TEXT /// 普通文本
+  IMAGE /// 图片
+  FILE /// 文件
+  AUDIO /// 音频
+  VIDEO /// 视频
+  SYSTEM /// 系统消息
+  NOTICE /// 通知类消息
+  PLUGIN /// 插件 / 模块消息
+}
+
+enum MessageStatus {
+  NORMAL /// 正常
+  DELETED /// 对自己删除
+  REVOKED /// 已撤回
+  BLOCKED /// 被风控 / 屏蔽
 }
 
 enum ConversationType {

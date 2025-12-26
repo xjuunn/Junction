@@ -22,6 +22,7 @@ import { AppGateway } from './app.gateway';
 import { NotificationModule } from './resource/notification/notification.module';
 import { EventsModule } from './resource/events/events.module';
 import { ConversationModule } from './resource/conversation/conversation.module';
+import { MessageModule } from './resource/message/message.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ConversationModule } from './resource/conversation/conversation.module'
     NotificationModule,
     EventsModule,
     ConversationModule,
+    MessageModule,
   ],
   controllers: [AppController],
   providers: [
