@@ -8,6 +8,9 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()]
   },
+  nitro: {
+    preset: 'cloudflare-pages'
+  },
   runtimeConfig: {
     public: {
       appName: process.env.APP_NAME,
