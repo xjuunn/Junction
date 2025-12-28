@@ -1,0 +1,8 @@
+{
+    "name": "junction",
+    "compatibility_date": "2025-12-28",
+    "main": "apps/frontend/.output/server/index.mjs",
+    "assets": {
+        "directory": "apps/frontend/.output/public"
+    }
+}
