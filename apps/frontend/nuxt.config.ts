@@ -9,7 +9,10 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()]
   },
   nitro: {
-    preset: 'cloudflare-pages'
+    preset: 'cloudflare-pages',
+    output: {
+      dir: '.output'
+    }
   },
   runtimeConfig: {
     public: {
