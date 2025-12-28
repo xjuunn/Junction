@@ -1,4 +1,4 @@
-import { ConversationService } from '@junction/backend/src/resource/conversation/conversation.service'
+import type { ConversationService } from '@junction/backend/src/resource/conversation/conversation.service'
 import type { PrismaTypes } from '@junction/types';
 
 const base = "/conversation"

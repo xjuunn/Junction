@@ -1,5 +1,5 @@
-import { FriendshipService } from '@junction/backend/src/resource/friendship/friendship.service'
-import { type PrismaTypes } from '@junction/types'
+import type { FriendshipService } from '@junction/backend/src/resource/friendship/friendship.service'
+import type { PrismaTypes } from '@junction/types'
 const base = "/friendship"
 
 /**

@@ -1,4 +1,4 @@
-import { MessageService } from '@junction/backend/src/resource/message/message.service'
+import type { MessageService } from '@junction/backend/src/resource/message/message.service'
 import type { PrismaTypes } from '@junction/types'
 
 const base = "/message"
