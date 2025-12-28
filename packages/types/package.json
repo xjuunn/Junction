@@ -7,8 +7,5 @@
   "types": "./dist/esm/index.d.ts",
   "scripts": {
     "build": "tsc && tsc -p tsconfig.cjs.json"
-  },
-  "peerDependencies": {
-    "@prisma/client": "*"
   }
 }
