@@ -5,8 +5,11 @@
   "main": "index.js",
   "scripts": {
     "dev": "npx turbo run dev",
+    "dev:frontend": "npx turbo run dev --filter=./apps/frontend",
+    "dev:backend": "npx turbo run dev --filter=./apps/backend",
     "start": "npx turbo run start",
-    "build": "npx turbo run build"
+    "build": "npx turbo run build",
+    "build:packages": "npx turbo run build --filter=./packages/*"
   },
   "keywords": [],
   "author": "",
