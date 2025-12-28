@@ -39,7 +39,6 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
     "@vueuse/nuxt",
     "@nuxtjs/color-mode",
-    "nuxt-tiptap-editor",
     "@nuxtjs/device",
     "@vueuse/motion/nuxt"
   ]
