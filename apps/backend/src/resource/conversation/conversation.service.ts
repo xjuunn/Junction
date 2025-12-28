@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaginationData, PrismaTypes, PrsimaValues } from '@junction/types';
+import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
 
 @Injectable()
@@ -29,8 +29,8 @@ export class ConversationService {
         });
 
         const members: PrismaTypes.Prisma.ConversationMemberCreateManyInput[] = [
-          { conversationId: conv.id, userId, role: PrsimaValues.ConversationMemberRole.OWNER },
-          { conversationId: conv.id, userId: data.targetId!, role: PrsimaValues.ConversationMemberRole.MEMBER }
+          { conversationId: conv.id, userId, role: PrismaValues.ConversationMemberRole.OWNER },
+          { conversationId: conv.id, userId: data.targetId!, role: PrismaValues.ConversationMemberRole.MEMBER }
         ];
 
         await tx.conversationMember.createMany({ data: members });
@@ -49,11 +49,11 @@ export class ConversationService {
       });
 
       const members: PrismaTypes.Prisma.ConversationMemberCreateManyInput[] = [
-        { conversationId: conv.id, userId, role: PrsimaValues.ConversationMemberRole.OWNER },
+        { conversationId: conv.id, userId, role: PrismaValues.ConversationMemberRole.OWNER },
         ...(data.memberIds || []).map(id => ({
           conversationId: conv.id,
           userId: id,
-          role: PrsimaValues.ConversationMemberRole.MEMBER
+          role: PrismaValues.ConversationMemberRole.MEMBER
         }))
       ];
 

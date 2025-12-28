@@ -50,3 +50,10 @@ export function block(friendId: string) {
 export function remove(friendId: string) {
     return api.delete<AwaitedReturnType<FriendshipService['remove']>>(base + "/" + friendId)
 }
+
+export enum FriendshipStatus {
+    "PENDING", // 开启
+    "ACCEPTED", // 同意
+    "REJECTED",  // 拒绝
+    "BLOCKED",  // 阻塞
+}

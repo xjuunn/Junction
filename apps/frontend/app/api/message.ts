@@ -54,3 +54,23 @@ export function markAsRead(conversationId: string, messageId: string) {
 export function search(conversationId: string, query: string) {
     return api.get<AwaitedReturnType<MessageService['search']>>(`${base}/${conversationId}/search`, { q: query });
 }
+
+// 消息状态
+export enum MessageStatus {
+    "NORMAL",   /// 正常
+    "DELETED",  /// 对自己删除
+    "REVOKED",  /// 已撤回
+    "BLOCKED",  /// 被风控 / 屏蔽
+}
+
+// 消息类型
+export enum MessageType {
+    "TEXT", /// 普通文本
+    "IMAGE", /// 图片
+    "FILE", /// 文件
+    "AUDIO", /// 音频
+    "VIDEO", /// 视频
+    "SYSTEM", /// 系统消息
+    "NOTICE", /// 通知类消息
+    "PLUGIN", /// 插件 / 模块消息
+}

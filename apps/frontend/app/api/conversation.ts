@@ -44,3 +44,25 @@ export function updateSettings(id: string, data: PrismaTypes.Prisma.Conversation
 export function remove(id: string) {
     return api.delete<AwaitedReturnType<ConversationService['remove']>>(base + "/" + id);
 }
+
+// 会话类型
+export enum ConversationType {
+    "PRIVATE", // 私聊
+    "GROUP", // 群聊
+    "TEMPORARY", // 临时会话
+    "SYSTEM", // 系统
+}
+
+// 会话状态
+export enum ConversationStatus {
+    "ACTIVE", // 激活
+    "ARCHIVED", // 归档
+    "DISABLED", // 失效
+}
+
+// 会话成员角色
+export enum ConversationMemberRole {
+    "OWNER", // 拥有者
+    "ADMIN",  // 管理员
+    "MEMBER",  //成员
+}

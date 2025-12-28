@@ -55,3 +55,36 @@ export function removeAll() {
 export function remove(id: string) {
     return api.delete<AwaitedReturnType<NotificationController['remove']>>(base + `/${id}`);
 }
+
+// 通知类型
+export enum NotificationType {
+    "SYSTEM", // 系统
+    "MESSAGE", // 消息
+    "FRIEND_REQUEST", // 好友请求
+    "MODULE_UPDATE",
+    "DOWNLOAD",
+    "WARNING",
+    "CUSTOM", // 自定义
+}
+
+// 通知状态
+export enum NotificationStatus {
+    "UNREAD", // 已读
+    "READ", // 未读
+}
+
+// 通知进程状态
+export enum NotificationProcessStatus {
+    "PENDING",  // 开启
+    "PROCESSED",  // 已处理
+    "EXPIRED",  // 失效
+    "CANCELED", // 取消
+}
+
+// 通知等级
+export enum NotificationLevel {
+    "LOW", // 低
+    "NORMAL",  // 中
+    "HIGH", // 高
+    "URGENT", // 紧急
+}

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaginationData, PrismaTypes, PrsimaValues } from '@junction/types';
+import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
 
 @Injectable()
@@ -79,7 +79,7 @@ export class MessageService {
           clientMessageId,
           senderId: userId,
           sequence: nextSequence,
-          status: PrsimaValues.MessageStatus.NORMAL
+          status: PrismaValues.MessageStatus.NORMAL
         },
         select: this.messageSelect
       });
@@ -99,7 +99,7 @@ export class MessageService {
   async bulkDelete(userId: string, ids: string[]) {
     return this.prisma.message.updateMany({
       where: { id: { in: ids }, senderId: userId },
-      data: { status: PrsimaValues.MessageStatus.DELETED }
+      data: { status: PrismaValues.MessageStatus.DELETED }
     });
   }
 
@@ -117,7 +117,7 @@ export class MessageService {
     const where: PrismaTypes.Prisma.MessageWhereInput = {
       conversationId: cleanId,
       sequence: cursor ? { lt: cursor } : undefined,
-      status: { not: PrsimaValues.MessageStatus.BLOCKED }
+      status: { not: PrismaValues.MessageStatus.BLOCKED }
     };
 
     const [items, total] = await Promise.all([
@@ -166,7 +166,7 @@ export class MessageService {
     return this.prisma.message.update({
       where: { id: messageId },
       data: {
-        status: PrsimaValues.MessageStatus.REVOKED,
+        status: PrismaValues.MessageStatus.REVOKED,
         content: null as any,
         payload: null as any
       },
@@ -194,7 +194,7 @@ export class MessageService {
       where: {
         conversationId: cleanId,
         content: { contains: query },
-        status: PrsimaValues.MessageStatus.NORMAL,
+        status: PrismaValues.MessageStatus.NORMAL,
         conversation: { members: { some: { userId } } }
       },
       take: 50,
