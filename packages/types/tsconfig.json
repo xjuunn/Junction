@@ -1,21 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2022",
     "module": "ESNext",
-    "outDir": "dist/esm",
     "rootDir": "src",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
+    "outDir": "dist/esm",
     "declaration": true,
-    "skipLibCheck": true,
-    "paths": {
-      "prismaclient": [
-        "../../node_modules/prismaclient/index.d.ts"
-      ]
-    }
+    "declarationMap": false,
+    "strict": true,
+    "skipLibCheck": true
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src"]
 }
