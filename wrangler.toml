@@ -8,7 +8,8 @@ directory = "apps/frontend/.output"
 
 [vars]
 NUXT_PUBLIC_APP_NAME = "Junction"
-NUXT_PUBLIC_HTTP_TYPE = "http"
-NUXT_PUBLIC_SERVER_HOST = "backend.junct.dpdns.org"
-NUXT_PUBLIC_BACKEND_PORT = "8080"
-NUXT_PUBLIC_FRONTEND_PORT = "3000"
+NUXT_PUBLIC_HTTP_TYPE = "https"                         # 协议类型
+NUXT_PUBLIC_SERVER_HOST = "backend.junct.dpdns.org"     # 服务器主机名，通常开发环境用 localhost
+NUXT_PUBLIC_BACKEND_PORT = 8080                         # 后端服务端口
+NUXT_PUBLIC_FRONTEND_PORT = 3000                        # 前端服务端口
+NUXT_PUBLIC_API_URL = "https://backend.junct.dpdns.org" # 前端使用的 api url
