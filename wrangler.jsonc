@@ -1,7 +1,7 @@
 {
     "name": "junction",
     "compatibility_date": "2025-12-28",
-    "main": "apps/frontend/.output/",
+    "main": "apps/frontend/.output/_worker.js",
     "assets": {
         "directory": "apps/frontend/.output"
     }
