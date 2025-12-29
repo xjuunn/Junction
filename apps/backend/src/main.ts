@@ -27,6 +27,7 @@ async function bootstrap() {
     `${HTTP_TYPE}://localhost:${FRONTEND_PORT}`,
     `${HTTP_TYPE}://127.0.0.1:${FRONTEND_PORT}`,
     'http://tauri.localhost',
+    "https://junct.dpdns.org",
     'tauri://localhost',
   ];
 

@@ -1,12 +1,22 @@
 import tailwindcss from "@tailwindcss/vite"
-import { config } from 'dotenv';
-import { resolve } from 'path';
-config({ path: resolve(__dirname, '../../.env') })
+// config({ path: resolve(__dirname, '../../.env') })
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    server: {
+      strictPort: true,
+      allowedHosts: [
+        'localhost',
+        '127.0.0.1',
+        'app.junct.dpdns.org',
+      ],
+      fs: {
+        strict: false
+      }
+    }
   },
   nitro: {
     preset: 'cloudflare-pages',
@@ -16,7 +26,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      appName: process.env.APP_NAME || 'Junction',
+      appName: process.env.APP_NAME,
       apiUrl: `${process.env.HTTP_TYPE || 'http'}://${process.env.SERVER_HOST || 'backend.junct.dpdns.org'}:${process.env.BACKEND_PORT || '8080'}`,
       httpType: process.env.HTTP_TYPE || 'http',
       serverHost: process.env.SERVER_HOST || 'backend.junct.dpdns.org',

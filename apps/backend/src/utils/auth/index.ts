@@ -22,6 +22,7 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
     trustedOrigins: [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://junct.dpdns.org",
         `http://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
     ],
     advanced: {
