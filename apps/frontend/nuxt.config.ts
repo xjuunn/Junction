@@ -1,5 +1,7 @@
 import tailwindcss from "@tailwindcss/vite"
-// config({ path: resolve(__dirname, '../../.env') })
+import { config } from 'dotenv';
+import { resolve } from 'path';
+config({ path: resolve(__dirname, '../../.env') })
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -26,12 +28,12 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      appName: '',
-      apiUrl: '',
-      httpType: '',
-      serverHost: '',
-      backendPort: '',
-      frontendPort: '',
+      appName: process.env.NUXT_PUBLIC_APP_NAME,
+      apiUrl: process.env.NUXT_PUBLIC_API_URL,
+      httpType: process.env.NUXT_PUBLIC_HTTP_TYPE,
+      serverHost: process.env.NUXT_PUBLIC_SERVER_HOST,
+      backendPort: process.env.NUXT_PUBLIC_BACKEND_PORT,
+      frontendPort: process.env.NUXT_PUBLIC_FRONTEND_PORT,
     },
     authSecret: process.env.AUTH_SECRET,
   },
