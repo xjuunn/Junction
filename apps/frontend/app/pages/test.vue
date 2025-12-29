@@ -8,6 +8,7 @@
 const runtimeConfig = useRuntimeConfig();
 function test() {
     console.log(runtimeConfig.public);
+    console.log(runtimeConfig.public.appName);
 
 }
 </script>
