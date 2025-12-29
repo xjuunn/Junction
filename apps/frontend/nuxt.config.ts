@@ -16,12 +16,12 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      appName: process.env.APP_NAME,
-      apiUrl: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.BACKEND_PORT}`,
-      httpType: process.env.HTTP_TYPE,
-      serverHost: process.env.SERVER_HOST,
-      backendPort: process.env.BACKEND_PORT,
-      frontendPort: process.env.FRONTEND_PORT,
+      appName: process.env.APP_NAME || 'Junction',
+      apiUrl: `${process.env.HTTP_TYPE || 'http'}://${process.env.SERVER_HOST || 'backend.junct.dpdns.org'}:${process.env.BACKEND_PORT || '8080'}`,
+      httpType: process.env.HTTP_TYPE || 'http',
+      serverHost: process.env.SERVER_HOST || 'backend.junct.dpdns.org',
+      backendPort: process.env.BACKEND_PORT || '8080',
+      frontendPort: process.env.FRONTEND_PORT || '3000',
     },
     authSecret: process.env.AUTH_SECRET,
   },
