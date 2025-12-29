@@ -26,7 +26,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      appName: process.env.APP_NAME,
+      // appName: process.env.APP_NAME,
       apiUrl: `${process.env.HTTP_TYPE || 'http'}://${process.env.SERVER_HOST || 'backend.junct.dpdns.org'}:${process.env.BACKEND_PORT || '8080'}`,
       httpType: process.env.HTTP_TYPE || 'http',
       serverHost: process.env.SERVER_HOST || 'backend.junct.dpdns.org',
