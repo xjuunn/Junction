@@ -19,7 +19,7 @@ export class EmailService {
             template,
             context: {
                 email,
-                appName: process.env.APP_NAME,
+                appName: process.env.NUXT_PUBLIC_APP_NAME,
                 ...data
             }
         })

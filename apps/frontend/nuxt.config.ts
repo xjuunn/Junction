@@ -27,11 +27,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       appName: '',
-      apiUrl: `${process.env.HTTP_TYPE || 'http'}://${process.env.SERVER_HOST || 'backend.junct.dpdns.org'}:${process.env.BACKEND_PORT || '8080'}`,
-      httpType: process.env.HTTP_TYPE || 'http',
-      serverHost: process.env.SERVER_HOST || 'backend.junct.dpdns.org',
-      backendPort: process.env.BACKEND_PORT || '8080',
-      frontendPort: process.env.FRONTEND_PORT || '3000',
+      apiUrl: `${process.env.NUXT_PUBLIC_HTTP_TYPE || 'http'}://${process.env.NUXT_PUBLIC_SERVER_HOST || 'backend.junct.dpdns.org'}:${process.env.NUXT_PUBLIC_BACKEND_PORT || '8080'}`,
+      httpType: process.env.NUXT_PUBLIC_HTTP_TYPE || 'http',
+      serverHost: process.env.NUXT_PUBLIC_SERVER_HOST || 'backend.junct.dpdns.org',
+      backendPort: process.env.NUXT_PUBLIC_BACKEND_PORT || '8080',
+      frontendPort: process.env.NUXT_PUBLIC_FRONTEND_PORT || '3000',
     },
     authSecret: process.env.AUTH_SECRET,
   },
@@ -44,7 +44,7 @@ export default defineNuxtConfig({
   css: ["~/assets/app.css"],
   app: {
     head: {
-      title: process.env.APP_NAME,
+      title: process.env.NUXT_PUBLIC_APP_NAME,
     },
     layoutTransition: { name: "layout", mode: 'out-in' },
     pageTransition: { name: "page", mode: "out-in" },

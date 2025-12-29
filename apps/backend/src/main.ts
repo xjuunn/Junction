@@ -12,20 +12,20 @@ async function bootstrap() {
   });
 
   const documentConfig = new DocumentBuilder()
-    .setTitle(process.env.APP_NAME + ' API')
-    .setDescription(process.env.APP_NAME + ' API')
+    .setTitle(process.env.NUXT_PUBLIC_APP_NAME + ' API')
+    .setDescription(process.env.NUXT_PUBLIC_APP_NAME + ' API')
     .setVersion('1.0')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, documentConfig);
   SwaggerModule.setup('swagger', app, documentFactory, { jsonDocumentUrl: 'swagger/json' });
 
-  const HTTP_TYPE = process.env.HTTP_TYPE ?? 'http';
-  const SERVER_HOST = process.env.SERVER_HOST ?? 'localhost';
-  const FRONTEND_PORT = process.env.FRONTEND_PORT ?? '3000';
+  const NUXT_PUBLIC_HTTP_TYPE = process.env.NUXT_PUBLIC_HTTP_TYPE ?? 'http';
+  const NUXT_PUBLIC_SERVER_HOST = process.env.NUXT_PUBLIC_SERVER_HOST ?? 'localhost';
+  const NUXT_PUBLIC_FRONTEND_PORT = process.env.NUXT_PUBLIC_FRONTEND_PORT ?? '3000';
   const allowedOrigins = [
-    `${HTTP_TYPE}://${SERVER_HOST}:${FRONTEND_PORT}`,
-    `${HTTP_TYPE}://localhost:${FRONTEND_PORT}`,
-    `${HTTP_TYPE}://127.0.0.1:${FRONTEND_PORT}`,
+    `${NUXT_PUBLIC_HTTP_TYPE}://${NUXT_PUBLIC_SERVER_HOST}:${NUXT_PUBLIC_FRONTEND_PORT}`,
+    `${NUXT_PUBLIC_HTTP_TYPE}://localhost:${NUXT_PUBLIC_FRONTEND_PORT}`,
+    `${NUXT_PUBLIC_HTTP_TYPE}://127.0.0.1:${NUXT_PUBLIC_FRONTEND_PORT}`,
     'http://tauri.localhost',
     "https://junct.dpdns.org",
     'tauri://localhost',
@@ -41,7 +41,7 @@ async function bootstrap() {
 
   app.use(compression());
 
-  await app.listen(process.env.BACKEND_PORT ?? 8080);
-  logger.log(`Listening on ${process.env.BACKEND_PORT ?? 8080}`);
+  await app.listen(process.env.NUXT_PUBLIC_BACKEND_PORT ?? 8080);
+  logger.log(`Listening on ${process.env.NUXT_PUBLIC_BACKEND_PORT ?? 8080}`);
 }
 bootstrap();

@@ -11,7 +11,7 @@ import { prisma } from '~/utils/prisma'
 export const authFactory = (emailService: EmailService): Auth => betterAuth({
     database: prismaAdapter(prisma, { provider: 'sqlite' }),
     basePath: "/auth",
-    baseURL: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.BACKEND_PORT}`,
+    baseURL: `${process.env.NUXT_PUBLIC_HTTP_TYPE}://${process.env.NUXT_PUBLIC_SERVER_HOST}:${process.env.NUXT_PUBLIC_BACKEND_PORT}`,
     secret: process.env.AUTH_SECRET,
     emailAndPassword: {
         enabled: true,
@@ -23,7 +23,7 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://junct.dpdns.org",
-        `http://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
+        `http://${process.env.NUXT_PUBLIC_SERVER_HOST}:${process.env.NUXT_PUBLIC_FRONTEND_PORT}`,
     ],
     advanced: {
         cookie: {
@@ -34,7 +34,7 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
         disableCSRFCheck: true,
         // 确保你的前端 IP 被允许
         defaultCookieAttributes: {
-            secure: process.env.NODE_ENV === 'production' || process.env.HTTP_TYPE === 'https',
+            secure: process.env.NODE_ENV === 'production' || process.env.NUXT_PUBLIC_HTTP_TYPE === 'https',
         }
     },
     plugins: [
@@ -53,9 +53,9 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
             },
         }),
         passkey({
-            rpID: process.env.SERVER_HOST!,
-            rpName: process.env.APP_NAME!,
-            origin: `${process.env.HTTP_TYPE}://${process.env.SERVER_HOST}:${process.env.FRONTEND_PORT}`,
+            rpID: process.env.NUXT_PUBLIC_SERVER_HOST!,
+            rpName: process.env.NUXT_PUBLIC_APP_NAME!,
+            origin: `${process.env.NUXT_PUBLIC_HTTP_TYPE}://${process.env.NUXT_PUBLIC_SERVER_HOST}:${process.env.NUXT_PUBLIC_FRONTEND_PORT}`,
             authenticatorSelection: {
                 authenticatorAttachment: "platform",
                 residentKey: "preferred",
@@ -63,8 +63,8 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
             },
         }),
         siwe({
-            domain: process.env.SERVER_HOST!,
-            emailDomainName: process.env.SERVER_HOST!,
+            domain: process.env.NUXT_PUBLIC_SERVER_HOST!,
+            emailDomainName: process.env.NUXT_PUBLIC_SERVER_HOST!,
             anonymous: true,
             getNonce: async () => {
                 return generateRandomString(32)

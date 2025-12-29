@@ -8,7 +8,7 @@ directory = "apps/frontend/.output"
 
 [vars]
 NUXT_PUBLIC_APP_NAME = "Junction"
-HTTP_TYPE = "http"
-SERVER_HOST = "backend.junct.dpdns.org"
-BACKEND_PORT = "8080"
-FRONTEND_PORT = "3000"
+NUXT_PUBLIC_HTTP_TYPE = "http"
+NUXT_PUBLIC_SERVER_HOST = "backend.junct.dpdns.org"
+NUXT_PUBLIC_BACKEND_PORT = "8080"
+NUXT_PUBLIC_FRONTEND_PORT = "3000"
