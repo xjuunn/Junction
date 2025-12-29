@@ -4,5 +4,12 @@
     "main": "apps/frontend/.output/_worker.js",
     "assets": {
         "directory": "apps/frontend/.output"
+    },
+    "vars": {
+        "APP_NAME": "Junction",
+        "HTTP_TYPE": "http",
+        "SERVER_HOST": "backend.junct.dpdns.org",
+        "BACKEND_PORT": "8080",
+        "FRONTEND_PORT": "3000"
     }
 }
