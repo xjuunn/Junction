@@ -23,9 +23,13 @@ import { NotificationModule } from './resource/notification/notification.module'
 import { EventsModule } from './resource/events/events.module';
 import { ConversationModule } from './resource/conversation/conversation.module';
 import { MessageModule } from './resource/message/message.module';
+import { RedisModule } from './resource/redis/redis.module';
+import { StatusModule } from './resource/status/status.module';
 
 @Module({
   imports: [
+    RedisModule,
+    StatusModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
     }),

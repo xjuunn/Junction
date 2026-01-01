@@ -39,6 +39,7 @@
     "compression": "^1.8.1",
     "cookie": "^1.1.1",
     "eventemitter2": "^6.4.9",
+    "ioredis": "^5.8.2",
     "nodemailer": "^7.0.9",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
