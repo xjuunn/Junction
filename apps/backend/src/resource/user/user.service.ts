@@ -1,14 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import { PaginationOptions } from "~/decorators/pagination.decorator";
 import { PrismaService } from "../prisma/prisma.service";
-import { PaginationData, PrismaTypes } from "@junction/types";
+import { PaginationData } from "@junction/types";
+import { StatusService } from "../status/status.service";
 
 @Injectable()
 export class UserService {
     constructor(
-        private readonly prisma: PrismaService
+        private readonly prisma: PrismaService,
+        private readonly statusService: StatusService
     ) { }
 
+    /**
+     * 计算用户间的社交关系状态
+     */
     private getRelationStatus(isMe: boolean, sentByMe: { status: string } | undefined, sentToMe: { status: string } | undefined) {
         if (isMe) return 'SELF';
         if (sentByMe?.status === 'ACCEPTED' || sentToMe?.status === 'ACCEPTED') return 'FRIEND';
@@ -18,6 +23,9 @@ export class UserService {
         return 'NONE';
     }
 
+    /**
+     * 搜索用户
+     */
     async search(keyword: string, pageOption: PaginationOptions, currentUserId: string) {
         const where = {
             OR: [
@@ -49,6 +57,9 @@ export class UserService {
             this.prisma.user.count({ where }),
         ]);
 
+        const userIds = users.map(u => u.id);
+        const statuses = await this.statusService.getStatuses(userIds);
+
         const getScore = (val: string) => {
             if (val === keyword) return 100;
             if (val.startsWith(keyword)) return 80;
@@ -63,6 +74,7 @@ export class UserService {
                 return {
                     ...data,
                     relation: this.getRelationStatus(u.id === currentUserId, receivedFriendRequests[0], sentFriendRequests[0]),
+                    isOnline: statuses[u.id],
                     _score: score
                 };
             })
@@ -72,6 +84,9 @@ export class UserService {
         return new PaginationData(result, { total, limit: pageOption.limit, page: pageOption.page });
     }
 
+    /**
+     * 用户详情
+     */
     async findOne(id: string, currentUserId: string) {
         const user = await this.prisma.user.findUnique({
             where: { id },
@@ -104,11 +119,12 @@ export class UserService {
         });
 
         if (!user) return null;
-
+        const onlineStatus = await this.statusService.getStatus(id);
         const { receivedFriendRequests, sentFriendRequests, ...data } = user;
         return {
             ...data,
-            relation: this.getRelationStatus(id === currentUserId, receivedFriendRequests[0], sentFriendRequests[0])
+            relation: this.getRelationStatus(id === currentUserId, receivedFriendRequests[0], sentFriendRequests[0]),
+            isOnline: onlineStatus
         };
     }
 }

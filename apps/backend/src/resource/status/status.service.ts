@@ -10,7 +10,7 @@ export class StatusService {
     constructor(private readonly redis: RedisService) { }
 
     /**
-     * 设置在线状态：增加 try-catch 保证 Redis 故障不阻塞 WebSocket 主流程
+     * 设置在线状态
      */
     async setOnline(userId: string) {
         try {
@@ -38,7 +38,20 @@ export class StatusService {
     }
 
     /**
-     * 批量获取状态：失败时回退到全员离线，保证 UI 不报错
+     * 获取单个用户状态
+     */
+    async getStatus(userId: string): Promise<boolean> {
+        try {
+            const res = await this.redis.client.exists(`${this.PREFIX}${userId}`);
+            return res === 1;
+        } catch (error) {
+            this.logger.error(`Failed to fetch status for user ${userId}: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * 批量获取用户状态
      */
     async getStatuses(userIds: string[]): Promise<Record<string, boolean>> {
         if (!userIds.length) return {};
@@ -52,6 +65,31 @@ export class StatusService {
         } catch (error) {
             this.logger.error(`Failed to fetch user statuses: ${error.message}`);
             return {};
+        }
+    }
+
+    /**
+     * 统计指定列表在线人数
+     */
+    async getOnlineStats(userIds: string[]) {
+        const statuses = await this.getStatuses(userIds);
+        const onlineCount = Object.values(statuses).filter(v => v).length;
+        return {
+            total: userIds.length,
+            online: onlineCount,
+            offline: userIds.length - onlineCount
+        };
+    }
+
+    /**
+     * 获取全网在线用户总数
+     */
+    async getGlobalOnlineCount(): Promise<number> {
+        try {
+            return await this.redis.client.scard(this.ONLINE_KEY);
+        } catch (error) {
+            this.logger.error(`Failed to get global online count: ${error.message}`);
+            return 0;
         }
     }
 }
