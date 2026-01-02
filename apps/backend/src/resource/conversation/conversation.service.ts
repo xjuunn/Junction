@@ -146,19 +146,22 @@ export class ConversationService {
    */
   private async formatConversation(conv: any, currentUserId: string, onlineMap: Record<string, boolean> = {}) {
     const mySettings = conv.members.find((m: any) => m.userId === currentUserId) || null;
-    let { title, avatar, online } = conv;
+    let { title, avatar } = conv;
+    let online = 0;
 
     if (conv.type === 'PRIVATE') {
-      const otherMemberInfo = await this.prisma.conversationMember.findFirst({
+      const otherMember = await this.prisma.conversationMember.findFirst({
         where: { conversationId: conv.id, userId: { not: currentUserId } },
         select: { userId: true, user: { select: { name: true, image: true } } }
       });
-      if (otherMemberInfo?.user) {
-        title = otherMemberInfo.user.name;
-        avatar = otherMemberInfo.user.image;
-        online = onlineMap[otherMemberInfo.userId] ? 1 : 0;
+      if (otherMember) {
+        title = otherMember.user.name;
+        avatar = otherMember.user.image;
+        // 关键：私聊状态仅取决于对方，与自己是否在刷新/离线无关
+        online = onlineMap[otherMember.userId] ? 1 : 0;
       }
     } else {
+      // 群聊维持在线人数统计
       online = conv.members.reduce((acc: number, m: any) => acc + (onlineMap[m.userId] ? 1 : 0), 0);
     }
 

@@ -5,15 +5,13 @@ import { ConversationGateway } from './resource/conversation/conversation.gatewa
 
 @WebSocketGateway({ namespace: 'app', cors: true })
 export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
-    @WebSocketServer() server: Server;
-
     constructor(
         private readonly statusService: StatusService,
         private readonly conversationGateway: ConversationGateway
     ) { }
 
     /**
-     * 建立连接
+     * 连接处理
      */
     async handleConnection(client: Socket) {
         const user = client.data.user;
@@ -21,18 +19,18 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
             client.data.userId = user.id;
             client.join(`user-${user.id}`);
             await this.statusService.setOnline(user.id);
-            this.conversationGateway.handleUserStatusChange(user.id);
+            await this.conversationGateway.handleUserStatusChange(user.id);
         }
     }
 
     /**
-     * 连接断开
+     * 断开处理
      */
     async handleDisconnect(client: Socket) {
         const userId = client.data.userId;
         if (userId) {
             await this.statusService.setOffline(userId);
-            this.conversationGateway.handleUserStatusChange(userId);
+            await this.conversationGateway.handleUserStatusChange(userId);
         }
     }
 }

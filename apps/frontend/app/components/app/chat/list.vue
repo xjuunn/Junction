@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import * as conversationApi from '~/api/conversation';
 
 type ConversationItem = NonNullable<
@@ -10,6 +10,11 @@ const searchQuery = ref('');
 const activeTab = ref<'all' | 'personal' | 'group'>('all');
 const loading = ref(true);
 const conversations = ref<ConversationItem[]>([]);
+
+/**
+ * 获取 Socket 实例
+ */
+const appSocket = useSocket('app');
 
 /**
  * 异步获取会话列表并同步状态
@@ -31,7 +36,17 @@ const fetchConversations = async (): Promise<void> => {
 };
 
 /**
- * 根据搜索词、分类标签以及置顶设置计算最终显示列表
+ * 实时同步在线状态核心逻辑
+ */
+const handleStatusUpdate = (data: { conversationId: string; onlineCount: number }) => {
+    const target = conversations.value.find(c => c.id === data.conversationId);
+    if (target) {
+        target.online = data.onlineCount;
+    }
+};
+
+/**
+ * 计算最终显示列表
  */
 const filteredList = computed<ConversationItem[]>(() => {
     return conversations.value.filter(item => {
@@ -42,17 +57,22 @@ const filteredList = computed<ConversationItem[]>(() => {
             : activeTab.value === 'personal' ? item.type === 'PRIVATE' : item.type === 'GROUP';
         return matchesSearch && matchesTab;
     }).sort((a, b) => {
-        // 置顶排序逻辑权重
         const aWeight = a.mySettings?.pinned ? 1 : 0;
         const bWeight = b.mySettings?.pinned ? 1 : 0;
         if (aWeight !== bWeight) return bWeight - aWeight;
-        // 时间倒序排序
         return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 });
 
 onMounted(() => {
     fetchConversations();
+    // 监听服务端推送的在线人数变更
+    appSocket.on('conversation-status', handleStatusUpdate);
+});
+
+onUnmounted(() => {
+    // 销毁监听器，防止内存泄漏
+    appSocket.off('conversation-status');
 });
 </script>
 

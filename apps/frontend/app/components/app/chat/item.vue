@@ -8,6 +8,7 @@ interface ConversationItem {
     type: 'PRIVATE' | 'GROUP' | 'SYSTEM';
     title: string;
     avatar?: string;
+    online?: number; // 1: 在线 (私聊), n: 在线人数 (群聊)
     lastMessage?: {
         content: string;
         type: string;
@@ -59,21 +60,30 @@ const previewText = computed(() => {
                 ? 'bg-primary text-primary-content shadow-lg shadow-primary/20'
                 : 'hover:bg-base-200 active:scale-95'
         ]" @click="navigateTo('/chat/' + data.id, { replace: true })">
+
         <!-- 置顶标记 -->
         <div v-if="data.mySettings?.pinned" class="absolute top-0 right-0 w-4 h-4 overflow-hidden">
             <div class="absolute top-[-8px] right-[-8px] w-4 h-4 rotate-45"
                 :class="isActive ? 'bg-primary-content/20' : 'bg-primary/20'"></div>
         </div>
 
-        <!-- 头像 -->
+        <!-- 头像区域 -->
         <div class="relative shrink-0">
             <BaseAvatar :text="data.title" :height="48" :width="48" :radius="10" :placeholder-length="2"
                 :src="data.avatar" :alt="data.title"
                 :class="isActive ? 'bg-primary-content/20' : 'bg-neutral text-neutral-content'">
             </BaseAvatar>
-            <!-- 在线状态或类型图标 -->
+
+            <!-- 私聊 -->
+            <div v-if="data.type === 'PRIVATE' && data.online === 1"
+                class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 bg-success"
+                :class="isActive ? 'border-primary' : 'border-base-100'">
+            </div>
+
+            <!-- 群聊 -->
             <div v-if="data.type === 'GROUP'" class="absolute -bottom-1 -right-1 badge badge-xs p-1"
                 :class="isActive ? 'badge-primary-content text-primary' : 'badge-neutral'">
+                <span v-if="data.online && data.online > 0" class="mr-0.5 scale-75">{{ data.online }}</span>
                 <Icon name="mingcute:group-fill" size="10" />
             </div>
         </div>

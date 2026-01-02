@@ -2,11 +2,12 @@ import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { StatusService } from '../status/status.service';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 @WebSocketGateway({ namespace: 'app', cors: true })
 export class ConversationGateway {
-    @WebSocketServer()
-    server: Server;
+    @WebSocketServer() server: Server;
 
     constructor(
         private readonly prisma: PrismaService,
@@ -14,39 +15,47 @@ export class ConversationGateway {
     ) { }
 
     /**
-     * 广播用户在线状态变更
+     * 实时广播状态变更
      */
     async handleUserStatusChange(userId: string) {
         const membersInCommon = await this.prisma.conversationMember.findMany({
             where: {
-                conversation: {
-                    members: { some: { userId } }
-                },
+                conversation: { members: { some: { userId } } },
                 isActive: true
             },
             select: {
                 conversationId: true,
-                userId: true
+                userId: true,
+                conversation: { select: { type: true } }
             }
         });
 
-        const conversationGroup = membersInCommon.reduce((acc, curr) => {
-            if (!acc[curr.conversationId]) acc[curr.conversationId] = [];
-            acc[curr.conversationId].push(curr.userId);
+        if (!membersInCommon.length) return;
+
+        const allUserIds = [...new Set(membersInCommon.map(m => m.userId))];
+        const onlineMap = await this.statusService.getStatuses(allUserIds);
+
+        const groups = membersInCommon.reduce((acc, curr) => {
+            if (!acc[curr.conversationId]) acc[curr.conversationId] = { type: curr.conversation.type, members: [] };
+            acc[curr.conversationId].members.push(curr.userId);
             return acc;
-        }, {} as Record<string, string[]>);
+        }, {} as Record<string, { type: string, members: string[] }>);
 
-        const allDistinctUsers = [...new Set(membersInCommon.map(m => m.userId))];
-        const onlineMap = await this.statusService.getStatuses(allDistinctUsers);
+        for (const [convId, group] of Object.entries(groups)) {
+            const totalOnline = group.members.filter(id => onlineMap[id]).length;
 
-        for (const [convId, memberIds] of Object.entries(conversationGroup)) {
-            const onlineMembers = memberIds.filter(id => onlineMap[id]);
-            const onlineCount = onlineMembers.length;
+            group.members.forEach(targetId => {
+                if (!onlineMap[targetId]) return;
 
-            onlineMembers.forEach(targetId => {
+                let displayValue = totalOnline;
+                if (group.type === 'PRIVATE') {
+                    const otherId = group.members.find(id => id !== targetId);
+                    displayValue = otherId && onlineMap[otherId] ? 1 : 0;
+                }
+
                 this.server.to(`user-${targetId}`).emit('conversation-status', {
                     conversationId: convId,
-                    onlineCount
+                    onlineCount: displayValue
                 });
             });
         }

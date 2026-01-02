@@ -19,7 +19,7 @@ export class StatusService {
                 .sadd(this.ONLINE_KEY, userId)
                 .exec();
         } catch (error) {
-            this.logger.error(`Failed to set online status for user ${userId}: ${error.message}`);
+            this.logger.error(`SetOnline Error: ${error.message}`);
         }
     }
 
@@ -33,7 +33,7 @@ export class StatusService {
                 .srem(this.ONLINE_KEY, userId)
                 .exec();
         } catch (error) {
-            this.logger.error(`Failed to set offline status for user ${userId}: ${error.message}`);
+            this.logger.error(`SetOffline Error: ${error.message}`);
         }
     }
 
