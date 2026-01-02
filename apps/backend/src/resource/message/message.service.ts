@@ -2,14 +2,15 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
+import { MessageGateway } from './message.gateway';
 
 @Injectable()
 export class MessageService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly messageGateway: MessageGateway
+  ) { }
 
-  /**
-   * 统一的消息查询字段定义
-   */
   private readonly messageSelect = {
     id: true,
     type: true,
@@ -20,7 +21,7 @@ export class MessageService {
     status: true,
     createdAt: true,
     senderId: true,
-    replyToId: true,
+    conversationId: true,
     clientMessageId: true,
     sender: { select: { id: true, name: true, image: true } },
     replyTo: {
@@ -34,51 +35,37 @@ export class MessageService {
   } as const;
 
   /**
-   * 发送消息：增加了参数清洗、成员状态自动激活及事务级权限校验
+   * 创建消息
    */
   async create(userId: string, data: PrismaTypes.Prisma.MessageUncheckedCreateInput) {
     const conversationId = data.conversationId?.trim();
-    const clientMessageId = data.clientMessageId?.trim();
     if (!conversationId) throw new BadRequestException('会话 ID 不能为空');
-    const member = await this.prisma.conversationMember.findFirst({
-      where: {
-        conversationId,
-        userId,
-      },
-      include: { conversation: true }
+
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId },
+      select: { userId: true, isActive: true, id: true }
     });
 
-    if (!member) throw new ForbiddenException('您不在此会话中');
-    if (member.conversation.status === 'DISABLED') throw new ForbiddenException('该会话已被禁用');
+    const isMember = members.find(m => m.userId === userId);
+    if (!isMember) throw new ForbiddenException('您不在此会话中');
 
-    return await this.prisma.$transaction(async (tx) => {
-      if (!member.isActive) {
-        await tx.conversationMember.update({
-          where: { id: member.id },
-          data: { isActive: true }
-        });
+    const message = await this.prisma.$transaction(async (tx) => {
+      if (!isMember.isActive) {
+        await tx.conversationMember.update({ where: { id: isMember.id }, data: { isActive: true } });
       }
-      if (clientMessageId) {
-        const existing = await tx.message.findUnique({
-          where: { conversationId_clientMessageId: { conversationId, clientMessageId } },
-          select: this.messageSelect
-        });
-        if (existing) return existing;
-      }
+
       const lastMsg = await tx.message.findFirst({
         where: { conversationId },
         orderBy: { sequence: 'desc' },
         select: { sequence: true }
       });
-      const nextSequence = (lastMsg?.sequence ?? 0) + 1;
 
-      const message = await tx.message.create({
+      const newMessage = await tx.message.create({
         data: {
           ...data,
           conversationId,
-          clientMessageId,
           senderId: userId,
-          sequence: nextSequence,
+          sequence: (lastMsg?.sequence ?? 0) + 1,
           status: PrismaValues.MessageStatus.NORMAL
         },
         select: this.messageSelect
@@ -86,11 +73,66 @@ export class MessageService {
 
       await tx.conversation.update({
         where: { id: conversationId },
-        data: { lastMessageId: message.id, updatedAt: new Date() }
+        data: { lastMessageId: newMessage.id, updatedAt: new Date() }
       });
 
-      return message;
+      return newMessage;
     });
+
+    this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'new-message', message, userId);
+    return message;
+  }
+
+  /**
+   * 撤回消息
+   */
+  async revoke(userId: string, messageId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { senderId: true, conversationId: true }
+    });
+
+    if (!message || message.senderId !== userId) throw new ForbiddenException('无权撤回');
+
+    const revokedMessage = await this.prisma.message.update({
+      where: { id: messageId },
+      data: { status: PrismaValues.MessageStatus.REVOKED, content: null as any, payload: null as any },
+      select: this.messageSelect
+    });
+
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId: message.conversationId },
+      select: { userId: true }
+    });
+
+    this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'message-revoked', revokedMessage, userId);
+    return revokedMessage;
+  }
+
+  /**
+   * 编辑消息
+   */
+  async update(userId: string, messageId: string, content: string, payload?: any) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { senderId: true, status: true, conversationId: true }
+    });
+
+    if (!message || message.senderId !== userId) throw new ForbiddenException('只能编辑自己的消息');
+
+    const updated = await this.prisma.message.update({
+      where: { id: messageId },
+      data: { content, payload, isEdited: true },
+      select: this.messageSelect
+    });
+
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId: message.conversationId },
+      select: { userId: true }
+    });
+
+    this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'message-updated', updated, userId);
+    return updated;
   }
 
   /**
@@ -104,11 +146,10 @@ export class MessageService {
   }
 
   /**
-   * 分页查询消息记录
+   * 分页查询消息
    */
-  async findAll(userId: string, conversationId: string, { take, skip, page, limit }: PaginationOptions, cursor?: number) {
+  async findAll(userId: string, conversationId: string, pagination: PaginationOptions, cursor?: number) {
     const cleanId = conversationId?.trim();
-
     const isMember = await this.prisma.conversationMember.findFirst({
       where: { conversationId: cleanId, userId }
     });
@@ -123,59 +164,19 @@ export class MessageService {
     const [items, total] = await Promise.all([
       this.prisma.message.findMany({
         where,
-        take,
-        skip,
+        take: pagination.take,
+        skip: pagination.skip,
         orderBy: { sequence: 'desc' },
         select: this.messageSelect
       }),
       this.prisma.message.count({ where: { conversationId: cleanId } })
     ]);
 
-    return new PaginationData(items.reverse(), { total, limit, page });
+    return new PaginationData(items.reverse(), { total, limit: pagination.limit, page: pagination.page });
   }
 
   /**
-   * 更新消息内容
-   */
-  async update(userId: string, messageId: string, content: string, payload?: any) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId },
-      select: { senderId: true, status: true }
-    });
-
-    if (!message || message.senderId !== userId) throw new ForbiddenException('只能编辑自己的消息');
-
-    return this.prisma.message.update({
-      where: { id: messageId },
-      data: { content, payload, isEdited: true },
-      select: this.messageSelect
-    });
-  }
-
-  /**
-   * 撤回消息
-   */
-  async revoke(userId: string, messageId: string) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId },
-      select: { senderId: true, createdAt: true }
-    });
-
-    if (!message || message.senderId !== userId) throw new ForbiddenException('无权撤回');
-
-    return this.prisma.message.update({
-      where: { id: messageId },
-      data: {
-        status: PrismaValues.MessageStatus.REVOKED,
-        content: null as any,
-        payload: null as any
-      },
-      select: this.messageSelect
-    });
-  }
-
-  /**
-   * 上报已读进度
+   * 已读进度上报
    */
   async markAsRead(userId: string, conversationId: string, messageId: string) {
     const cleanId = conversationId?.trim();
@@ -186,7 +187,7 @@ export class MessageService {
   }
 
   /**
-   * 会话内搜索
+   * 会话内全文检索
    */
   async search(userId: string, conversationId: string, query: string) {
     const cleanId = conversationId?.trim();

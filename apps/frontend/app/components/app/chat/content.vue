@@ -193,6 +193,39 @@ watch(() => conversationId.value, () => {
     messagePlainText.value = '';
     fetchData();
 }, { immediate: true });
+
+const setupSocketListeners = () => {
+    const appSocket = useSocket('app');
+    appSocket.on('new-message', (msg: any) => {
+        if (msg.conversationId === conversationId.value) {
+            const exists = messages.value.some(m => m.id === msg.id || (m.clientMessageId && m.clientMessageId === msg.clientMessageId));
+            if (!exists) {
+                messages.value.push(msg);
+                nextTick(() => listRef.value?.scrollToBottom());
+                reportReadStatus(msg.id);
+            }
+        }
+    });
+
+    appSocket.on('message-revoked', (msg: any) => {
+        if (msg.conversationId === conversationId.value) {
+            const idx = messages.value.findIndex(m => m.id === msg.id);
+            if (idx !== -1) messages.value[idx] = msg;
+        }
+    });
+};
+
+onMounted(() => {
+    fetchData();
+    setupSocketListeners();
+});
+
+onUnmounted(() => {
+    const appSocket = useSocket('app');
+    appSocket.off('new-message');
+    appSocket.off('message-revoked');
+});
+
 </script>
 
 <template>

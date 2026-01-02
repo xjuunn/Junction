@@ -14,6 +14,8 @@ export interface SocketNamespaces {
         "init": SocketEvent<void, PrismaTypes.User, never>;
         "new-notification": SocketEvent<never, never, PrismaTypes.Notification>;
         "conversation-status": SocketEvent<never, never, { conversationId: string; onlineCount: number }>;
+        "new-message": SocketEvent<never, never, any>;
+        "message-revoked": SocketEvent<never, never, { id: string; conversationId: string;[key: string]: any }>;
     };
 }
 
