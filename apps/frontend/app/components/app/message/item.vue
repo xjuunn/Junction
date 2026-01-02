@@ -29,7 +29,8 @@ const displayContent = computed(() => {
     <div :class="['chat group transition-all duration-300', isMe ? 'chat-end' : 'chat-start']">
         <div class="chat-image avatar">
             <div class="w-10 rounded-full bg-base-300 ring-1 ring-base-content/5">
-                <img :src="resolveAssetUrl(message.sender?.image)" :alt="message.sender?.name" />
+                <BaseAvatar :text="message.sender?.name" :placeholder-length="2" :src="message.sender?.avatar"
+                    :height="40" :width="40" :radius="9999" />
             </div>
         </div>
 

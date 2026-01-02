@@ -2,160 +2,128 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import * as conversationApi from '~/api/conversation';
 
-type ConversationItem = NonNullable<
-    NonNullable<Awaited<ReturnType<typeof conversationApi.findAll>>['data']>['items']
->[number];
+type ConversationItem = NonNullable<NonNullable<Awaited<ReturnType<typeof conversationApi.findAll>>['data']>['items']>[number];
 
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'personal' | 'group'>('all');
 const loading = ref(true);
 const conversations = ref<ConversationItem[]>([]);
-
-/**
- * 获取 Socket 实例
- */
 const appSocket = useSocket('app');
 
 /**
- * 异步获取会话列表并同步状态
+ * 加载会话列表数据
  */
 const fetchConversations = async (): Promise<void> => {
     loading.value = true;
     try {
         const res = await conversationApi.findAll({ page: 1, limit: 50 });
-        if (res.success && res.data) {
-            conversations.value = res.data.items;
-        } else {
-            conversations.value = [];
-        }
-    } catch (e) {
-        conversations.value = [];
+        if (res.success && res.data) conversations.value = res.data.items;
     } finally {
         loading.value = false;
     }
 };
 
 /**
- * 实时同步在线状态核心逻辑
+ * 接收实时状态更新
  */
 const handleStatusUpdate = (data: { conversationId: string; onlineCount: number }) => {
     const target = conversations.value.find(c => c.id === data.conversationId);
-    if (target) {
-        target.online = data.onlineCount;
-    }
+    if (target) target.online = data.onlineCount;
 };
 
 /**
- * 计算最终显示列表
+ * 列表综合过滤与排序调度
  */
 const filteredList = computed<ConversationItem[]>(() => {
     return conversations.value.filter(item => {
-        const title = item.title || '';
-        const matchesSearch = title.toLowerCase().includes(searchQuery.value.toLowerCase());
+        const matchesSearch = (item.title || '').toLowerCase().includes(searchQuery.value.toLowerCase());
         const matchesTab = activeTab.value === 'all'
             ? true
             : activeTab.value === 'personal' ? item.type === 'PRIVATE' : item.type === 'GROUP';
         return matchesSearch && matchesTab;
     }).sort((a, b) => {
-        const aWeight = a.mySettings?.pinned ? 1 : 0;
-        const bWeight = b.mySettings?.pinned ? 1 : 0;
-        if (aWeight !== bWeight) return bWeight - aWeight;
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        const aP = a.mySettings?.pinned ? 1 : 0;
+        const bP = b.mySettings?.pinned ? 1 : 0;
+        return aP !== bP ? bP - aP : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 });
 
 onMounted(() => {
     fetchConversations();
-    // 监听服务端推送的在线人数变更
     appSocket.on('conversation-status', handleStatusUpdate);
 });
 
 onUnmounted(() => {
-    // 销毁监听器，防止内存泄漏
     appSocket.off('conversation-status');
 });
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-base-100 overflow-hidden border-r border-base-200/50 select-none">
+    <div class="flex flex-col h-full bg-base-100/50 backdrop-blur-xl border-r border-base-200 overflow-hidden relative">
 
-        <!-- 头部搜索与操作 -->
-        <div class="px-6 pt-8 pb-4 space-y-4 shrink-0">
+        <!-- 装饰性光晕 -->
+        <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary/5 blur-[80px] pointer-events-none"></div>
+
+        <header class="p-6 pb-2 space-y-5">
             <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-black tracking-tighter text-base-content">消息</h1>
-                <div class="flex gap-1">
+                <div class="flex flex-col">
+                    <h1 class="text-2xl font-black tracking-tight flex items-center gap-2">
+                        消息
+                        <div class="badge badge-ghost badge-sm font-bold opacity-50">{{ filteredList.length }}</div>
+                    </h1>
+                </div>
+                <div class="flex gap-1 bg-base-200 p-1 rounded-full">
                     <button class="btn btn-ghost btn-circle btn-sm" @click="fetchConversations">
                         <Icon name="mingcute:refresh-3-line" size="18" :class="{ 'animate-spin': loading }" />
                     </button>
-                    <button class="btn btn-ghost btn-circle btn-sm">
-                        <Icon name="mingcute:add-line" size="18" />
+                    <button class="btn btn-primary btn-circle btn-sm shadow-lg shadow-primary/20">
+                        <Icon name="mingcute:add-line" size="20" />
                     </button>
                 </div>
             </div>
 
+            <!-- 搜索增强 -->
             <div class="relative group">
                 <div
-                    class="input input-sm h-10 w-full bg-base-200 border-none focus:bg-base-100 text-base-content/50 group-focus-within:text-base-content/80 focus:ring-2 focus:ring-primary/20 transition-all text-[13px] rounded-xl">
+                    class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-base-content/30 group-focus-within:text-primary transition-colors">
                     <Icon name="mingcute:search-line" size="18" />
-                    <input v-model="searchQuery" type="text" placeholder="搜索联系人或群组..." class="" />
                 </div>
+                <input v-model="searchQuery" type="text" placeholder="搜索联系人..."
+                    class="input input-sm h-11 w-full pl-11 bg-base-200/50 border-none focus:bg-base-100 rounded-2xl font-medium transition-all focus:ring-4 focus:ring-primary/10" />
             </div>
-        </div>
 
-        <!-- 过滤标签卡片组 -->
-        <div class="px-4 flex gap-1.5 mb-3 shrink-0 overflow-x-auto no-scrollbar">
-            <button
-                v-for="tab in ([{ k: 'all', l: '全部' }, { k: 'personal', l: '私人' }, { k: 'group', l: '群组' }] as const)"
-                :key="tab.k" class="btn btn-xs h-8 px-4 border-none rounded-lg font-bold transition-all" :class="activeTab === tab.k
-                    ? 'bg-primary text-primary-content shadow-md shadow-primary/10'
-                    : 'bg-base-200 hover:bg-base-300 text-base-content/50'" @click="activeTab = tab.k">
-                {{ tab.l }}
-            </button>
-        </div>
+            <!-- 选项卡导航 -->
+            <div class="tabs tabs-boxed bg-transparent p-0 gap-2">
+                <button v-for="tab in ([{ k: 'all', l: '全部' }, { k: 'personal', l: '私聊' }, { k: 'group', l: '群组' }] as const)"
+                    :key="tab.k"
+                    class="flex-1 btn btn-sm h-9 border-none rounded-xl font-bold transition-all no-animation"
+                    :class="activeTab === tab.k ? 'bg-base-content text-base-100' : 'bg-base-200/50 text-base-content/50 hover:bg-base-300'"
+                    @click="activeTab = tab.k">
+                    {{ tab.l }}
+                </button>
+            </div>
+        </header>
 
-        <!-- 滚动列表容器 -->
-        <div class="flex-1 overflow-y-auto pb-8 scroll-smooth custom-scrollbar">
-            <!-- 加载骨架屏 -->
-            <div v-if="loading && conversations.length === 0" class="p-4 space-y-3">
-                <div v-for="i in 8" :key="i" class="flex items-center gap-4 animate-pulse px-2">
-                    <div class="w-12 h-12 bg-base-300 rounded-[18px]"></div>
-                    <div class="flex-1 space-y-2.5">
-                        <div class="h-4 bg-base-300 rounded-md w-1/3"></div>
-                        <div class="h-3 bg-base-300 rounded-md w-5/6"></div>
+        <main class="flex-1 overflow-y-auto no-scrollbar py-2">
+            <div v-if="loading && !conversations.length" class="p-6 space-y-6">
+                <div v-for="i in 6" :key="i" class="flex items-center gap-4 animate-pulse">
+                    <div class="w-14 h-14 bg-base-300 rounded-2xl"></div>
+                    <div class="flex-1 space-y-3">
+                        <div class="h-4 bg-base-300 rounded w-1/2"></div>
+                        <div class="h-3 bg-base-200 rounded w-full"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 空状态 -->
-            <div v-else-if="filteredList.length === 0"
-                class="h-full flex flex-col items-center justify-center opacity-20 p-12 text-center">
-                <Icon name="mingcute:chat-4-line" size="56" class="mb-4" />
-                <p class="text-sm font-bold tracking-tight">暂无相关会话</p>
+            <div v-else-if="!filteredList.length"
+                class="h-full flex flex-col items-center justify-center text-center p-12 opacity-20">
+                <Icon name="mingcute:ghost-line" size="64" />
+                <p class="mt-4 font-black uppercase tracking-widest text-xs">空空如也</p>
             </div>
 
-            <!-- 渲染会话项 -->
-            <div v-else class="space-y-0.5 py-1">
+            <div v-else class="flex flex-col">
                 <AppChatItem v-for="chat in filteredList" :key="chat.id" :data="chat" />
             </div>
-        </div>
+        </main>
     </div>
 </template>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--bc) / 0.1);
-    border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-</style>
