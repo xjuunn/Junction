@@ -5,10 +5,16 @@
 </template>
 
 <script setup lang="ts">
-const runtimeConfig = useRuntimeConfig();
+
+const appSocket = useSocket('app');
+onMounted(() => {
+    appSocket.on('conversation-status', (data) => {
+        console.log("在线状态改变：", data);
+    })
+})
+
 function test() {
-    console.log(runtimeConfig.public);
-    console.log(runtimeConfig.public.appName);
+
 
 }
 </script>

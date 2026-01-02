@@ -13,6 +13,7 @@ export interface SocketNamespaces {
     app: {
         "init": SocketEvent<void, PrismaTypes.User, never>;
         "new-notification": SocketEvent<never, never, PrismaTypes.Notification>;
+        "conversation-status": SocketEvent<never, never, { conversationId: string; onlineCount: number }>;
     };
 }
 

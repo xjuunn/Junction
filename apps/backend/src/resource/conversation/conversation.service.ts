@@ -177,4 +177,35 @@ export class ConversationService {
       createdAt: conv.createdAt
     };
   }
+
+  /**
+   * 获取会话中所有在线成员详情
+   */
+  async getOnlineMembers(userId: string, conversationId: string) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        members: { some: { userId } }
+      },
+      select: {
+        members: {
+          select: {
+            userId: true,
+            user: {
+              select: { id: true, name: true, image: true, role: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!conversation) throw new BadRequestException('会话不存在或无权访问');
+
+    const memberIds = conversation.members.map(m => m.userId);
+    const onlineMap = await this.statusService.getStatuses(memberIds);
+
+    return conversation.members
+      .filter(m => onlineMap[m.userId])
+      .map(m => m.user);
+  }
 }
