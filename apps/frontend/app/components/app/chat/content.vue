@@ -6,6 +6,7 @@ const route = useRoute();
 const userStore = useUserStore();
 const toast = useToast();
 const appSocket = useSocket('app');
+const { emit: busEmit } = useEmitt();
 
 const conversationId = computed(() => route.params.id as string);
 const currentUserId = computed(() => unref(userStore.user)?.id);
@@ -21,21 +22,17 @@ const listRef = ref<any>(null);
 const editorRef = ref<any>(null);
 
 /**
- * 核心滚动函数：通过强制偏移量确保触达滚动极限
+ * 核心滚动函数
  */
 const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
     nextTick(() => {
         const el = listRef.value?.$el;
         if (!el) return;
-
-        // 使用双重渲染帧同步布局状态
         requestAnimationFrame(() => {
             el.scrollTo({
-                top: el.scrollHeight + 99999, // 赋予极大值强制触底
+                top: el.scrollHeight + 99999,
                 behavior
             });
-
-            // 补偿处理：针对图片或头像加载缓慢导致的后续高度变化
             if (behavior === 'auto') {
                 setTimeout(() => {
                     el.scrollTop = el.scrollHeight;
@@ -46,7 +43,7 @@ const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
 };
 
 /**
- * 加载历史消息：区分初始化滚动与向上加载位置保持
+ * 加载历史消息
  */
 const fetchMessages = async (isMore = false) => {
     if (loading.value || !conversationId.value) return;
@@ -83,7 +80,7 @@ const fetchConversation = async () => {
 };
 
 /**
- * 发送消息：清空编辑器并强制平滑滚动到底部
+ * 发送消息
  */
 const handleSend = async () => {
     const text = messagePlainText.value.trim();
@@ -100,7 +97,8 @@ const handleSend = async () => {
         if (res.data) {
             messages.value.push(res.data);
             editorRef.value?.clear();
-            scrollToBottom('smooth');
+            scrollToBottom();
+            busEmit('chat:message-sync', res.data);
         }
     } finally {
         sending.value = false;
@@ -117,6 +115,7 @@ const setupSocketListeners = () => {
             if (!exists) {
                 messages.value.push(msg);
                 scrollToBottom('smooth');
+                busEmit('chat:message-sync', msg);
             }
         }
     });

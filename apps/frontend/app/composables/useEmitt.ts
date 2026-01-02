@@ -30,4 +30,5 @@ export const useEmitt = () => {
 
 export type Events = {
     // [key: string]: any
+    'chat:message-sync': any; // 消息流变更事件：用于通知会话列表更新预览与排序
 }

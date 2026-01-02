@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import * as conversationApi from '~/api/conversation';
 
 type ConversationItem = NonNullable<NonNullable<Awaited<ReturnType<typeof conversationApi.findAll>>['data']>['items']>[number];
 
+const route = useRoute();
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'personal' | 'group'>('all');
 const loading = ref(true);
 const conversations = ref<ConversationItem[]>([]);
 const appSocket = useSocket('app');
+const { on: busOn, off: busOff } = useEmitt();
 
 /**
  * 加载会话列表数据
@@ -23,8 +26,9 @@ const fetchConversations = async (): Promise<void> => {
     }
 };
 
+
 /**
- * 接收实时状态更新
+ * 接收实时在线人数更新
  */
 const handleStatusUpdate = (data: { conversationId: string; onlineCount: number }) => {
     const target = conversations.value.find(c => c.id === data.conversationId);
@@ -32,7 +36,7 @@ const handleStatusUpdate = (data: { conversationId: string; onlineCount: number 
 };
 
 /**
- * 列表综合过滤与排序调度
+ * 列表过滤与智能排序
  */
 const filteredList = computed<ConversationItem[]>(() => {
     return conversations.value.filter(item => {
@@ -48,13 +52,31 @@ const filteredList = computed<ConversationItem[]>(() => {
     });
 });
 
+/**
+ * 响应总线同步事件
+ */
+const handleMessageSync = (msg: any) => {
+    const target = conversations.value.find(c => c.id === msg.conversationId);
+    if (target) {
+        target.lastMessage = {
+            content: msg.content,
+            type: msg.type,
+            createdAt: msg.createdAt,
+            sender: msg.sender
+        };
+        target.updatedAt = msg.createdAt;
+    }
+};
+
 onMounted(() => {
     fetchConversations();
     appSocket.on('conversation-status', handleStatusUpdate);
+    busOn('chat:message-sync', handleMessageSync);
 });
 
 onUnmounted(() => {
     appSocket.off('conversation-status');
+    busOff('chat:message-sync', handleMessageSync);
 });
 </script>
 
@@ -94,7 +116,8 @@ onUnmounted(() => {
 
             <!-- 选项卡导航 -->
             <div class="tabs tabs-boxed bg-transparent p-0 gap-2">
-                <button v-for="tab in ([{ k: 'all', l: '全部' }, { k: 'personal', l: '私聊' }, { k: 'group', l: '群组' }] as const)"
+                <button
+                    v-for="tab in ([{ k: 'all', l: '全部' }, { k: 'personal', l: '私聊' }, { k: 'group', l: '群组' }] as const)"
                     :key="tab.k"
                     class="flex-1 btn btn-sm h-9 border-none rounded-xl font-bold transition-all no-animation"
                     :class="activeTab === tab.k ? 'bg-base-content text-base-100' : 'bg-base-200/50 text-base-content/50 hover:bg-base-300'"
