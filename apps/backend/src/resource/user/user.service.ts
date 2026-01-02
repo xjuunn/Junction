@@ -74,7 +74,7 @@ export class UserService {
                 return {
                     ...data,
                     relation: this.getRelationStatus(u.id === currentUserId, receivedFriendRequests[0], sentFriendRequests[0]),
-                    isOnline: statuses[u.id],
+                    online: statuses[u.id] ? 1 : 0,
                     _score: score
                 };
             })
@@ -124,7 +124,7 @@ export class UserService {
         return {
             ...data,
             relation: this.getRelationStatus(id === currentUserId, receivedFriendRequests[0], sentFriendRequests[0]),
-            isOnline: onlineStatus
+            online: onlineStatus ? 1 : 0
         };
     }
 }

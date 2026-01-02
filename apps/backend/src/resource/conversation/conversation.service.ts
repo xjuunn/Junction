@@ -2,10 +2,14 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
+import { StatusService } from '../status/status.service';
 
 @Injectable()
 export class ConversationService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly statusService: StatusService
+  ) { }
 
   /**
    * 创建或获取会话
@@ -78,8 +82,7 @@ export class ConversationService {
           },
           _count: { select: { members: true } },
           members: {
-            where: { userId },
-            select: { muted: true, pinned: true, role: true, joinedAt: true }
+            select: { userId: true, muted: true, pinned: true, role: true, joinedAt: true, isActive: true }
           }
         },
         orderBy: { updatedAt: 'desc' }
@@ -87,7 +90,10 @@ export class ConversationService {
       this.prisma.conversation.count({ where })
     ]);
 
-    const formatted = await Promise.all(data.map(conv => this.formatConversation(conv, userId)));
+    const allMemberIds = [...new Set(data.flatMap(c => c.members.map(m => m.userId)))];
+    const onlineMap = await this.statusService.getStatuses(allMemberIds);
+
+    const formatted = await Promise.all(data.map(conv => this.formatConversation(conv, userId, onlineMap)));
     return new PaginationData(formatted, { total, limit, page });
   }
 
@@ -102,14 +108,17 @@ export class ConversationService {
         lastMessage: true,
         _count: { select: { members: true } },
         members: {
-          where: { userId },
-          select: { muted: true, pinned: true, role: true, lastReadMessageId: true }
+          select: { userId: true, muted: true, pinned: true, role: true, lastReadMessageId: true, isActive: true }
         }
       }
     });
 
     if (!conv) throw new BadRequestException('会话不存在');
-    return this.formatConversation(conv, userId);
+
+    const memberIds = conv.members.map(m => m.userId);
+    const onlineMap = await this.statusService.getStatuses(memberIds);
+
+    return this.formatConversation(conv, userId, onlineMap);
   }
 
   /**
@@ -133,20 +142,24 @@ export class ConversationService {
   }
 
   /**
-   * 格式化并补全会话视图信息
+   * 格式化会话视图
    */
-  private async formatConversation(conv: any, currentUserId: string) {
-    const mySettings = conv.members?.[0] || null;
-    let { title, avatar } = conv;
+  private async formatConversation(conv: any, currentUserId: string, onlineMap: Record<string, boolean> = {}) {
+    const mySettings = conv.members.find((m: any) => m.userId === currentUserId) || null;
+    let { title, avatar, online } = conv;
+
     if (conv.type === 'PRIVATE') {
-      const otherMember = await this.prisma.conversationMember.findFirst({
+      const otherMemberInfo = await this.prisma.conversationMember.findFirst({
         where: { conversationId: conv.id, userId: { not: currentUserId } },
-        select: { user: { select: { name: true, image: true } } }
+        select: { userId: true, user: { select: { name: true, image: true } } }
       });
-      if (otherMember?.user) {
-        title = otherMember.user.name;
-        avatar = otherMember.user.image;
+      if (otherMemberInfo?.user) {
+        title = otherMemberInfo.user.name;
+        avatar = otherMemberInfo.user.image;
+        online = onlineMap[otherMemberInfo.userId] ? 1 : 0;
       }
+    } else {
+      online = conv.members.reduce((acc: number, m: any) => acc + (onlineMap[m.userId] ? 1 : 0), 0);
     }
 
     return {
@@ -154,6 +167,7 @@ export class ConversationService {
       type: conv.type,
       title,
       avatar,
+      online,
       ownerId: conv.ownerId,
       status: conv.status,
       lastMessage: conv.lastMessage,
