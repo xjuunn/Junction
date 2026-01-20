@@ -37,4 +37,22 @@ onBeforeUnmount(() => {
     list-style-type: decimal;
     padding-left: 1.5rem;
 }
+
+.tiptap-content :deep(img) {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 8px;
+    border: 1px solid hsl(var(--bc) / 0.1);
+    margin: 4px 0;
+    display: block !important;
+}
+
+.tiptap-content :deep(.ProseMirror img) {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 8px;
+    border: 1px solid hsl(var(--bc) / 0.1);
+    margin: 4px 0;
+    display: block !important;
+}
 </style>

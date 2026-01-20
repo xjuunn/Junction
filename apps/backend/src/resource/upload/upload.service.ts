@@ -22,7 +22,7 @@ export class UploadService {
             const fullPath = join(uploadPath, filename);
             writeFileSync(fullPath, file.buffer);
 
-            savedPaths.push(`/${type}/${filename}`);
+            savedPaths.push(`/uploads/${type}/${filename}`);
         }
 
         return savedPaths;

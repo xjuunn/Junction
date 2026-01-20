@@ -73,4 +73,5 @@ export enum MessageType {
     SYSTEM = "SYSTEM", /// 系统消息
     NOTICE = "NOTICE", /// 通知类消息
     PLUGIN = "PLUGIN", /// 插件 / 模块消息
+    RICH_TEXT = "RICH_TEXT"
 }

@@ -31,7 +31,12 @@ import { StatusModule } from './resource/status/status.module';
     RedisModule,
     StatusModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+      serveStaticOptions: {
+        index: false,
+        redirect: false,
+      },
     }),
     MulterModule.register({
       storage: memoryStorage(),

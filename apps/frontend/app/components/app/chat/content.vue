@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
+import { uploadFiles } from '~/api/upload';
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -21,6 +22,11 @@ const messagePlainText = ref('');
 
 const listRef = ref<any>(null);
 const editorRef = ref<any>(null);
+
+// 扩展功能状态
+const showExtensionsMenu = ref(false);
+const uploadingImages = ref<string[]>([]);
+const dragOver = ref(false);
 
 const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
     nextTick(() => {
@@ -92,16 +98,33 @@ const fetchConversation = async () => {
 
 const handleSend = async () => {
     const text = messagePlainText.value.trim();
-    if (!text || sending.value) return;
+    if (!text && !messageJson.value || sending.value) return;
+
     sending.value = true;
     try {
+        // 检查是否包含富文本内容（图片、格式化文本等）
+        const hasRichContent = messageJson.value && Object.keys(messageJson.value).length > 0;
+
+        let messageType = messageApi.MessageType.TEXT;
+        let content = text;
+        let payload = toRaw(messageJson.value);
+
+        // 确定消息类型
+        if (hasRichContent) {
+            messageType = messageApi.MessageType.RICH_TEXT;
+            content = text || '[富文本消息]';
+        } else if (text.length > 200) {
+            content = text.substring(0, 197) + '...';
+        }
+
         const res = await messageApi.send({
             conversationId: conversationId.value,
-            content: text.length > 200 ? text.substring(0, 197) + '...' : text,
-            payload: toRaw(messageJson.value),
-            type: 'TEXT',
+            content,
+            payload,
+            type: messageType,
             clientMessageId: `c_${Date.now()}`
         });
+
         if (res.data) {
             messages.value.push(res.data);
             editorRef.value?.clear();
@@ -110,6 +133,117 @@ const handleSend = async () => {
         }
     } finally {
         sending.value = false;
+    }
+};
+
+// 图片上传处理（插入到编辑器中）
+const handleImageUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (!files || files.length === 0) return;
+
+        const validFiles = Array.from(files).filter(file => {
+            if (file.size > 5 * 1024 * 1024) { // 5MB
+                toast.error(`文件 ${file.name} 太大，请选择小于5MB的图片`);
+                return false;
+            }
+            if (!file.type.startsWith('image/')) {
+                toast.error(`文件 ${file.name} 不是有效的图片格式`);
+                return false;
+            }
+            return true;
+        });
+
+        if (validFiles.length === 0) return;
+
+        // 显示上传状态
+        uploadingImages.value = validFiles.map(file => file.name);
+
+        try {
+            for (const file of validFiles) {
+                // 使用统一的upload API
+                const uploadRes = await uploadFiles('message', [file]);
+
+                if (uploadRes.success && uploadRes.data?.files?.[0]) {
+                    // 在编辑器中插入图片
+                    const imageUrl = uploadRes.data.files[0];
+                    // 上传服务返回完整的 /uploads/type/filename 路径
+                    const fullImageUrl = `${useRuntimeConfig().public.apiUrl}${imageUrl}`;
+
+                    console.log('插入图片:', fullImageUrl);
+
+                    // 使用编辑器的API插入图片
+                    if (editorRef.value?.editor) {
+                        // 确保编辑器有焦点并插入图片
+                        editorRef.value.editor.chain().focus().setImage({
+                            src: fullImageUrl,
+                            alt: '上传的图片',
+                            title: '图片'
+                        }).run();
+
+                        // 强制更新modelValue以确保响应式更新
+                        const currentContent = editorRef.value.editor.getJSON();
+                        messageJson.value = currentContent;
+
+                        console.log('图片插入成功，当前内容:', currentContent);
+                    }
+                }
+            }
+
+            toast.success(`成功插入 ${validFiles.length} 张图片`);
+        } catch (error: any) {
+            console.error('图片上传失败:', error);
+            toast.error(error.message || '图片上传失败，请重试');
+        } finally {
+            uploadingImages.value = [];
+        }
+    };
+    input.click();
+};
+
+// 扩展功能菜单切换
+const toggleExtensionsMenu = () => {
+    showExtensionsMenu.value = !showExtensionsMenu.value;
+};
+
+// 扩展功能处理
+const handleExtensionAction = (action: string) => {
+    showExtensionsMenu.value = false;
+
+    switch (action) {
+        case 'bold':
+            editorRef.value?.editor?.chain().focus().toggleBold().run();
+            break;
+        case 'italic':
+            editorRef.value?.editor?.chain().focus().toggleItalic().run();
+            break;
+        case 'code':
+            editorRef.value?.editor?.chain().focus().toggleCode().run();
+            break;
+        case 'link':
+            const url = prompt('请输入链接URL:');
+            if (url) {
+                editorRef.value?.editor?.chain().focus().setLink({ href: url }).run();
+            }
+            break;
+        case 'list':
+            editorRef.value?.editor?.chain().focus().toggleBulletList().run();
+            break;
+        case 'ordered-list':
+            editorRef.value?.editor?.chain().focus().toggleOrderedList().run();
+            break;
+        case 'blockquote':
+            editorRef.value?.editor?.chain().focus().toggleBlockquote().run();
+            break;
+        case 'code-block':
+            editorRef.value?.editor?.chain().focus().toggleCodeBlock().run();
+            break;
+        default:
+            toast.info(`功能 ${action} 开发中`);
     }
 };
 
@@ -134,8 +268,109 @@ watch(() => conversationId.value, () => {
     fetchMessages();
 }, { immediate: true });
 
-onMounted(setupSocketListeners);
-onUnmounted(() => appSocket.off('new-message'));
+// 点击外部关闭扩展菜单
+const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.extensions-menu') && !target.closest('[data-tip="plugin"]')) {
+        showExtensionsMenu.value = false;
+    }
+};
+
+// 拖放处理
+const handleDragOver = (event: DragEvent) => {
+    event.preventDefault();
+    dragOver.value = true;
+};
+
+const handleDragLeave = (event: DragEvent) => {
+    event.preventDefault();
+    dragOver.value = false;
+};
+
+const handleDrop = async (event: DragEvent) => {
+    event.preventDefault();
+    dragOver.value = false;
+
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+
+    if (imageFiles.length === 0) return;
+
+    // 复用图片上传逻辑
+    const validFiles = imageFiles.filter(file => {
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error(`文件 ${file.name} 太大，请选择小于5MB的图片`);
+            return false;
+        }
+        return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    uploadingImages.value = validFiles.map(file => file.name);
+
+    try {
+        for (const file of validFiles) {
+            // 使用统一的upload API
+            const uploadRes = await uploadFiles('message', [file]);
+
+            if (uploadRes.success && uploadRes.data?.files?.[0]) {
+                // 在编辑器中插入图片
+                const imageUrl = uploadRes.data.files[0];
+                const fullImageUrl = `${useRuntimeConfig().public.apiUrl}${imageUrl}`;
+
+                console.log('拖放插入图片:', fullImageUrl);
+
+                // 使用编辑器的API插入图片
+                if (editorRef.value?.editor) {
+                    editorRef.value.editor.chain().focus().setImage({
+                        src: fullImageUrl,
+                        alt: '上传的图片',
+                        title: '图片'
+                    }).run();
+
+                    // 强制更新modelValue
+                    const currentContent = editorRef.value.editor.getJSON();
+                    messageJson.value = currentContent;
+                }
+            }
+        }
+
+        toast.success(`成功插入 ${validFiles.length} 张图片`);
+    } catch (error: any) {
+        console.error('拖放图片上传失败:', error);
+        toast.error(error.message || '图片上传失败，请重试');
+    } finally {
+        uploadingImages.value = [];
+    }
+};
+
+// 键盘事件处理
+const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+        showExtensionsMenu.value = false;
+    }
+
+    // Ctrl+Enter 发送消息
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        handleSend();
+    }
+};
+
+onMounted(() => {
+    setupSocketListeners();
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+    appSocket.off('new-message');
+    document.removeEventListener('click', handleClickOutside);
+    document.removeEventListener('keydown', handleKeyDown);
+});
 </script>
 
 <template>
@@ -212,28 +447,95 @@ onUnmounted(() => appSocket.off('new-message'));
 
         <footer class="p-4 md:p-8 bg-gradient-to-t from-base-100 via-base-100 to-transparent z-20">
             <div class="max-w-5xl mx-auto relative">
-                <div
-                    class="bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] focus-within:bg-base-100/80 transition-all">
+                <div class="bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] focus-within:bg-base-100/80 transition-all relative overflow-hidden"
+                    :class="{ 'border-primary border-dashed bg-primary/5': dragOver }" @dragover="handleDragOver"
+                    @dragleave="handleDragLeave" @drop="handleDrop">
+
+                    <!-- 拖放提示 -->
+                    <div v-if="dragOver"
+                        class="absolute inset-0 bg-primary/10 backdrop-blur-sm flex items-center justify-center z-10 rounded-[28px]">
+                        <div class="flex items-center gap-2 text-primary font-bold">
+                            <Icon name="mingcute:image-add-line" size="24" />
+                            <span>释放鼠标上传图片</span>
+                        </div>
+                    </div>
+
                     <BaseEditor ref="editorRef" v-model="messageJson" :disabled="sending" @send="handleSend"
                         @textChange="val => messagePlainText = val" class="px-4 py-2 min-h-[44px]" />
+                    <!-- 图片上传状态 -->
+                    <div v-if="uploadingImages.length > 0" class="px-2 py-1 text-xs text-primary opacity-70">
+                        <Icon name="mingcute:loading-3-fill" size="12" class="inline animate-spin mr-1" />
+                        正在上传 {{ uploadingImages.length }} 张图片...
+                    </div>
+
                     <div class="flex items-center justify-between px-2 pt-2.5 border-t border-base-content/5">
-                        <div class="flex gap-0.5">
-                            <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100">
+                        <div class="flex gap-0.5 relative">
+                            <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100"
+                                @click="toast.info('表情功能开发中')" :disabled="uploadingImages.length > 0">
                                 <Icon name="mingcute:emoji-line" size="22" />
                             </button>
-                            <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100">
-                                <Icon name="mingcute:folder-2-line" size="22" />
+                            <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100 relative"
+                                @click="handleImageUpload" :disabled="uploadingImages.length > 0"
+                                :class="{ 'loading': uploadingImages.length > 0 }">
+                                <Icon v-if="uploadingImages.length === 0" name="mingcute:folder-2-line" size="22" />
+                                <Icon v-else name="mingcute:loading-3-fill" size="22" class="animate-spin" />
                             </button>
-                            <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100">
+                            <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100 extensions-menu"
+                                @click="toggleExtensionsMenu"
+                                :class="{ 'btn-primary btn-outline': showExtensionsMenu }">
                                 <Icon name="mingcute:plugin-2-line" size="22" />
                             </button>
+
+                            <!-- 扩展功能菜单 -->
+                            <div v-if="showExtensionsMenu"
+                                class="extensions-menu absolute bottom-full left-0 mb-2 bg-base-100 border border-base-300 rounded-lg shadow-xl p-2 min-w-48 z-50">
+                                <div class="grid grid-cols-4 gap-1">
+                                    <button @click="handleExtensionAction('bold')" class="btn btn-ghost btn-sm tooltip"
+                                        data-tip="粗体">
+                                        <Icon name="mingcute:bold-line" size="18" />
+                                    </button>
+                                    <button @click="handleExtensionAction('italic')"
+                                        class="btn btn-ghost btn-sm tooltip" data-tip="斜体">
+                                        <Icon name="mingcute:italic-line" size="18" />
+                                    </button>
+                                    <button @click="handleExtensionAction('code')" class="btn btn-ghost btn-sm tooltip"
+                                        data-tip="代码">
+                                        <Icon name="mingcute:code-line" size="18" />
+                                    </button>
+                                    <button @click="handleExtensionAction('link')" class="btn btn-ghost btn-sm tooltip"
+                                        data-tip="链接">
+                                        <Icon name="mingcute:link-2-line" size="18" />
+                                    </button>
+                                    <button @click="handleExtensionAction('list')" class="btn btn-ghost btn-sm tooltip"
+                                        data-tip="列表">
+                                        <Icon name="mingcute:list-check-line" size="18" />
+                                    </button>
+                                    <button @click="handleExtensionAction('ordered-list')"
+                                        class="btn btn-ghost btn-sm tooltip" data-tip="有序列表">
+                                        <Icon name="mingcute:list-ordered-line" size="18" />
+                                    </button>
+                                    <button @click="handleExtensionAction('blockquote')"
+                                        class="btn btn-ghost btn-sm tooltip" data-tip="引用">
+                                        <Icon name="mingcute:quote-left-line" size="18" />
+                                    </button>
+                                    <button @click="handleExtensionAction('code-block')"
+                                        class="btn btn-ghost btn-sm tooltip" data-tip="代码块">
+                                        <Icon name="mingcute:code-block-line" size="18" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <button
-                            class="btn btn-primary btn-sm h-10 px-6 rounded-2xl font-black shadow-xl shadow-primary/20 active:scale-95 disabled:opacity-20 transition-all"
-                            :disabled="!messagePlainText.trim() || sending" @click="handleSend">
-                            <span>SEND</span>
-                            <Icon name="mingcute:send-plane-fill" size="18" class="ml-1.5" />
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-base-content/40 hidden sm:inline">
+                                Ctrl+Enter 发送
+                            </span>
+                            <button
+                                class="btn btn-primary btn-sm h-10 px-6 rounded-2xl font-black shadow-xl shadow-primary/20 active:scale-95 disabled:opacity-20 transition-all"
+                                :disabled="(!messagePlainText.trim() && !messageJson) || sending" @click="handleSend">
+                                <span>SEND</span>
+                                <Icon name="mingcute:send-plane-fill" size="18" class="ml-1.5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
