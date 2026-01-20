@@ -1,16 +1,12 @@
 <script setup lang="ts">
-import { Editor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
+import { EditorContent } from '@tiptap/vue-3'
+import { createReadonlyEditor } from '../../../core/editor'
 
 const props = defineProps<{
     node: any
 }>()
 
-const editor = new Editor({
-    extensions: [StarterKit],
-    content: props.node,
-    editable: false,
-})
+const editor = createReadonlyEditor(props.node)
 
 watch(
     () => props.node,

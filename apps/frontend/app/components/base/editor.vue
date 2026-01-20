@@ -1,11 +1,6 @@
 <script setup lang="ts">
-/**
- * 导入时确保这些包在 package.json 中版本完全一致
- */
-import { useEditor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import Placeholder from '@tiptap/extension-placeholder'
-import Link from '@tiptap/extension-link'
+import { EditorContent } from '@tiptap/vue-3'
+import { useTiptapEditor } from '../../core/editor'
 
 const props = defineProps<{
     modelValue: any;
@@ -15,16 +10,10 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'send', 'textChange']);
 
-const editor = useEditor({
+const editor = useTiptapEditor('editable', {
     content: props.modelValue,
-    // 强制声明扩展类型
-    extensions: [
-        StarterKit as any,
-        Link.configure({ openOnClick: false }) as any,
-        Placeholder.configure({
-            placeholder: props.placeholder ?? '输入消息...',
-        }) as any,
-    ],
+    placeholder: props.placeholder,
+    editable: !props.disabled,
     editorProps: {
         attributes: {
             class: 'prose prose-sm focus:outline-none max-w-none min-h-[44px] max-h-48 overflow-y-auto px-1',
