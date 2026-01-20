@@ -232,10 +232,23 @@ export class MenuService {
                 group: 'system'
             },
             {
-                id: 'help',
-                name: '帮助',
-                icon: 'mingcute:lifebuoy-line',
-                path: '/help',
+                id: 'theme',
+                name: '主题',
+                icon: 'mingcute:sun-line',
+                handler: async (item, context) => {
+                    const isDark = await AppTheme.getInstance().toggleTheme({
+                        x: context.clientX,
+                        y: context.clientY
+                    })
+                    if (isDark) {
+                        item.icon = 'mingcute:sun-line'
+                        item.name = "浅色模式"
+                    } else {
+                        item.icon = 'mingcute:moon-line'
+                        item.name = "深色模式"
+                    }
+
+                },
                 group: 'system',
             }
         ]);

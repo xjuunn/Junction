@@ -76,8 +76,9 @@ export class AppTheme {
         }, 1000)
     }
 
-    public toggleTheme(clickPos?: { x: number; y: number }) {
-        this.setTheme(!this.isDark.value, true, clickPos)
+    public async toggleTheme(clickPos?: { x: number; y: number }) {
+        await this.setTheme(!this.isDark.value, true, clickPos)
+        return this.isDark.value;
     }
 
     public getIsDark() {

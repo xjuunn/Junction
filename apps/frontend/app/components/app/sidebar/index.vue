@@ -11,8 +11,8 @@ const isActive = (path?: string) => {
     return path === '/' ? route.path === '/' : route.path.startsWith(path);
 };
 
-const handleItemClick = (item: any) => {
-    item.click();
+const handleItemClick = (item: MenuItem, event: Event) => {
+    item.click(event);
 };
 
 const isCollapsed = ref(false);
@@ -74,7 +74,8 @@ onUnmounted(() => {
                 <div class="flex flex-col justify-center gap-0.5 overflow-hidden transition-all duration-300 whitespace-nowrap"
                     :class="isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'">
                     <div class="flex items-center gap-2">
-                        <div class="text-sm font-bold text-base-content max-w-28 truncate">{{ userStore.user.value?.name }}</div>
+                        <div class="text-sm font-bold text-base-content max-w-28 truncate">{{ userStore.user.value?.name
+                        }}</div>
                         <span
                             class="badge badge-sm badge-success badge-soft border-base-content/10 text-[10px] h-5 px-1.5 font-medium text-base-content/60">
                             在线
@@ -98,7 +99,8 @@ onUnmounted(() => {
         </div>
 
         <!-- ================= Search ================= -->
-        <div class="pb-4 shrink-0 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-5'" data-tauri-drag-region>
+        <div class="pb-4 shrink-0 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-5'"
+            data-tauri-drag-region>
             <div class="relative group flex" :class="isCollapsed ? 'justify-center' : 'block'">
                 <div class="flex items-center justify-center text-base-content/50 group-focus-within:text-base-content/80 transition-colors z-10"
                     :class="[
@@ -120,9 +122,10 @@ onUnmounted(() => {
         </div>
 
         <!-- ================= Main Menu ================= -->
-        <nav class="flex flex-col gap-1 mb-8 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'" data-tauri-drag-region>
+        <nav class="flex flex-col gap-1 mb-8 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'"
+            data-tauri-drag-region>
             <template v-if="groups['main']">
-                <div v-for="item in groups['main']" :key="item.id" @click="handleItemClick(item)"
+                <div v-for="item in groups['main']" :key="item.id" @click="handleItemClick(item, $event)"
                     v-show="item.getShouldShow"
                     class="flex items-center py-2.5 rounded-xl cursor-pointer transition-all duration-200 group h-10"
                     :class="[
@@ -159,9 +162,10 @@ onUnmounted(() => {
         <div class="flex-1" data-tauri-drag-region></div>
 
         <!-- ================= Footer (System Menu) ================= -->
-        <div class="flex flex-col gap-1 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'" data-tauri-drag-region>
+        <div class="flex flex-col gap-1 transition-all duration-300" :class="isCollapsed ? 'px-2' : 'px-4'"
+            data-tauri-drag-region>
             <template v-if="groups['system']">
-                <div v-for="item in groups['system']" :key="item.id" @click="handleItemClick(item)"
+                <div v-for="item in groups['system']" :key="item.id" @click="handleItemClick(item, $event)"
                     v-show="item.getShouldShow"
                     class="flex items-center py-2 rounded-xl cursor-pointer transition-colors group h-10" :class="[
                         isActive(item.path)
