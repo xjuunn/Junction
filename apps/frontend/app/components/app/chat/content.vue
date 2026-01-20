@@ -154,7 +154,7 @@ onUnmounted(() => appSocket.off('new-message'));
                             class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-success border-[3px] border-base-100 rounded-full"></span>
                     </div>
                     <div class="flex flex-col min-w-0">
-                        <h2 class="text-[15px] font-black tracking-tight truncate leading-tight">{{
+                        <h2 class="text-[15px] font-black tracking-tight truncate leading-tight max-w-40">{{
                             currentConversation.title }}</h2>
                         <div
                             class="flex items-center gap-1.5 mt-0.5 text-[10px] font-bold opacity-40 uppercase tracking-widest truncate">

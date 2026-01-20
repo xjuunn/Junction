@@ -26,7 +26,7 @@ const shouldShowBottomNav = computed(() => {
                 :class="[
                     shouldShowBottomNav ? 'pb-[calc(4rem+env(safe-area-inset-bottom))]' : 'pb-safe'
                 ]">
-                <div class="max-w-screen-2xl mx-auto flex-1">
+                <div class="mx-auto flex-1 w-full">
                     <slot />
                 </div>
             </article>

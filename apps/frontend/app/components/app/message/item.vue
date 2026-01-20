@@ -41,7 +41,7 @@ const renderMode = computed(() => {
         </div>
 
         <div class="chat-header opacity-50 text-[11px] mb-1 flex items-center gap-2 px-1">
-            <span v-if="!isMe" class="font-bold">{{ message.sender?.name }}</span>
+            <div v-if="!isMe" class="font-bold max-w-40 truncate">{{ message.sender?.name }}</div>
             <time class="tabular-nums">{{ formatTimeAgo(message.createdAt) }}</time>
         </div>
 

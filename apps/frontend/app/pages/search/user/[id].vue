@@ -1,6 +1,5 @@
 <template>
     <div class="h-full flex flex-col bg-base-100 relative overflow-hidden">
-        <!-- 加载骨架屏 -->
         <div v-if="loading" class="flex-1 p-8 space-y-10 animate-pulse">
             <div class="flex justify-between items-start">
                 <div class="flex gap-4">
@@ -22,8 +21,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- 空状态 -->
         <div v-else-if="!userInfo" class="flex flex-col items-center justify-center h-full text-base-content/30 gap-3">
             <div class="w-16 h-16 rounded-2xl bg-base-200/50 flex items-center justify-center">
                 <Icon name="mingcute:ghost-line" size="32" />
@@ -31,13 +28,10 @@
             <p class="text-sm font-medium">未选择或未找到用户</p>
         </div>
 
-        <!-- 主体内容 -->
         <div v-else class="flex-1 overflow-y-auto scroll-smooth">
-            <div class="max-w-3xl mx-auto w-full px-4 sm:px-8 py-8 space-y-10">
-
-                <!-- 头部信息卡片 -->
-                <div class="flex flex-col sm:flex-row items-start justify-between gap-6">
-                    <div class="flex gap-5 min-w-0 flex-1">
+            <div class="max-w-3xl mx-auto w-full px-4 sm:px-8 py-8 space-y-10 min-w-0">
+                <div class="flex flex-col sm:flex-row items-start justify-between gap-6 min-w-0">
+                    <div class="flex gap-5 min-w-0 flex-1 w-full">
                         <div class="relative shrink-0">
                             <div
                                 class="w-20 h-20 sm:w-[72px] sm:h-[72px] rounded-[22px] ring-4 ring-base-200 overflow-hidden bg-base-200 flex items-center justify-center transition-transform hover:scale-105">
@@ -53,19 +47,19 @@
                             </div>
                         </div>
 
-                        <div class="flex flex-col pt-1 gap-1 min-w-0">
-                            <h1 class="text-2xl font-black text-base-content tracking-tight truncate pr-4">
+                        <div class="flex flex-col pt-1 gap-1 min-w-0 flex-1">
+                            <h1 class="text-2xl font-black text-base-content tracking-tight truncate w-full">
                                 {{ userInfo.name }}
                             </h1>
-                            <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                            <div class="flex items-center gap-2 mt-0.5 min-w-0">
                                 <div
                                     class="badge badge-sm rounded-lg font-bold bg-primary/10 text-primary border-none px-2.5 h-6 shrink-0 uppercase tracking-wider text-[10px]">
                                     {{ userInfo.role }}
                                 </div>
                                 <button
-                                    class="text-xs font-mono text-base-content/40 hover:text-primary transition-colors flex items-center gap-1 group truncate"
+                                    class="text-xs font-mono text-base-content/40 hover:text-primary transition-colors flex items-center gap-1 group min-w-0 flex-1"
                                     @click="copy(userInfo.id)">
-                                    <span class="truncate">{{ userInfo.id }}</span>
+                                    <span class="truncate block w-full text-left">{{ userInfo.id }}</span>
                                     <Icon name="mingcute:copy-2-line"
                                         class="shrink-0 opacity-0 group-hover:opacity-100" />
                                 </button>
@@ -73,7 +67,6 @@
                         </div>
                     </div>
 
-                    <!-- 操作按钮组 -->
                     <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                         <template v-if="userInfo.relation === 'SELF'">
                             <button disabled
@@ -121,71 +114,72 @@
                         <div class="hidden sm:block h-4 w-px bg-base-content/10 mx-1"></div>
 
                         <button
-                            class="btn btn-sm btn-square btn-ghost text-base-content/40 hover:bg-base-200 rounded-lg"
+                            class="btn btn-sm btn-square btn-ghost text-base-content/40 hover:bg-base-200 rounded-lg shrink-0"
                             @click="refresh">
                             <Icon name="mingcute:refresh-2-line" size="18" />
                         </button>
                     </div>
                 </div>
 
-                <!-- 基础信息面板 -->
-                <div class="card bg-base-200/40 border border-base-content/5 rounded-[24px]">
-                    <div class="card-body p-6 space-y-6">
+                <div class="card bg-base-200/40 border border-base-content/5 rounded-[24px] min-w-0">
+                    <div class="card-body p-6 space-y-6 min-w-0">
                         <h3 class="text-xs font-black uppercase tracking-[0.2em] text-base-content/40">基础信息</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-y-4 sm:gap-y-6 items-center text-sm">
-                            <span class="text-base-content/40 font-bold">电子邮件</span>
-                            <div class="flex items-center gap-3">
-                                <span class="font-bold text-base-content/80">{{ userInfo.email }}</span>
-                                <div class="badge badge-sm"
+                        <div
+                            class="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-y-4 sm:gap-y-6 items-center text-sm min-w-0">
+                            <span class="text-base-content/40 font-bold shrink-0">电子邮件</span>
+                            <div class="flex items-center gap-3 min-w-0 w-full overflow-hidden">
+                                <span class="font-bold text-base-content/80 truncate flex-1">{{ userInfo.email }}</span>
+                                <div class="badge badge-sm shrink-0"
                                     :class="userInfo.emailVerified ? 'badge-success' : 'badge-warning'">
                                     {{ userInfo.emailVerified ? '已验证' : '未验证' }}
                                 </div>
                             </div>
 
-                            <span class="text-base-content/40 font-bold">注册日期</span>
-                            <div class="flex items-center gap-2">
-                                <Icon name="mingcute:calendar-line" class="text-base-content/30" />
-                                <span class="font-mono font-medium text-base-content/70">{{
+                            <span class="text-base-content/40 font-bold shrink-0">注册日期</span>
+                            <div class="flex items-center gap-2 min-w-0 overflow-hidden">
+                                <Icon name="mingcute:calendar-line" class="text-base-content/30 shrink-0" />
+                                <span class="font-mono font-medium text-base-content/70 truncate">{{
                                     formatDate(userInfo.createdAt) }}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 钱包列表 -->
-                <div class="space-y-4">
+                <div class="space-y-4 min-w-0">
                     <div class="flex items-center justify-between px-2">
                         <h3 class="text-[15px] font-black text-base-content">关联钱包</h3>
                         <span
-                            class="text-[10px] font-black bg-base-300 text-base-content/50 px-2 py-0.5 rounded-md uppercase">
+                            class="text-[10px] font-black bg-base-300 text-base-content/50 px-2 py-0.5 rounded-md uppercase shrink-0">
                             Total {{ userInfo.wallets.length }}
                         </span>
                     </div>
 
-                    <div v-if="userInfo.wallets.length > 0" class="grid grid-cols-1 gap-3">
+                    <div v-if="userInfo.wallets.length > 0" class="grid grid-cols-1 gap-3 min-w-0">
                         <div v-for="wallet in userInfo.wallets" :key="wallet.id"
-                            class="group flex items-center gap-4 p-4 rounded-2xl border border-base-content/5 bg-base-200/30 hover:bg-base-200/60 transition-all cursor-default">
+                            class="group flex items-center gap-4 p-4 rounded-2xl border border-base-content/5 bg-base-200/30 hover:bg-base-200/60 transition-all cursor-default min-w-0 w-full overflow-hidden">
                             <div
                                 class="w-10 h-10 rounded-xl bg-base-100 flex items-center justify-center text-primary shadow-sm group-hover:scale-110 transition-transform shrink-0">
                                 <Icon name="mingcute:wallet-4-line" size="20" />
                             </div>
 
                             <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-0.5">
+                                <div class="flex items-center gap-2 mb-0.5 min-w-0 w-full">
                                     <span
-                                        class="font-mono text-[13px] font-bold text-base-content/80 truncate block group-hover:text-primary transition-colors">
+                                        class="font-mono text-[13px] font-bold text-base-content/80 truncate block group-hover:text-primary transition-colors flex-1">
                                         {{ wallet.address }}
                                     </span>
                                     <button @click.stop="copy(wallet.address)"
-                                        class="opacity-0 group-hover:opacity-100 hover:text-primary transition-all">
+                                        class="opacity-0 group-hover:opacity-100 hover:text-primary transition-all shrink-0">
                                         <Icon name="mingcute:copy-line" size="14" />
                                     </button>
                                 </div>
                                 <div
-                                    class="flex items-center gap-3 text-[10px] font-bold uppercase text-base-content/30 tracking-widest">
-                                    <span>Chain {{ wallet.chainId }}</span>
-                                    <span v-if="wallet.isPrimary" class="text-primary flex items-center gap-1">
-                                        <Icon name="mingcute:star-fill" /> 主钱包
+                                    class="flex items-center gap-3 text-[10px] font-bold uppercase text-base-content/30 tracking-widest min-w-0">
+                                    <span class="shrink-0">Chain {{ wallet.chainId }}</span>
+                                    <span v-if="wallet.isPrimary"
+                                        class="text-primary flex items-center gap-1 min-w-0 truncate">
+                                        <Icon name="mingcute:star-fill" class="shrink-0" /> <span
+                                            class="truncate">主钱包</span>
                                     </span>
                                 </div>
                             </div>
@@ -201,23 +195,18 @@
             </div>
         </div>
 
-        <!-- 简约风格好友申请弹窗 -->
         <BaseModal v-model="addFriendModal.show" title="申请加好友" box-class="max-w-sm w-full border-none shadow-xl">
-            <div class="flex flex-col gap-5">
-
-                <!-- 用户身份概览：简约水平布局 -->
-                <div class="flex items-center gap-3 p-3 bg-base-200/50 rounded-xl border border-base-content/5">
+            <div class="flex flex-col gap-5 min-w-0">
+                <div class="flex items-center gap-3 p-3 bg-base-200/50 rounded-xl border border-base-content/5 min-w-0">
                     <BaseAvatar :src="userInfo?.image ? resolveAssetUrl(userInfo.image) : null" :text="userInfo?.name"
-                        :size="44" :radius="12" />
-                    <div class="flex flex-col min-w-0">
+                        :size="44" :radius="12" class="shrink-0" />
+                    <div class="flex flex-col min-w-0 flex-1">
                         <span class="text-sm font-bold text-base-content truncate">{{ userInfo?.name }}</span>
                         <span class="text-[10px] font-mono opacity-40 truncate uppercase">ID: {{ userInfo?.id }}</span>
                     </div>
                 </div>
 
-                <!-- 表单区域：紧凑型布局 -->
                 <div class="space-y-4">
-                    <!-- 备注名 -->
                     <fieldset class="fieldset p-0">
                         <legend
                             class="fieldset-legend py-0 mb-1 text-[11px] font-bold uppercase opacity-40 tracking-wider">
@@ -227,7 +216,6 @@
                             class="input input-sm input-bordered w-full rounded-lg focus-within:outline-0 bg-base-100 focus:input-primary text-sm h-9" />
                     </fieldset>
 
-                    <!-- 验证信息 -->
                     <fieldset class="fieldset p-0">
                         <legend
                             class="fieldset-legend py-0 mb-1 text-[11px] font-bold uppercase opacity-40 tracking-wider">
@@ -240,7 +228,6 @@
                 </div>
             </div>
 
-            <!-- 操作区 -->
             <template #actions>
                 <div class="flex gap-2 w-full">
                     <button class="btn btn-sm btn-ghost flex-1 rounded-lg font-medium"
@@ -263,9 +250,6 @@ import * as User from '~/api/user';
 import * as FriendShip from '~/api/friendship';
 import * as Conversation from '~/api/conversation';
 
-/**
- * 严格类型定义
- */
 type RelationStatus = 'SELF' | 'FRIEND' | 'WAITING_ACCEPT' | 'WAITING_CONFIRM' | 'BLOCKED' | 'NONE';
 
 interface Wallet {
@@ -300,9 +284,6 @@ const loading = ref(false);
 const isActionLoading = ref(false);
 const userInfo = ref<UserDetail | null>(null);
 
-/**
- * 添加好友弹窗状态
- */
 const addFriendModal = reactive({
     show: false,
     form: {
@@ -320,9 +301,6 @@ watch(() => route.params.id, (newId) => {
     if (newId) initData();
 });
 
-/**
- * 初始化并加载用户详情
- */
 async function initData() {
     const id = route.params.id as string;
     if (!id) return;
@@ -342,24 +320,15 @@ async function initData() {
     }
 }
 
-/**
- * 刷新数据
- */
 function refresh() {
     initData();
 }
 
-/**
- * 打开添加好友弹窗
- */
 function openAddFriendModal() {
     addFriendModal.form.note = userInfo.value?.name || '';
     addFriendModal.show = true;
 }
 
-/**
- * 提交好友申请
- */
 async function submitAddFriend() {
     if (!userInfo.value) return;
 
@@ -386,9 +355,6 @@ async function submitAddFriend() {
     }
 }
 
-/**
- * 接受好友申请
- */
 async function handleAcceptFriend() {
     if (!userInfo.value) return;
 
@@ -408,9 +374,6 @@ async function handleAcceptFriend() {
     }
 }
 
-/**
- * 创建/获取私聊会话并跳转
- */
 async function handleSendMessage() {
     if (!userInfo.value) return;
 
@@ -433,18 +396,12 @@ async function handleSendMessage() {
     }
 }
 
-/**
- * 复制文本工具
- */
 function copy(text: string) {
     if (!text) return;
     copyToClipboard(text);
     toast.success('已复制到剪贴板');
 }
 
-/**
- * 日期格式化工具
- */
 function formatDate(dateStr: string | Date | null, short = false) {
     if (!dateStr) return '-';
     const date = new Date(dateStr);

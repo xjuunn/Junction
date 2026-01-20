@@ -74,13 +74,13 @@ onUnmounted(() => {
                 <div class="flex flex-col justify-center gap-0.5 overflow-hidden transition-all duration-300 whitespace-nowrap"
                     :class="isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'">
                     <div class="flex items-center gap-2">
-                        <span class="text-sm font-bold text-base-content">{{ userStore.user.value?.name }}</span>
+                        <div class="text-sm font-bold text-base-content max-w-28 truncate">{{ userStore.user.value?.name }}</div>
                         <span
                             class="badge badge-sm badge-success badge-soft border-base-content/10 text-[10px] h-5 px-1.5 font-medium text-base-content/60">
                             在线
                         </span>
                     </div>
-                    <div class="text-xs text-base-content/50">{{ userStore.user.value?.email }}</div>
+                    <div class="text-xs text-base-content/50 max-w-32 truncate">{{ userStore.user.value?.email }}</div>
                 </div>
             </div>
             <!-- 图标按钮 -->

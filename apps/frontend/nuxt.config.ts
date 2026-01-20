@@ -20,12 +20,12 @@ export default defineNuxtConfig({
       }
     }
   },
-  nitro: {
-    preset: 'cloudflare-pages',
-    output: {
-      dir: '.output'
-    }
-  },
+  // nitro: {
+  //   preset: 'cloudflare-pages',
+  //   output: {
+  //     dir: '.output'
+  //   }
+  // },
   runtimeConfig: {
     public: {
       appName: process.env.NUXT_PUBLIC_APP_NAME,
