@@ -14,8 +14,8 @@
       {
         "title": "Junction",
         "label": "main",
-        "width": 1050,
-        "height": 650,
+        "width": 1270,
+        "height": 750,
         "resizable": true,
         "fullscreen": false,
         "transparent": true,
