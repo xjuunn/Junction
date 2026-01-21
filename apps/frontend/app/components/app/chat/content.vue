@@ -31,10 +31,18 @@ const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
     nextTick(() => {
         const el = listRef.value?.$el;
         if (!el) return;
+
+        const perform = () => {
+            el.scrollTop = el.scrollHeight + 10000;
+        };
+
         if (behavior === 'smooth') {
             el.scrollTo({ top: el.scrollHeight + 10000, behavior: 'smooth' });
         } else {
-            el.scrollTop = el.scrollHeight + 10000;
+            el.style.scrollBehavior = 'auto';
+            perform();
+            requestAnimationFrame(perform);
+            setTimeout(perform, 64);
         }
     });
 };
@@ -70,7 +78,12 @@ const fetchMessages = async (isMore = false) => {
         }
     } finally {
         loading.value = false;
-        if (!isMore) setTimeout(() => { initialLoading.value = false; }, 100);
+        if (!isMore) {
+            setTimeout(() => {
+                initialLoading.value = false;
+                scrollToBottom('auto');
+            }, 100);
+        }
     }
 };
 
@@ -229,7 +242,6 @@ onMounted(() => {
                 </div>
             </div>
         </header>
-
         <div class="flex-1 relative overflow-hidden bg-base-100">
             <div v-if="initialLoading" class="absolute inset-0 z-20 bg-base-100 flex items-center justify-center">
                 <div class="loading loading-ring loading-lg text-primary/20"></div>
