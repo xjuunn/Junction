@@ -29,7 +29,7 @@ export class UploadController {
         @Body('type') type: string,
         @UploadedFiles(
             new ParseFilePipeBuilder()
-                .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
+                .addMaxSizeValidator({ maxSize: 20 * 1024 * 1024 })
                 .addFileTypeValidator({
                     fileType: /^image\/(jpeg|jpg|png|gif|webp)$/i,
                 })

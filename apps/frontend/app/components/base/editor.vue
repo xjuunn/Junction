@@ -12,76 +12,101 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'send', 'textChange']);
 
-// 创建图片上传处理函数
-const imageUploadHandler = async (file: File): Promise<string> => {
+// 拖拽状态
+const isDragOver = ref(false);
+const dragCounter = ref(0);
+
+// 统一的图片上传处理逻辑
+const processAndInsertImage = async (view: any, file: File, pos?: number) => {
     try {
-        console.log('开始上传图片文件:', file.name, file.size);
-
-        // 使用统一的upload API
         const response = await uploadFiles('message', [file]);
-
-        console.log('上传响应:', response);
-
         if (response.success && response.data?.files?.[0]) {
             const imageUrl = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
-            console.log('图片上传成功，URL:', imageUrl);
-            return imageUrl;
-        }
+            const { state } = view;
+            const node = state.schema.nodes.image.create({
+                src: imageUrl,
+                alt: file.name
+            });
+            // 插入图片并分发事务
+            const transaction = state.tr.insert(pos ?? state.selection.from, node);
+            view.dispatch(transaction);
 
-        throw new Error(response.error || '上传失败');
-    } catch (error: any) {
-        console.error('图片上传失败:', error);
-        throw error;
+            // 确保 v-model 更新
+            emit('update:modelValue', editor.value?.getJSON());
+        }
+    } catch (error) {
+        console.error('图片处理失败:', error);
     }
 };
 
 // 处理粘贴图片
-const handlePaste = async (view: any, event: ClipboardEvent) => {
+const handlePaste = (view: any, event: ClipboardEvent) => {
     const items = event.clipboardData?.items;
     if (!items) return false;
 
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if(item)
+    let imageFound = false;
+    for (const item of items) {
         if (item.type.indexOf('image') === 0) {
-            event.preventDefault();
-
             const file = item.getAsFile();
             if (file) {
-                try {
-                    const imageUrl = await imageUploadHandler(file);
-                    const { state } = view;
-                    const { tr } = state;
-                    const node = state.schema.nodes.image.create({
-                        src: imageUrl,
-                        alt: '粘贴的图片',
-                        title: '图片'
-                    });
-
-                    const transaction = tr.insert(state.selection.from, node);
-                    view.dispatch(transaction);
-                    // 更新v-model
-                    const currentContent = editor.value?.getJSON();
-                    if (currentContent) {
-                        emit('update:modelValue', currentContent);
-                    }
-
-                    return true;
-                } catch (error) {
-                    console.error('粘贴图片上传失败:', error);
-                }
+                imageFound = true;
+                processAndInsertImage(view, file);
             }
         }
     }
+    return imageFound; // 如果处理了图片，则阻止默认粘贴
+};
 
+// 处理拖拽投放
+const handleDrop = (view: any, event: DragEvent) => {
+    isDragOver.value = false;
+    dragCounter.value = 0;
+
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0) return false;
+
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length > 0) {
+        event.preventDefault();
+
+        // 获取释放位置的坐标
+        const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        const pos = coordinates ? coordinates.pos : view.state.selection.from;
+
+        for (const file of imageFiles) {
+            processAndInsertImage(view, file, pos);
+        }
+        return true; // 阻止默认浏览器打开行为
+    }
     return false;
+};
+
+// 容器拖拽事件处理（仅控制 UI 状态）
+const onDragEnter = (e: DragEvent) => {
+    e.preventDefault();
+    dragCounter.value++;
+    isDragOver.value = true;
+};
+
+const onDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    dragCounter.value--;
+    if (dragCounter.value <= 0) {
+        dragCounter.value = 0;
+        isDragOver.value = false;
+    }
+};
+
+const onDropContainer = (e: DragEvent) => {
+    // 重置 UI 状态，实际逻辑由编辑器 handleDrop 处理
+    isDragOver.value = false;
+    dragCounter.value = 0;
 };
 
 const editor = useEditorWithImageUpload({
     content: props.modelValue,
     placeholder: props.placeholder,
     editable: !props.disabled,
-    enableImageUpload: true,
     editorProps: {
         attributes: {
             class: 'prose prose-sm focus:outline-none max-w-none min-h-[44px] max-h-48 overflow-y-auto px-1',
@@ -93,20 +118,18 @@ const editor = useEditorWithImageUpload({
             }
             return false;
         },
-        handlePaste: handlePaste,
+        handlePaste,
+        handleDrop,
     },
     onUpdate: ({ editor }) => {
-        const jsonContent = editor.getJSON();
-        const htmlContent = editor.getHTML();
-        console.log('编辑器内容更新:', { json: jsonContent, html: htmlContent });
-        emit('update:modelValue', jsonContent);
+        emit('update:modelValue', editor.getJSON());
         emit('textChange', editor.getText());
     },
-}, imageUploadHandler);
+}, async (file) => {
+    const response = await uploadFiles('message', [file]);
+    return `${useRuntimeConfig().public.apiUrl}${response?.data?.files[0]}`;
+});
 
-/**
- * 清空内容
- */
 const clear = () => {
     editor.value?.commands.clearContent();
 };
@@ -119,13 +142,24 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="w-full relative min-h-[44px]">
+    <div class="w-full relative min-h-[44px] editor-container" :class="{ 'drag-over': isDragOver }"
+        @dragenter="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop="onDropContainer">
+
         <editor-content :editor="editor" />
+
+        <!-- 关键修复：添加 pointer-events-none，防止此遮罩层拦截 drop 事件 -->
+        <div v-show="isDragOver"
+            class="absolute inset-0 bg-primary/10 backdrop-blur-sm flex items-center justify-center rounded-lg border-2 border-dashed border-primary z-50 pointer-events-none">
+            <div class="flex items-center gap-2 text-primary font-medium">
+                <Icon name="mingcute:add-line" size="24" />
+                <span>释放鼠标上传图片</span>
+            </div>
+        </div>
     </div>
 </template>
 
 <style scoped>
-/* 确保编辑器中的图片正确显示 */
+/* 原有样式保持不变 */
 :deep(.ProseMirror img) {
     max-width: 100% !important;
     height: auto !important;
@@ -136,17 +170,14 @@ onBeforeUnmount(() => {
     box-sizing: border-box;
 }
 
-/* 图片加载状态 */
 :deep(.ProseMirror img[loading]) {
     opacity: 0.5;
 }
 
-/* 确保图片容器正确显示 */
 :deep(.ProseMirror p:has(img)) {
     margin: 8px 0;
 }
 
-/* 编辑器内容区域样式 */
 :deep(.ProseMirror) {
     outline: none;
     padding: 4px;
@@ -155,23 +186,17 @@ onBeforeUnmount(() => {
     overflow-y: auto;
 }
 
-/* 确保图片在拖拽时有视觉反馈 */
-:deep(.ProseMirror img:hover) {
-    border-color: hsl(var(--bc) / 0.3);
+.drag-over {
+    border-color: hsl(var(--primary)) !important;
+    background-color: hsl(var(--primary) / 0.05) !important;
 }
 
-/* 全局图片样式 */
-.editor-image {
-    max-width: 100% !important;
-    height: auto !important;
-    display: block !important;
-    margin: 8px 0 !important;
-    border-radius: 8px !important;
-    border: 1px solid hsl(var(--bc) / 0.1) !important;
+.editor-container {
+    position: relative;
+    transition: all 0.2s ease;
 }
 
-/* 确保图片在拖拽时有视觉反馈 */
-:deep(.ProseMirror img:hover) {
-    border-color: hsl(var(--bc) / 0.3);
+.editor-container :deep(.ProseMirror) {
+    pointer-events: auto;
 }
 </style>

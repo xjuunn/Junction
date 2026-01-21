@@ -69,18 +69,18 @@ const DEFAULT_EXTENSIONS_CONFIG: Record<string, ExtensionConfig> = {
   },
 
   // 链接
-  link: {
-    name: 'link',
-    enabled: true,
-    config: {
-      openOnClick: false,
-      HTMLAttributes: {
-        class: 'text-blue-500 hover:text-blue-700 underline',
-        rel: 'noopener noreferrer',
-        target: '_blank',
-      },
-    },
-  },
+  // link: {
+  //   name: 'link',
+  //   enabled: true,
+  //   config: {
+  //     openOnClick: false,
+  //     HTMLAttributes: {
+  //       class: 'text-blue-500 hover:text-blue-700 underline',
+  //       rel: 'noopener noreferrer',
+  //       target: '_blank',
+  //     },
+  //   },
+  // },
 
   // 占位符
   placeholder: {
@@ -141,32 +141,32 @@ const DEFAULT_EXTENSIONS_CONFIG: Record<string, ExtensionConfig> = {
   },
 
   // 引用
-  blockquote: {
-    name: 'blockquote',
-    enabled: true,
-    config: {
-      HTMLAttributes: {
-        class: 'border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4',
-      },
-    },
-  },
+  // blockquote: {
+  //   name: 'blockquote',
+  //   enabled: true,
+  //   config: {
+  //     HTMLAttributes: {
+  //       class: 'border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4',
+  //     },
+  //   },
+  // },
 
   // 水平线
-  horizontalRule: {
-    name: 'horizontalRule',
-    enabled: true,
-    config: {
-      HTMLAttributes: {
-        class: 'my-8 border-t border-gray-300',
-      },
-    },
-  },
+  // horizontalRule: {
+  //   name: 'horizontalRule',
+  //   enabled: true,
+  //   config: {
+  //     HTMLAttributes: {
+  //       class: 'my-8 border-t border-gray-300',
+  //     },
+  //   },
+  // },
 
   // 硬换行
-  hardBreak: {
-    name: 'hardBreak',
-    enabled: true,
-  },
+  // hardBreak: {
+  //   name: 'hardBreak',
+  //   enabled: true,
+  // },
 
   // 数学公式（默认禁用）
   mathematics: {
