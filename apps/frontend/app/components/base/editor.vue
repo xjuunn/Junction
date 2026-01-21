@@ -12,11 +12,14 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'send', 'textChange']);
 
-// 拖拽状态
+// --- 状态管理 ---
 const isDragOver = ref(false);
 const dragCounter = ref(0);
 
-// 统一的图片上传处理逻辑
+/**
+ * 统一的图片上传并插入逻辑
+ * 暴露给外部使用，支持指定位置插入
+ */
 const processAndInsertImage = async (view: any, file: File, pos?: number) => {
     try {
         const response = await uploadFiles('message', [file]);
@@ -27,11 +30,11 @@ const processAndInsertImage = async (view: any, file: File, pos?: number) => {
                 src: imageUrl,
                 alt: file.name
             });
-            // 插入图片并分发事务
+            // 使用事务插入图片
             const transaction = state.tr.insert(pos ?? state.selection.from, node);
             view.dispatch(transaction);
 
-            // 确保 v-model 更新
+            // 手动触发更新确保 v-model 同步
             emit('update:modelValue', editor.value?.getJSON());
         }
     } catch (error) {
@@ -39,7 +42,7 @@ const processAndInsertImage = async (view: any, file: File, pos?: number) => {
     }
 };
 
-// 处理粘贴图片
+// --- 编辑器事件处理 ---
 const handlePaste = (view: any, event: ClipboardEvent) => {
     const items = event.clipboardData?.items;
     if (!items) return false;
@@ -54,10 +57,9 @@ const handlePaste = (view: any, event: ClipboardEvent) => {
             }
         }
     }
-    return imageFound; // 如果处理了图片，则阻止默认粘贴
+    return imageFound;
 };
 
-// 处理拖拽投放
 const handleDrop = (view: any, event: DragEvent) => {
     isDragOver.value = false;
     dragCounter.value = 0;
@@ -68,20 +70,18 @@ const handleDrop = (view: any, event: DragEvent) => {
     const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
     if (imageFiles.length > 0) {
         event.preventDefault();
-
-        // 获取释放位置的坐标
         const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
         const pos = coordinates ? coordinates.pos : view.state.selection.from;
 
         for (const file of imageFiles) {
             processAndInsertImage(view, file, pos);
         }
-        return true; // 阻止默认浏览器打开行为
+        return true;
     }
     return false;
 };
 
-// 容器拖拽事件处理（仅控制 UI 状态）
+// --- 拖拽 UI 控制 ---
 const onDragEnter = (e: DragEvent) => {
     e.preventDefault();
     dragCounter.value++;
@@ -97,12 +97,7 @@ const onDragLeave = (e: DragEvent) => {
     }
 };
 
-const onDropContainer = (e: DragEvent) => {
-    // 重置 UI 状态，实际逻辑由编辑器 handleDrop 处理
-    isDragOver.value = false;
-    dragCounter.value = 0;
-};
-
+// --- 编辑器初始化 ---
 const editor = useEditorWithImageUpload({
     content: props.modelValue,
     placeholder: props.placeholder,
@@ -130,11 +125,47 @@ const editor = useEditorWithImageUpload({
     return `${useRuntimeConfig().public.apiUrl}${response?.data?.files[0]}`;
 });
 
+// --- 外部操作 API 暴露 ---
+
+/**
+ * 清空内容
+ */
 const clear = () => {
     editor.value?.commands.clearContent();
 };
 
-defineExpose({ clear });
+/**
+ * 设置焦点
+ */
+const focus = () => {
+    editor.value?.commands.focus();
+};
+
+/**
+ * 插入文本内容
+ */
+const insertContent = (content: string | object) => {
+    editor.value?.chain().focus().insertContent(content).run();
+};
+
+/**
+ * 设置完整内容
+ */
+const setContent = (content: any) => {
+    editor.value?.commands.setContent(content);
+};
+
+/**
+ * 获取当前编辑器实例，允许父组件直接调用 Tiptap 原生 API
+ */
+defineExpose({
+    editor,             // 暴露原始实例
+    clear,              // 清空
+    focus,              // 聚焦
+    processAndInsertImage, // 图片插入
+    insertContent,      // 插入内容
+    setContent          // 替换内容
+});
 
 onBeforeUnmount(() => {
     editor.value?.destroy();
@@ -143,11 +174,11 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="w-full relative min-h-[44px] editor-container" :class="{ 'drag-over': isDragOver }"
-        @dragenter="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop="onDropContainer">
+        @dragenter="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop="isDragOver = false">
 
         <editor-content :editor="editor" />
 
-        <!-- 关键修复：添加 pointer-events-none，防止此遮罩层拦截 drop 事件 -->
+        <!-- 拖拽提示层 -->
         <div v-show="isDragOver"
             class="absolute inset-0 bg-primary/10 backdrop-blur-sm flex items-center justify-center rounded-lg border-2 border-dashed border-primary z-50 pointer-events-none">
             <div class="flex items-center gap-2 text-primary font-medium">
@@ -159,7 +190,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* 原有样式保持不变 */
 :deep(.ProseMirror img) {
     max-width: 100% !important;
     height: auto !important;
@@ -184,6 +214,14 @@ onBeforeUnmount(() => {
     min-height: 40px;
     max-height: 192px;
     overflow-y: auto;
+}
+
+:deep(.ProseMirror p.is-editor-empty:first-child::before) {
+    content: attr(data-placeholder);
+    float: left;
+    color: #adb5bd;
+    pointer-events: none;
+    height: 0;
 }
 
 .drag-over {
