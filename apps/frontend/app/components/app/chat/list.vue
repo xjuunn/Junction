@@ -36,6 +36,22 @@ const handleStatusUpdate = (data: { conversationId: string; onlineCount: number 
 };
 
 /**
+ * 直接监听新消息事件，更新会话列表预览
+ */
+const handleNewMessage = (msg: any) => {
+    const target = conversations.value.find(c => c.id === msg.conversationId);
+    if (target) {
+        target.lastMessage = {
+            content: msg.content,
+            type: msg.type,
+            createdAt: msg.createdAt,
+            sender: msg.sender
+        };
+        target.updatedAt = msg.createdAt;
+    }
+};
+
+/**
  * 列表过滤与智能排序
  */
 const filteredList = computed<ConversationItem[]>(() => {
@@ -71,11 +87,13 @@ const handleMessageSync = (msg: any) => {
 onMounted(() => {
     fetchConversations();
     appSocket.on('conversation-status', handleStatusUpdate);
+    appSocket.on('new-message', handleNewMessage);
     busOn('chat:message-sync', handleMessageSync);
 });
 
 onUnmounted(() => {
     appSocket.off('conversation-status');
+    appSocket.off('new-message');
     busOff('chat:message-sync', handleMessageSync);
 });
 </script>
