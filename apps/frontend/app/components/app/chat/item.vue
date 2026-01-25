@@ -44,7 +44,7 @@ const previewText = computed(() => {
     <div class="relative mx-2 my-0.5 group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all duration-300 rounded-xl select-none min-w-0 overflow-hidden"
         :class="isActive
             ? 'bg-primary text-primary-content shadow-lg shadow-primary/20 scale-[1.01] z-10'
-            : 'hover:bg-base-200 active:scale-[0.98]'" @click="navigateTo('/chat/' + data.id, { replace: true })">
+            : 'hover:bg-base-200 active:scale-[0.98]'" @click="navigateTo('/chat/' + data.id)">
         <div v-if="data.mySettings?.pinned" class="absolute top-2 right-2 w-1.5 h-1.5 rounded-full"
             :class="isActive ? 'bg-primary-content/60' : 'bg-primary/60'">
         </div>

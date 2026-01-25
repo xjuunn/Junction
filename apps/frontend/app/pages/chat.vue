@@ -1,14 +1,22 @@
 <script lang="ts" setup>
 import { useRoute, useRouter } from 'vue-router';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 
 definePageMeta({ layout: 'main' });
 const route = useRoute();
 const router = useRouter();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('lg');
 const isDetailOpen = computed(() => !!route.params.id);
 
 const handleBack = () => {
-    // router.push('/chat');
-    router.back();
+    if (isMobile.value) {
+        // 移动端返回到列表页面
+        router.push('/chat');
+    } else {
+        // 桌面端使用浏览器返回
+        router.back();
+    }
 };
 </script>
 
