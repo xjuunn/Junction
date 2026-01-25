@@ -22,10 +22,14 @@ async function bootstrap() {
   const NUXT_PUBLIC_HTTP_TYPE = process.env.NUXT_PUBLIC_HTTP_TYPE ?? 'http';
   const NUXT_PUBLIC_SERVER_HOST = process.env.NUXT_PUBLIC_SERVER_HOST ?? 'localhost';
   const NUXT_PUBLIC_FRONTEND_PORT = process.env.NUXT_PUBLIC_FRONTEND_PORT ?? '3000';
+  const NUXT_PUBLIC_BACKEND_PORT = process.env.NUXT_PUBLIC_BACKEND_PORT ?? '8080';
   const allowedOrigins = [
     `${NUXT_PUBLIC_HTTP_TYPE}://${NUXT_PUBLIC_SERVER_HOST}:${NUXT_PUBLIC_FRONTEND_PORT}`,
     `${NUXT_PUBLIC_HTTP_TYPE}://localhost:${NUXT_PUBLIC_FRONTEND_PORT}`,
     `${NUXT_PUBLIC_HTTP_TYPE}://127.0.0.1:${NUXT_PUBLIC_FRONTEND_PORT}`,
+    `${NUXT_PUBLIC_HTTP_TYPE}://localhost:${NUXT_PUBLIC_BACKEND_PORT}`,
+    `${NUXT_PUBLIC_HTTP_TYPE}://127.0.0.1:${NUXT_PUBLIC_BACKEND_PORT}`,
+    `${NUXT_PUBLIC_HTTP_TYPE}://${NUXT_PUBLIC_SERVER_HOST}:${NUXT_PUBLIC_BACKEND_PORT}`,
     'http://tauri.localhost',
     "https://junct.dpdns.org",
     'tauri://localhost',

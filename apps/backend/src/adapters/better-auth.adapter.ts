@@ -18,7 +18,15 @@ export class BetterAuthIoAdapter extends IoAdapter {
      * 客户端连接时，自动将认证数据绑定到 socket 上
      */
     createIOServer(port: number, options?: any): any {
-        const server: Server = super.createIOServer(port, { ...options });
+        const socketOptions = {
+            ...options,
+            cors: {
+                origin: this.allowedOrigins,
+                credentials: true,
+                ...options?.cors,
+            },
+        };
+        const server: Server = super.createIOServer(port, socketOptions);
         const authService = this.app.get<AuthService<BetterAuthInstance>>(AuthService);
         const authMiddleware = async (socket: Socket, next: (err?: any) => void) => {
 

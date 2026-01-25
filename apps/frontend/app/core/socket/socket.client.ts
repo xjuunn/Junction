@@ -14,16 +14,41 @@ export class SocketClient<N extends NSKeys> {
         const config = useRuntimeConfig();
         const userStore = useUserStore();
 
-        const backendUrl = `${config.public.httpType}://${config.public.serverHost}:${config.public.backendPort}/${namespace}`;
+        const isTauri = (() => {
+            if (typeof window === 'undefined') return false;
+            const win = window as any;
+            const checks = {
+                __TAURI__: win.__TAURI__ !== undefined,
+                __TAURI_IPC__: win.__TAURI_IPC__ !== undefined,
+                __TAURI_INTERNALS__: win.__TAURI_INTERNALS__ !== undefined,
+                userAgentTauri: navigator.userAgent.includes('Tauri'),
+                protocolTauri: window.location.protocol === 'tauri:',
+                hrefTauri: window.location.href.startsWith('tauri://'),
+            };
+            const isTauriEnv = Object.values(checks).some(v => v);
+            console.debug('[Socket] Tauri detection:', { ...checks, isTauriEnv });
+            return isTauriEnv;
+        })();
+        const serverHost = isTauri ? 'localhost' : config.public.serverHost;
+        const backendPort = config.public.backendPort;
+        const backendUrl = `${config.public.httpType}://${serverHost}:${backendPort}/${namespace}`;
+        console.log(`[Socket] Environment: ${isTauri ? 'Tauri' : 'Web'}, Host: ${serverHost}, Port: ${backendPort}, URL: ${backendUrl}`);
 
-        this.socket = io(backendUrl, {
-            transports: ["websocket"],
+        const socketOptions: any = {
+            transports: ["websocket", "polling"],
             reconnection: true,
-            withCredentials: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
             auth: {
                 token: userStore.authToken.value
             }
-        });
+        };
+
+        if (!isTauri) {
+            socketOptions.withCredentials = true;
+        }
+
+        this.socket = io(backendUrl, socketOptions);
 
         this.socket.on("connect", () => {
             console.log(`[Socket] Connected: ${namespace}`);
@@ -31,9 +56,33 @@ export class SocketClient<N extends NSKeys> {
             this.flushPendingListeners();
         });
 
-        this.socket.on("disconnect", () => {
-            console.log(`[Socket] Disconnected: ${namespace}`);
+        this.socket.on("disconnect", (reason) => {
+            console.log(`[Socket] Disconnected: ${namespace}, reason: ${reason}`);
             this.isConnected = false;
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error(`[Socket] Connect error: ${namespace}`, error.message, error);
+        });
+
+        this.socket.on('connect_timeout', (timeout) => {
+            console.error(`[Socket] Connect timeout: ${namespace}`, timeout);
+        });
+
+        this.socket.on('error', (error) => {
+            console.error(`[Socket] Error: ${namespace}`, error);
+        });
+
+        this.socket.on('reconnect', (attemptNumber) => {
+            console.log(`[Socket] Reconnected: ${namespace}, attempt: ${attemptNumber}`);
+        });
+
+        this.socket.on('reconnect_error', (error) => {
+            console.error(`[Socket] Reconnect error: ${namespace}`, error);
+        });
+
+        this.socket.on('reconnect_failed', () => {
+            console.error(`[Socket] Reconnect failed: ${namespace}`);
         });
     }
 

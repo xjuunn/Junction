@@ -1,181 +1,181 @@
-# Agent Guidelines for Junction
+# Junction AI 助手指南
 
-This document provides guidelines for AI agents working in the Junction monorepo. It includes build/lint/test commands, code style guidelines, and project structure.
+本文档为在 Junction monorepo 中工作的 AI 助手提供指南。包含构建/代码检查/测试命令、代码风格指南和项目结构。
 
-## Repository Overview
+**重要提示**: 所有回答和注释请使用中文。
 
-Junction is a monorepo using **pnpm workspaces** and **TurboRepo**. It contains:
+## 项目概述
 
-- **Frontend**: Nuxt 4 application with Vue 3, Pinia, Tailwind CSS, DaisyUI, and Tauri for desktop/mobile.
-- **Backend**: NestJS application with Prisma, better-auth, Redis, and Swagger.
-- **Shared types**: `@junction/types` package used by both frontend and backend.
-- **Cloudflare Workers**: Configured via `wrangler.toml` (likely for deployment).
+Junction 是一个使用 **pnpm workspaces** 和 **TurboRepo** 的 monorepo。包含：
 
-## Package Management
+- **前端**: Nuxt 4 应用，使用 Vue 3、Pinia、Tailwind CSS、DaisyUI 和 Tauri（桌面/移动端）。
+- **后端**: NestJS 应用，使用 Prisma、better-auth、Redis 和 Swagger。
+- **共享类型**: `@junction/types` 包，前后端共用。
 
-- **Package manager**: pnpm (`pnpm@10.18.3`)
-- **Workspaces**: Defined in `pnpm-workspace.yaml`
-- **Install dependencies**: `pnpm install`
-- **Add dependency to a workspace**: `pnpm add <package> --filter <workspace>`
-- **Run scripts across workspaces**: `npx turbo run <script>`
+## 包管理
+
+- **包管理器**: pnpm (`pnpm@10.18.3`)
+- **工作空间**: 在 `pnpm-workspace.yaml` 中定义
+- **安装依赖**: `pnpm install`
+- **向工作空间添加依赖**: `pnpm add <package> --filter <workspace>`
+- **跨工作空间运行脚本**: `npx turbo run <script>`
 
 ## Build Commands
 
-### Root (Turbo)
-| Command | Description |
+### 根目录 (Turbo)
+| 命令 | 描述 |
 |---------|-------------|
-| `pnpm dev` | Starts dev servers for all workspaces |
-| `pnpm dev:frontend` | Starts only frontend dev server |
-| `pnpm dev:backend` | Starts only backend dev server |
-| `pnpm start` | Starts production build (requires prior `pnpm build`) |
-| `pnpm build` | Builds all workspaces |
-| `pnpm build:packages` | Builds only packages (types) |
+| `pnpm dev` | 启动所有工作空间的开发服务器 |
+| `pnpm dev:frontend` | 仅启动前端开发服务器 |
+| `pnpm dev:backend` | 仅启动后端开发服务器 |
+| `pnpm start` | 启动生产构建（需要先运行 `pnpm build`） |
+| `pnpm build` | 构建所有工作空间 |
+| `pnpm build:packages` | 仅构建 packages（类型） |
 
-### Frontend (`apps/frontend`)
-| Command | Description |
+### 前端 (`apps/frontend`)
+| 命令 | 描述 |
 |---------|-------------|
-| `pnpm dev` | Starts Nuxt dev server with host flag |
-| `pnpm build` | Builds Nuxt application |
-| `pnpm generate` | Generates static site |
-| `pnpm preview` | Preview production build |
-| `pnpm tauri` | Tauri CLI commands |
-| `pnpm tauri:android` | Start Tauri Android dev |
-| `pnpm tauri:android:build` | Build Tauri Android app |
+| `pnpm dev` | 启动 Nuxt 开发服务器（带 host 标志） |
+| `pnpm build` | 构建 Nuxt 应用 |
+| `pnpm generate` | 生成静态站点 |
+| `pnpm preview` | 预览生产构建 |
+| `pnpm tauri` | Tauri CLI 命令 |
+| `pnpm tauri:android` | 启动 Tauri Android 开发 |
+| `pnpm tauri:android:build` | 构建 Tauri Android 应用 |
 
-### Backend (`apps/backend`)
-| Command | Description |
+### 后端 (`apps/backend`)
+| 命令 | 描述 |
 |---------|-------------|
-| `pnpm dev` | Starts NestJS in watch mode |
-| `pnpm start` | Starts NestJS normally |
-| `pnpm start:debug` | Starts with debug flag |
-| `pnpm start:prod` | Runs built application (`dist/main`) |
-| `pnpm build` | Builds NestJS application to `dist` |
+| `pnpm dev` | 以监听模式启动 NestJS |
+| `pnpm start` | 正常启动 NestJS |
+| `pnpm start:debug` | 以调试模式启动 |
+| `pnpm start:prod` | 运行构建后的应用 (`dist/main`) |
+| `pnpm build` | 构建 NestJS 应用到 `dist` 目录 |
 
-## Linting and Formatting
+## 代码检查和格式化
 
 ### Backend
-- **ESLint**: Flat config (`eslint.config.mjs`). Run `pnpm lint` to auto-fix.
-- **Prettier**: Config in `.prettierrc`. Run `pnpm format` to format code.
-- **Rules**:
-  - Single quotes, trailing commas, auto line endings.
-  - TypeScript strictness: `noImplicitAny: false`, `strictBindCallApply: false`.
-  - ESLint rules: `@typescript-eslint/no-explicit-any` off, floating promises warn.
+- **ESLint**: Flat config (`eslint.config.mjs`)。运行 `pnpm lint` 自动修复。
+- **Prettier**: 配置在 `.prettierrc`。运行 `pnpm format` 格式化代码。
+- **规则**:
+  - 单引号，尾随逗号，自动换行。
+  - TypeScript 严格性: `noImplicitAny: false`, `strictBindCallApply: false`。
+  - ESLint 规则: `@typescript-eslint/no-explicit-any` 关闭，floating promises 警告。
 
 ### Frontend
-- Uses Nuxt's built-in ESLint (no separate config).
-- No Prettier config; rely on editor defaults or follow backend style.
-- Consider using `@nuxt/eslint` if linting needed.
+- 使用 Nuxt 内置 ESLint（无单独配置）。
+- 无 Prettier 配置；遵循编辑器默认或后端样式。
+- 如需代码检查，考虑使用 `@nuxt/eslint`。
 
-## Testing
+## 测试
 
 ### Backend
-- **Framework**: Jest with `ts-jest`.
-- **Config**: Defined in `package.json` `jest` field.
-- **Commands**:
-  - `pnpm test` – Run all tests.
-  - `pnpm test:watch` – Watch mode.
-  - `pnpm test:cov` – Coverage report.
-  - `pnpm test:debug` – Debug tests.
-  - `pnpm test:e2e` – Run e2e tests (uses `test/jest-e2e.json`).
-- **Running a single test**: `pnpm test -- path/to/test.spec.ts`
-- **Test location**: `src/**/*.spec.ts` (unit), `test/*.e2e-spec.ts` (e2e).
+- **框架**: Jest 配合 `ts-jest`
+- **配置**: 在 `package.json` 的 `jest` 字段中定义
+- **命令**:
+  - `pnpm test` – 运行所有测试
+  - `pnpm test:watch` – 监听模式
+  - `pnpm test:cov` – 覆盖率报告
+  - `pnpm test:debug` – 调试测试
+  - `pnpm test:e2e` – 运行 e2e 测试（使用 `test/jest-e2e.json`）
+- **运行单个测试**: `pnpm test -- path/to/test.spec.ts`
+- **测试位置**: `src/**/*.spec.ts`（单元测试）, `test/*.e2e-spec.ts`（e2e 测试）
 
 ### Frontend
-- No explicit test setup. Use Vitest or Jest if added later.
+- 无明确测试设置。如需添加可使用 Vitest 或 Jest
 
-## Code Style Guidelines
+## 代码风格指南
 
-### Imports
-1. **External modules** first (from `node_modules` or packages).
-2. **Internal modules** next (aliases, relative paths).
-3. Use path alias `~` for `src` directory in backend (configured in `tsconfig.json`).
-4. In frontend, use Nuxt auto-imports where possible; otherwise explicit imports.
+### 导入
+1. **外部模块**优先（来自 `node_modules` 或包）。
+2. **内部模块**其次（别名、相对路径）。
+3. 后端使用路径别名 `~` 表示 `src` 目录（在 `tsconfig.json` 中配置）。
+4. 前端尽可能使用 Nuxt 自动导入；否则使用显式导入。
 
-Example (backend):
+示例（后端）:
 ```typescript
 import { Controller, Get } from '@nestjs/common';
 import { ApiResponse } from '@junction/types';
 import { AppService } from './app.service';
 ```
 
-### Naming Conventions
-- **Classes**: PascalCase (`AppController`, `HttpExceptionFilter`).
-- **Variables and functions**: camelCase (`getHello`, `openDialog`).
-- **Constants**: UPPER_SNAKE_CASE (if exported).
-- **Interfaces**: PascalCase (often prefixed with `I`? Not used in this codebase).
-- **Files**: kebab-case for components (`rich-text-renderer.vue`), camelCase or kebab-case for TypeScript files (`.ts`).
+### 命名约定
+- **类**: PascalCase (`AppController`, `HttpExceptionFilter`)。
+- **变量和函数**: camelCase (`getHello`, `openDialog`)。
+- **常量**: UPPER_SNAKE_CASE（如果导出）。
+- **接口**: PascalCase（是否使用 `I` 前缀？此代码库中未使用）。
+- **文件**: 组件使用 kebab-case (`rich-text-renderer.vue`)，TypeScript 文件使用 camelCase 或 kebab-case (`.ts`)。
 
 ### TypeScript
-- **Strictness**: `strictNullChecks: true`, but `noImplicitAny: false`.
-- **Use explicit types** for function parameters and return types.
-- **Use interfaces** for object shapes, `type` for unions, intersections.
-- **Generics** are used in `ApiResponse<T>` and `PaginationData<T>`.
-- **Avoid `any`**; use `unknown` or proper typing. ESLint allows `any` but prefer stricter.
+- **严格性**: `strictNullChecks: true`, 但 `noImplicitAny: false`
+- **使用显式类型** 用于函数参数和返回类型
+- **使用接口** 用于对象形状，`type` 用于联合、交叉类型
+- **泛型** 用于 `ApiResponse<T>` 和 `PaginationData<T>`
+- **避免 `any`**；使用 `unknown` 或适当类型。ESLint 允许 `any` 但建议更严格
 
-### Error Handling
+### 错误处理
 - **Backend**: Use `HttpExceptionFilter` to catch exceptions and return `ApiResponse` with `success: false`.
 - **Controllers** should throw `HttpException` or let validation pipes handle.
 - **Services** can throw regular errors; filter will convert to 500.
 - **Frontend**: Use try/catch with axios errors; show user-friendly messages.
 
-### Comments
+### 注释
 - **JSDoc** for public classes/methods (see `api-response.ts`).
 - **Chinese comments** are used in shared types; keep consistency if adding comments.
 - **Inline comments** for complex logic.
 
-### Formatting
+### 格式化
 - **Indentation**: 2 spaces (TypeScript, Vue).
 - **Semicolons**: Yes.
 - **Quotes**: Single quotes for JavaScript/TypeScript, double for JSX (if any).
 - **Trailing commas**: Yes (Prettier config).
 - **Line length**: No explicit limit; follow Prettier defaults.
 
-## Frontend Specifics
-- **Vue 3 Composition API** with `<script setup>`.
-- **State management**: Pinia stores (with persistence plugin).
-- **Styling**: Tailwind CSS with DaisyUI components.
-- **Icons**: Iconify (`@iconify/vue`).
-- **Routing**: Nuxt file-based routing.
-- **API calls**: Axios (maybe via `useFetch`).
-- **Tauri**: Desktop/mobile app integration; use `@tauri-apps/api` for native calls.
+## 前端特定
+- **Vue 3 Composition API** 使用 `<script setup>`
+- **状态管理**: Pinia stores（带持久化插件）
+- **样式**: Tailwind CSS 与 DaisyUI 组件
+- **图标**: Iconify (`@iconify/vue`)
+- **路由**: Nuxt 文件路由
+- **API 调用**: Axios（可能通过 `useFetch`）
+- **Tauri**: 桌面/移动端应用集成；使用 `@tauri-apps/api` 进行原生调用
 
-## Backend Specifics
+## 后端特定
 - **NestJS** modules, controllers, providers.
-- **Authentication**: better-auth (`@thallesp/nestjs-better-auth`).
-- **Database**: Prisma ORM (PostgreSQL likely).
-- **Redis**: ioredis for caching/sessions.
-- **WebSockets**: `@nestjs/platform-socket.io`.
-- **API Documentation**: Swagger (`@nestjs/swagger`) with decorators.
-- **File structure**:
-  - `src/` – application code
-  - `src/adapters/` – external service adapters
-  - `src/decorators/` – custom decorators
-  - `src/exception-filters/` – exception filters
-  - `src/interceptors/` – interceptors
-  - `src/resource/` – database, events, etc.
+- **认证**: better-auth (`@thallesp/nestjs-better-auth`)
+- **数据库**: Prisma ORM（可能 PostgreSQL）
+- **Redis**: ioredis 用于缓存/会话
+- **WebSockets**: `@nestjs/platform-socket.io`
+- **API 文档**: Swagger (`@nestjs/swagger`) 带装饰器
+- **文件结构**:
+  - `src/` – 应用代码
+  - `src/adapters/` – 外部服务适配器
+  - `src/decorators/` – 自定义装饰器
+  - `src/exception-filters/` – 异常过滤器
+  - `src/interceptors/` – 拦截器
+  - `src/resource/` – 数据库、事件等
 
-## Environment Variables
-- Root `.env` file (not committed). Copy from `.env.example`.
-- Frontend runtime config in `nuxt.config.ts` (`runtimeConfig.public`).
-- Backend uses `@nestjs/config`; load from root `.env`.
+## 环境变量
+- 根目录 `.env` 文件（不提交），从 `.env.example` 复制
+- 前端运行时配置在 `nuxt.config.ts` (`runtimeConfig.public`)
+- 后端使用 `@nestjs/config`，从根目录 `.env` 加载
 
-## Useful Scripts
-- **Database migrations**: `npx prisma migrate dev` (inside backend).
-- **Generate Prisma client**: `npx prisma generate`.
-- **Type checking**: `npx tsc --noEmit` in each workspace.
-- **Clean builds**: Delete `dist`, `.output`, `.nuxt`, `.turbo` as needed.
+## 实用脚本
+- 数据库迁移: `npx prisma migrate dev`（backend 内）
+- 生成 Prisma 客户端: `npx prisma generate`
+- 类型检查: 各工作空间运行 `npx tsc --noEmit`
+- 清理构建: 删除 `dist`, `.output`, `.nuxt`, `.turbo`
 
 ## Commit & PR Guidelines
-- No pre-commit hooks configured.
-- Commit messages: Use conventional commits? Not enforced.
-- PRs: Include summary of changes and test results.
+- 无预提交钩子；提交信息可使用约定式提交（非强制）
 
-## Notes for AI Agents
-- Always run `pnpm lint` and `pnpm format` in backend before committing.
-- Ensure TypeScript compiles without errors.
-- Follow existing patterns in the same file/workspace.
-- When adding new dependencies, update the correct workspace `package.json`.
-- Be mindful of shared types; changes may affect both frontend and backend.
+## AI 助手注意事项
+- **所有回答和注释请使用中文**
+- 提交前在后端运行 `pnpm lint` 和 `pnpm format`
+- 确保 TypeScript 编译无误
+- 遵循同一文件/工作空间的现有模式
+- 添加新依赖时更新正确的工作空间 `package.json`
+- 注意共享类型；更改可能影响前后端
 
 ---
 
