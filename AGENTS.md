@@ -251,10 +251,291 @@ import { AppService } from './app.service';
 - **导出**: 统一导出 API 实例和方法
 - **类型**: 使用 `@junction/types` 中的共享类型定义
 
+## 🎯 **项目类型系统规范（重要）**
+
+### 📦 **共享类型包 (`@junction/types`)**
+
+#### 核心响应类型 (`packages/types/src/api-response.ts`)
+```typescript
+// 基础API响应
+export class ApiResponse<T> {
+    success: boolean;
+    error: string | null;
+    data: T | null;
+    constructor(data: T | null, success: boolean = true, error: string | null = null)
+}
+
+// 分页元数据
+export class PaginationMeta {
+    total: number;
+    page: number;
+    limit: number;
+    constructor(page: number, limit: number, total: number)
+}
+
+// 分页响应数据
+export class PaginationData<T> {
+    items: T[];
+    meta: PaginationMeta;
+    constructor(items: T[], meta: PaginationMeta)
+}
+```
+
+#### Prisma 类型导出 (`packages/types/src/index.ts`)
+```typescript
+// 所有 Prisma 类型（包含 User、Conversation、Message 等）
+export type * as PrismaTypes from 'prismaclient';
+export type * as PrismaValues from 'prismaclient';
+export * from './api-response';
+```
+
+### 🎨 **前端编辑器类型**
+
+#### 编辑器核心类型 (`apps/frontend/app/core/editor/types/index.ts`)
+```typescript
+// 编辑器模式
+export type EditorMode = 'readonly' | 'editable' | 'minimal'
+
+// 编辑器主题
+export type EditorTheme = 'light' | 'dark' | 'auto'
+
+// 上传配置
+export interface UploadConfig {
+    enabled: boolean
+    type: 'image' | 'audio' | 'file'
+    maxSize: number
+    accept: string[]
+    endpoint: string
+    handler?: (file: File) => Promise<string>
+}
+
+// 上传响应
+export interface UploadResponse {
+    success: boolean
+    url?: string
+    error?: string
+    data?: any
+}
+
+// 其他类型...
+```
+
+### 🔌 **Socket 类型系统**
+
+#### Socket 事件类型 (`apps/frontend/app/core/socket/socket.types.ts`)
+```typescript
+// Socket 事件泛型接口
+export interface SocketEvent<S = void, A = void, L = void> {
+    send: S;      // 发送给后端的数据
+    ack: A;       // 后端回调的数据
+    listen: L;    // 后端主动推送的数据
+}
+
+// Socket 命名空间
+export interface SocketNamespaces {
+    app: {
+        "init": SocketEvent<void, PrismaTypes.User, never>;
+        "new-notification": SocketEvent<never, never, PrismaTypes.Notification>;
+        "conversation-status": SocketEvent<never, never, { conversationId: string; onlineCount: number }>;
+        "new-message": SocketEvent<never, never, any>;
+        "message-revoked": SocketEvent<never, never, { id: string; conversationId: string; [key: string]: any }>;
+    };
+}
+
+// 类型推断工具
+export type InferSend<N extends NSKeys, E extends EventKeys<N>>
+export type InferAck<N extends NSKeys, E extends EventKeys<N>>
+export type InferListen<N extends NSKeys, E extends EventKeys<N>>
+```
+
+### 🛠 **前端工具类型**
+
+#### 分页选项类型 (`apps/frontend/app/utils/pagination.ts`)
+```typescript
+export interface PaginationOptions {
+    page?: number;
+    limit?: number;
+    cursor?: string | number;
+}
+
+// 扩展的分页数据（客户端特定）
+export interface PaginationData<T> extends SharedPaginationData<T> {
+    hasMore: boolean;
+    prevCursor?: string | number;
+    nextCursor?: string | number;
+}
+```
+
+#### 工具类型 (`apps/frontend/app/utils/types.ts`)
+```typescript
+export type AwaitedReturnType<T extends (...args: any) => any> = Awaited<ReturnType<T>>;
+export type AwaitedReturnOmit<T extends (...args: any) => any, K extends keyof Awaited<ReturnType<T>>> = Omit<Awaited<ReturnType<T>>, K>;
+```
+
+## ⚠️ **类型定义规范**
+
+### 🚫 **禁止重复定义**
+- **ApiResponse**: 已在 `@junction/types` 中定义，禁止重复实现
+- **PaginationData/PaginationMeta**: 已在共享包中定义，使用扩展而非重新定义
+- **PrismaTypes**: 通过 `@junction/types` 导入，禁止本地重新定义
+- **EditorMode/EditorTheme**: 已在编辑器类型中定义，使用现有类型
+
+### ✅ **正确做法**
+```typescript
+// ✅ 正确 - 使用共享类型
+import { ApiResponse, PaginationData, PrismaTypes } from '@junction/types'
+import type { EditorMode, UploadResponse } from '~/core/editor/types'
+
+// ❌ 错误 - 重复定义
+interface ApiResponse<T> { ... }  // 已在共享包中定义
+class PaginationData<T> { ... }   // 已在共享包中定义
+```
+
+### 🔧 **类型扩展规则**
+- **继承扩展**: 需要扩展时，使用 `extends` 而非重新定义
+- **泛型约束**: 保持泛型约束与原始类型一致
+- **向后兼容**: 扩展时保持原有接口不变
+
+### 📍 **类型导入路径**
+```typescript
+// 共享类型
+import type { PrismaTypes, ApiResponse, PaginationData } from '@junction/types'
+
+// 前端编辑器类型
+import type { EditorMode, UploadResponse, EditorTheme } from '~/core/editor/types'
+
+// Socket 类型
+import type { SocketEvent, InferSend, InferAck } from '~/core/socket/socket.types'
+
+// 工具类型
+import type { PaginationOptions, AwaitedReturnType } from '~/utils/types'
+
+### 📋 **其他重要类型定义**
+
+#### 应用状态类型 (`apps/frontend/app/core/types.ts`)
+```typescript
+export interface AppState {
+    user: any | null
+    theme: 'light' | 'dark' | 'auto'
+    language: string
+    platform: 'web' | 'desktop' | 'mobile'
+    environment: 'development' | 'production' | 'test'
+}
+
+export interface InitializationState {
+    isInitialized: boolean
+    isInitializing: boolean
+    error: string | null
+    progress: number
+    currentStep: string
+}
+
+export interface SystemStatus {
+    online: boolean
+    version: string
+    buildNumber?: string
+    features: Record<string, boolean>
+}
+```
+
+#### 用户和认证类型
+```typescript
+// 从 @junction/types 导入
+type User = PrismaTypes.User
+type Conversation = PrismaTypes.Conversation
+type Message = PrismaTypes.Message
+type Notification = PrismaTypes.Notification
+```
+
+#### API 响应包装类型
+```typescript
+// 扩展分页数据（客户端使用）
+export interface PaginationDataWithTotal<T> extends Omit<PaginationData<T>, 'hasMore' | 'prevCursor' | 'nextCursor'> {}
+
+// 工厂函数返回类型
+export type AwaitedReturnOmit<T extends (...args: any) => any, K extends keyof Awaited<ReturnType<T>>> = Omit<Awaited<ReturnType<T>>, K>;
+```
+
+#### Vue 组件 Props 和 Emits 类型
+```typescript
+// 标准化 Props 接口
+interface Props {
+    modelValue?: boolean
+    data?: any
+    [key: string]: any
+}
+
+// 标准化 Emits 接口  
+interface Emits {
+    (e: 'update:modelValue', value: any): void
+    (e: 'success', data: any): void
+    (e: 'error', error: string): void
+    [key: string]: (...args: any[]) => void
+}
+```
+
+### 📌 **类型安全最佳实践**
+
+#### 泛型使用规范
+```typescript
+// ✅ 正确 - 明确的泛型约束
+interface ApiResponse<T> {
+    success: boolean
+    data: T | null
+}
+
+// ✅ 正确 - 工具类型
+type ExtractArrayType<T> = T extends (infer U)[] ? U : never
+type ComponentProps<T> = T extends (...args: any) => any ? Parameters<T>[0] : never
+```
+
+#### 联合类型和交叉类型
+```typescript
+// ✅ 正确 - 联合类型
+type Status = 'loading' | 'success' | 'error'
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+
+// ✅ 正确 - 交叉类型
+type UserWithSettings = User & { settings: UserSettings }
+type RequestConfig = RequestOptions & { timeout: number }
+```
+
+#### 条件类型工具
+```typescript
+// ✅ 正确 - 条件类型
+type NonNullable<T> = T extends null | undefined ? never : T
+type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
+type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>
+```
+
+### 🔍 **类型查找指南**
+
+#### 当需要特定类型时
+```typescript
+// API 响应 → @junction/types
+import { ApiResponse, PaginationData } from '@junction/types'
+
+// 数据库模型 → @junction/types  
+import type { PrismaTypes } from '@junction/types'
+type User = PrismaTypes.User
+type Conversation = PrismaTypes.Conversation
+
+// 编辑器类型 → core/editor/types
+import type { EditorMode, UploadResponse } from '~/core/editor/types'
+
+// Socket 类型 → core/socket/types
+import type { InferSend, InferAck } from '~/core/socket/types'
+
+// 工具类型 → utils/types
+import type { AwaitedReturnType, PaginationOptions } from '~/utils/types'
+```
+```
+
 ## AI 助手注意事项
 - **所有回答和注释请使用中文**
 - **优先使用现有工具**: 上述工具封装已提供完整功能，不要重复实现
 - **API 调用规范**: 严格遵守 API 调用规则，使用 `~/api` 中的预定义方法
+- **类型系统规范**: 使用现有类型定义，禁止重复实现，参考上方类型系统规范
 - **提交前在后端运行 `pnpm lint` 和 `pnpm format`
 - **确保 TypeScript 编译无误**
 - **遵循同一文件/工作空间的现有模式**
