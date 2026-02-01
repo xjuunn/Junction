@@ -44,13 +44,16 @@ const uploadingAvatar = ref(false);
 const loadFriends = async () => {
     friendsLoading.value = true;
     try {
-        const res = await userApi.search({ query: '', limit: 100 });
+        const res = await userApi.search({ query: searchQuery.value || '', limit: 100 });
         if (res.success && res.data) {
-            const filteredData = res.data.items;
-            if (friends.value === null) friends.value = { items: [], meta: { ...res.data.meta } };
-            friends.value.items = filteredData.filter(user =>
+            // 过滤掉自己
+            const filteredUsers = res.data.items.filter(user => 
                 user.id !== useUserStore().user.value?.id
             );
+            friends.value = {
+                ...res.data,
+                items: filteredUsers
+            };
         }
     } finally {
         friendsLoading.value = false;
@@ -59,11 +62,10 @@ const loadFriends = async () => {
 
 // 搜索好友
 const filteredFriends = computed(() => {
-    if (!friends.value) return [];
-    if (!Array.isArray(friends.value)) return [];
-    if (!searchQuery.value) return friends.value;
+    if (!friends.value?.items) return [];
+    if (!searchQuery.value) return friends.value.items;
     const query = searchQuery.value.toLowerCase().trim();
-    return friends.value.filter(friend =>
+    return friends.value.items.filter(friend =>
         friend.name?.toLowerCase().includes(query) ||
         friend.email?.toLowerCase().includes(query)
     );
@@ -71,8 +73,8 @@ const filteredFriends = computed(() => {
 
 // 选择状态
 const selectedFriends = computed(() => {
-    if (!Array.isArray(friends.value)) return [];
-    return friends.value.filter(friend => selectedMembers.value.includes(friend.id));
+    if (!friends.value?.items) return [];
+    return friends.value.items.filter(friend => selectedMembers.value.includes(friend.id));
 });
 
 // 切换成员选择
@@ -91,7 +93,8 @@ const handleSearch = (event: Event) => {
     searchQuery.value = query;
     clearTimeout(searchDebounce.value);
     searchDebounce.value = setTimeout(() => {
-        // 搜索逻辑已在 computed 中处理
+        // 重新执行搜索
+        loadFriends();
     }, 300);
 };
 
@@ -150,11 +153,11 @@ const nextStep = async () => {
             useToast().error('群聊名称不能超过50个字符');
             return;
         }
-
+        
         step.value = 2;
-        await nextTick(() => {
-            loadFriends();
-        });
+        // 重置搜索并重新加载好友列表
+        searchQuery.value = '';
+        await loadFriends();
     }
 };
 
@@ -205,6 +208,10 @@ watch(isOpen, (newVal) => {
         // 重置头像输入
         if (avatarInput.value) {
             avatarInput.value.value = '';
+        }
+        // 如果在第一步，预加载好友列表
+        if (step.value === 1) {
+            loadFriends();
         }
     }
 });
