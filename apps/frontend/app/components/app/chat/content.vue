@@ -17,6 +17,7 @@ const loading = ref(false);
 const initialLoading = ref(true);
 const sending = ref(false);
 const hasMore = ref(true);
+const showGroupInfo = ref(false);
 
 // 编辑器相关状态
 const messageJson = ref<any>(null);
@@ -241,6 +242,13 @@ onMounted(() => {
                     </div>
                 </div>
             </div>
+            
+            <!-- 群聊信息按钮 -->
+            <div v-if="currentConversation && currentConversation.type === 'GROUP'" class="flex items-center gap-2">
+                <button class="btn btn-ghost btn-circle btn-sm" @click="showGroupInfo = true">
+                    <Icon name="mingcute:information-line" size="20" />
+                </button>
+            </div>
         </header>
         <div class="flex-1 relative overflow-hidden bg-base-100">
             <div v-if="initialLoading" class="absolute inset-0 z-20 bg-base-100 flex items-center justify-center">
@@ -321,5 +329,14 @@ onMounted(() => {
                 </div>
             </div>
         </footer>
+        
+        <!-- 群聊信息对话框 -->
+        <AppDialogGroupInfo 
+            v-if="currentConversation && currentConversation.type === 'GROUP'"
+            :show="showGroupInfo"
+            :conversation-id="conversationId"
+            @update:show="showGroupInfo = $event"
+            @updated="fetchConversation"
+        />
     </div>
 </template>

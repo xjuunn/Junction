@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import * as conversationApi from '~/api/conversation';
 
 type ConversationItem = NonNullable<NonNullable<Awaited<ReturnType<typeof conversationApi.findAll>>['data']>['items']>[number];
 
 const route = useRoute();
+const router = useRouter();
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'personal' | 'group'>('all');
 const loading = ref(true);
 const conversations = ref<ConversationItem[]>([]);
 const appSocket = useSocket('app');
 const { on: busOn, off: busOff } = useEmitt();
+const showCreateGroupDialog = ref(false);
 
 /**
  * 加载会话列表数据
@@ -69,6 +71,14 @@ const filteredList = computed<ConversationItem[]>(() => {
 });
 
 /**
+ * 群聊创建成功处理
+ */
+const handleGroupCreated = (conversationId: string) => {
+    fetchConversations();
+    router.push(`/chat/${conversationId}`);
+};
+
+/**
  * 响应总线同步事件
  */
 const handleMessageSync = (msg: any) => {
@@ -116,7 +126,7 @@ onUnmounted(() => {
                     <button class="btn btn-ghost btn-circle btn-sm" @click="fetchConversations">
                         <Icon name="mingcute:refresh-3-line" size="18" :class="{ 'animate-spin': loading }" />
                     </button>
-                    <button class="btn btn-primary btn-circle btn-sm shadow-lg shadow-primary/20">
+                    <button class="btn btn-primary btn-circle btn-sm shadow-lg shadow-primary/20" @click="showCreateGroupDialog = true">
                         <Icon name="mingcute:add-line" size="20" />
                     </button>
                 </div>
@@ -166,5 +176,11 @@ onUnmounted(() => {
                 <AppChatItem v-for="chat in filteredList" :key="chat.id" :data="chat" />
             </div>
         </main>
+        
+        <!-- 创建群聊对话框 -->
+        <AppDialogCreateGroup 
+            v-model="showCreateGroupDialog" 
+            @success="handleGroupCreated" 
+        />
     </div>
 </template>

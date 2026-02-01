@@ -12,8 +12,14 @@ export function isAuthenticated() {
 }
 
 /** 搜索用户 */
-export function search(keyword: string, pagination: PaginationOptions) {
-    return api.get<AwaitedReturnType<UserController['searchUser']>>(base + '/search', { keyword, ...pagination });
+export function search(params: { query?: string; keyword?: string; page?: number; limit?: number }) {
+    const queryParams = {
+        keyword: params.query || params.keyword || '',
+        page: params.page || 1,
+        limit: params.limit || 20,
+        ...params
+    };
+    return api.get<AwaitedReturnType<UserController['searchUser']>>(base + '/search', queryParams);
 }
 
 /**

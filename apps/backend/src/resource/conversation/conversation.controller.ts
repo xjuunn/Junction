@@ -71,4 +71,69 @@ export class ConversationController {
   ) {
     return this.conversationService.remove(session.user.id, id);
   }
+
+  /**
+   * 获取群聊成员列表
+   */
+  @Get(':id/members')
+  @ApiOperation({ summary: "获取群聊成员" })
+  getMembers(
+    @Session() session: UserSession,
+    @Param('id') id: string
+  ) {
+    return this.conversationService.getMembers(session.user.id, id);
+  }
+
+  /**
+   * 邀请成员加入群聊
+   */
+  @Post(':id/members')
+  @ApiOperation({ summary: "邀请成员" })
+  addMembers(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() body: { memberIds: string[] }
+  ) {
+    return this.conversationService.addMembers(session.user.id, id, body.memberIds);
+  }
+
+  /**
+   * 移除群聊成员
+   */
+  @Delete(':id/members/:targetUserId')
+  @ApiOperation({ summary: "移除成员" })
+  removeMember(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Param('targetUserId') targetUserId: string
+  ) {
+    return this.conversationService.removeMember(session.user.id, id, targetUserId);
+  }
+
+  /**
+   * 修改成员角色
+   */
+  @Patch(':id/members/:targetUserId/role')
+  @ApiOperation({ summary: "修改成员角色" })
+  updateMemberRole(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: { role: 'ADMIN' | 'MEMBER' }
+  ) {
+    return this.conversationService.updateMemberRole(session.user.id, id, targetUserId, body.role);
+  }
+
+  /**
+   * 更新群聊信息
+   */
+  @Patch(':id/info')
+  @ApiOperation({ summary: "更新群聊信息" })
+  updateGroupInfo(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() body: { title?: string; avatar?: string }
+  ) {
+    return this.conversationService.updateGroupInfo(session.user.id, id, body);
+  }
 }

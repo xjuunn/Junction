@@ -45,6 +45,41 @@ export function remove(id: string) {
     return api.delete<AwaitedReturnType<ConversationService['remove']>>(base + "/" + id);
 }
 
+/**
+ * 获取群聊成员列表
+ */
+export function getMembers(conversationId: string) {
+    return api.get<AwaitedReturnType<ConversationService['getMembers']>>(`${base}/${conversationId}/members`);
+}
+
+/**
+ * 邀请成员加入群聊
+ */
+export function addMembers(conversationId: string, memberIds: string[]) {
+    return api.post<AwaitedReturnType<ConversationService['addMembers']>>(`${base}/${conversationId}/members`, { memberIds });
+}
+
+/**
+ * 移除群聊成员
+ */
+export function removeMember(conversationId: string, targetUserId: string) {
+    return api.delete<AwaitedReturnType<ConversationService['removeMember']>>(`${base}/${conversationId}/members/${targetUserId}`);
+}
+
+/**
+ * 修改成员角色
+ */
+export function updateMemberRole(conversationId: string, targetUserId: string, role: 'ADMIN' | 'MEMBER') {
+    return api.patch<AwaitedReturnType<ConversationService['updateMemberRole']>>(`${base}/${conversationId}/members/${targetUserId}/role`, { role });
+}
+
+/**
+ * 更新群聊信息
+ */
+export function updateGroupInfo(conversationId: string, data: { title?: string; avatar?: string }) {
+    return api.patch<AwaitedReturnType<ConversationService['updateGroupInfo']>>(`${base}/${conversationId}/info`, data);
+}
+
 // 会话类型
 export enum ConversationType {
     "PRIVATE", // 私聊
