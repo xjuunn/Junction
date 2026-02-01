@@ -47,7 +47,7 @@ const loadFriends = async () => {
         const res = await userApi.search({ query: searchQuery.value || '', limit: 100 });
         if (res.success && res.data) {
             // 过滤掉自己
-            const filteredUsers = res.data.items.filter(user => 
+            const filteredUsers = res.data.items.filter(user =>
                 user.id !== useUserStore().user.value?.id
             );
             friends.value = {
@@ -153,7 +153,7 @@ const nextStep = async () => {
             useToast().error('群聊名称不能超过50个字符');
             return;
         }
-        
+
         step.value = 2;
         // 重置搜索并重新加载好友列表
         searchQuery.value = '';
@@ -233,200 +233,191 @@ const isMobile = computed(() => useDevice().isMobile);
 
 <template>
     <Teleport to="body">
-        <Transition name="modal" appear>
-            <div v-if="isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                <!-- 背景遮罩 -->
-                <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isOpen = false"></div>
-
-                <!-- 对话框主体 -->
+        <Transition name="modal-bounce" appear>
+            <div v-if="isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+                <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md" @click="isOpen = false"></div>
                 <div
-                    class="relative bg-base-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-base-200/50">
+                    class="relative bg-base-100/90 backdrop-blur-xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-white/20">
 
-                    <!-- 装饰性光效 -->
-                    <div class="absolute -top-20 -right-20 w-40 h-40 bg-primary/10 blur-[60px] pointer-events-none">
+                    <div
+                        class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 blur-[80px] rounded-full pointer-events-none">
                     </div>
-                    <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-secondary/10 blur-[60px] pointer-events-none">
+                    <div
+                        class="absolute -bottom-24 -left-24 w-64 h-64 bg-secondary/10 blur-[80px] rounded-full pointer-events-none">
                     </div>
 
-                    <!-- 头部 -->
-                    <header class="relative p-8 pb-6 border-b border-base-200/50">
-                        <div class="flex items-center justify-between">
-                            <div>
+                    <header class="relative p-8 pb-6 border-b border-base-200/30">
+                        <div class="flex items-start justify-between">
+                            <div class="space-y-1">
                                 <h1
-                                    class="text-2xl font-bold bg-gradient-to-r from-base-content to-base-content/70 bg-clip-text text-transparent">
+                                    class="text-3xl font-black tracking-tight bg-gradient-to-br from-base-content to-base-content/60 bg-clip-text text-transparent">
                                     {{ step === 1 ? '创建群聊' : '邀请成员' }}
                                 </h1>
-                                <p class="text-sm text-base-content/60 mt-1">
-                                    {{ step === 1 ? '设置群聊基本信息' : '选择要邀请的好友' }}
+                                <p class="text-sm font-medium text-base-content/40 uppercase tracking-wider">
+                                    {{ step === 1 ? 'Step 01: 基本信息' : 'Step 02: 邀请好友' }}
                                 </p>
                             </div>
-                            <button class="btn btn-ghost btn-circle btn-sm hover:bg-base-200" @click="isOpen = false">
+                            <button
+                                class="btn btn-ghost btn-circle btn-sm bg-base-200/50 hover:bg-error hover:text-error-content transition-all"
+                                @click="isOpen = false">
                                 <Icon name="mingcute:close-line" size="20" />
                             </button>
                         </div>
 
-                        <!-- 步骤指示器 -->
-                        <div class="flex items-center gap-2 mt-6">
-                            <div v-for="i in 2" :key="i" class="flex-1 h-1.5 rounded-full transition-all duration-300"
-                                :class="step >= i ? 'bg-gradient-to-r from-primary to-primary/80' : 'bg-base-200'">
+                        <div class="flex items-center gap-2 mt-8">
+                            <div class="flex-1 h-1.5 rounded-full bg-base-200 overflow-hidden relative">
+                                <div class="absolute inset-y-0 left-0 bg-primary transition-all duration-500 ease-out"
+                                    :style="{ width: step === 1 ? '50%' : '100%' }"></div>
                             </div>
+                            <span class="text-[10px] font-bold opacity-30">{{ step }}/2</span>
                         </div>
                     </header>
 
                     <!-- 内容区域 -->
-                    <main class="flex-1 overflow-y-auto p-8 pb-6">
+                    <main class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
                         <!-- 步骤1：基本信息 -->
-                        <div v-if="step === 1" class="space-y-8">
-                            <!-- 头像上传 -->
-                            <div class="flex flex-col items-center space-y-4">
-                                <div class="relative group">
+                        <div v-if="step === 1" class="space-y-10 animate-fade-in-up">
+                            <div class="flex flex-col items-center">
+                                <div class="relative group cursor-pointer" @click="triggerAvatarUpload">
                                     <div class="avatar">
                                         <div
-                                            class="w-24 h-24 rounded-2xl border-4 border-base-200 shadow-lg transition-all group-hover:shadow-xl">
+                                            class="w-32 h-32 mask mask-squircle bg-base-200 ring-4 ring-primary/5 ring-offset-4 ring-offset-base-100 transition-all group-hover:ring-primary/20 shadow-inner">
                                             <img v-if="groupAvatar" :src="groupAvatar" alt="群聊头像"
                                                 class="object-cover" />
                                             <div v-else
-                                                class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                                                <Icon name="mingcute:group-2-line" size="32" class="text-primary/40" />
+                                                class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center text-primary/40">
+                                                <Icon name="mingcute:group-2-line" size="40" />
+                                                <span
+                                                    class="text-[10px] mt-2 font-bold uppercase tracking-tighter">添加照片</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- 头像操作按钮 -->
-                                    <div class="absolute -bottom-2 -right-2 flex gap-1">
-                                        <button v-if="!groupAvatar" class="btn btn-primary btn-circle btn-sm shadow-lg"
-                                            :class="{ 'loading': uploadingAvatar }" @click="triggerAvatarUpload"
-                                            :disabled="uploadingAvatar">
+                                    <!-- 浮动操作按钮 -->
+                                    <div class="absolute -bottom-2 -right-2 flex gap-2">
+                                        <div v-if="!groupAvatar"
+                                            class="btn btn-primary btn-circle btn-sm shadow-xl hover:scale-110 active:scale-95 transition-transform">
                                             <Icon v-if="!uploadingAvatar" name="mingcute:camera-line" size="16" />
-                                        </button>
-                                        <button v-else class="btn btn-error btn-circle btn-sm shadow-lg"
-                                            @click="removeAvatar">
+                                            <span v-else class="loading loading-spinner loading-xs"></span>
+                                        </div>
+                                        <button v-else
+                                            class="btn btn-error btn-circle btn-sm shadow-xl hover:scale-110 active:scale-95 transition-transform"
+                                            @click.stop="removeAvatar">
                                             <Icon name="mingcute:delete-line" size="16" />
                                         </button>
                                     </div>
-
-                                    <!-- 悬浮效果 -->
-                                    <div v-if="!groupAvatar"
-                                        class="absolute inset-0 rounded-2xl bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                        @click="triggerAvatarUpload"></div>
                                 </div>
-
                                 <input ref="avatarInput" type="file" accept="image/*" class="hidden"
                                     @change="handleAvatarUpload" />
                             </div>
 
-                            <!-- 群聊名称 -->
-                            <div class="form-control">
-                                <label class="label">
-                                    <span class="label-text font-medium">群聊名称</span>
-                                    <span class="label-text-alt">{{ groupName.length }}/50</span>
+                            <div class="form-control w-full">
+                                <label class="label mb-1">
+                                    <span
+                                        class="label-text font-bold text-xs uppercase tracking-widest opacity-50">群聊名称</span>
                                 </label>
-                                <input v-model="groupName" type="text" placeholder="输入群聊名称"
-                                    class="input input-bordered w-full h-12 rounded-xl font-medium transition-all focus:ring-4 focus:ring-primary/10"
+                                <input v-model="groupName" type="text" placeholder="群聊名称"
+                                    class="input input-lg w-full bg-base-200/50 border-none focus:ring-4 focus:ring-primary/10 rounded-2xl text-lg font-semibold transition-all"
                                     maxlength="50" @keyup.enter="nextStep" />
+                                <div class="flex justify-end mt-2">
+                                    <span class="text-[10px] font-mono opacity-30">{{ groupName.length }}/50</span>
+                                </div>
                             </div>
                         </div>
 
                         <!-- 步骤2：邀请成员 -->
-                        <div v-if="step === 2" class="space-y-6">
-                            <!-- 搜索框 -->
+                        <div v-if="step === 2" class="space-y-6 animate-fade-in-right">
                             <div class="form-control">
-                                <div class="input input-bordered flex items-center gap-3 h-12 rounded-xl">
-                                    <Icon name="mingcute:search-2-line" size="20" class="text-base-content/40" />
+                                <div class="relative group">
+                                    <Icon name="mingcute:search-2-line" size="20"
+                                        class="absolute left-4 top-1/2 -translate-y-1/2 text-base-content/30 group-focus-within:text-primary transition-colors" />
                                     <input v-model="searchQuery" type="text" placeholder="搜索好友姓名或邮箱..."
-                                        class="flex-1 bg-transparent outline-none" @input="handleSearch" />
-                                    <div v-if="searchQuery" class="badge badge-ghost badge-sm">
-                                        {{ filteredFriends.length }}
-                                    </div>
+                                        class="input w-full pl-12 bg-base-200/50 border-none focus:ring-4 focus:ring-primary/10 rounded-2xl transition-all"
+                                        @input="handleSearch" />
                                 </div>
                             </div>
 
-                            <!-- 已选择的成员预览 -->
                             <div v-if="selectedFriends.length" class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="text-sm font-medium text-base-content/70">已选择 {{ selectedFriends.length
-                                    }} 位成员</h3>
-                                    <button class="btn btn-ghost btn-xs" @click="selectedMembers = []">
-                                        清空
-                                    </button>
+                                <div class="flex items-center justify-between px-1">
+                                    <h3 class="text-xs font-bold uppercase tracking-widest opacity-50">已选择 ({{
+                                        selectedFriends.length }})</h3>
+                                    <button class="text-[10px] font-bold text-primary hover:underline"
+                                        @click="selectedMembers = []">全部清空</button>
                                 </div>
 
                                 <div class="flex flex-wrap gap-2">
                                     <div v-for="friend in selectedFriends" :key="friend.id"
-                                        class="badge badge-primary badge-lg gap-2 px-3 py-2">
-                                        <div class="avatar w-5 h-5">
-                                            <img v-if="friend.image" :src="friend.image" :alt="friend.name"
-                                                class="object-cover" />
-                                            <div v-else
-                                                class="w-full h-full bg-primary/20 flex items-center justify-center text-xs">
-                                                {{ getInitial(friend) }}
+                                        class="badge badge-primary h-9 gap-2 px-3 pl-1.5 rounded-xl border-none shadow-md shadow-primary/10 animate-zoom-in">
+                                        <div class="avatar">
+                                            <div class="w-6 h-6 rounded-lg">
+                                                <img v-if="friend.image" :src="friend.image" :alt="friend.name" />
+                                                <div v-else
+                                                    class="bg-primary-focus flex items-center justify-center text-[10px]">
+                                                    {{ getInitial(friend) }}</div>
                                             </div>
                                         </div>
-                                        <span class="text-xs font-medium truncate max-w-[80px]">{{
-                                            getDisplayName(friend) }}</span>
-                                        <Icon name="mingcute:close-line" size="12" class="cursor-pointer"
-                                            @click="toggleMember(friend.id)" />
+                                        <span class="text-xs font-bold truncate max-w-[100px]">{{ getDisplayName(friend)
+                                        }}</span>
+                                        <button @click="toggleMember(friend.id)"
+                                            class="hover:bg-primary-focus rounded-full p-0.5 transition-colors">
+                                            <Icon name="mingcute:close-line" size="14" />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- 好友列表 -->
                             <div class="space-y-3">
-                                <h3 class="text-sm font-medium text-base-content/70">好友列表</h3>
+                                <h3 class="text-xs font-bold uppercase tracking-widest opacity-50 px-1">推荐好友</h3>
 
-                                <div class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
-                                    <!-- 加载状态 -->
-                                    <div v-if="friendsLoading" class="space-y-3">
-                                        <div v-for="i in 5" :key="i"
-                                            class="flex items-center gap-4 p-3 rounded-xl bg-base-200/30 animate-pulse">
-                                            <div class="w-12 h-12 bg-base-300 rounded-full"></div>
+                                <div class="space-y-2 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+                                    <!-- 骨架屏 -->
+                                    <div v-if="friendsLoading" class="space-y-2">
+                                        <div v-for="i in 4" :key="i"
+                                            class="flex items-center gap-4 p-4 rounded-2xl bg-base-200/30 animate-pulse">
+                                            <div class="w-12 h-12 bg-base-300 rounded-xl"></div>
                                             <div class="flex-1 space-y-2">
-                                                <div class="h-4 bg-base-300 rounded w-1/2"></div>
-                                                <div class="h-3 bg-base-200 rounded w-3/4"></div>
+                                                <div class="h-3 bg-base-300 rounded w-1/3"></div>
+                                                <div class="h-2 bg-base-200 rounded w-1/2"></div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <!-- 空状态 -->
-                                    <div v-else-if="filteredFriends.length === 0" class="text-center py-12">
-                                        <Icon name="mingcute:user-search-line" size="48"
-                                            class="text-base-content/20 mx-auto mb-4" />
-                                        <p class="text-base-content/40 text-sm">{{ searchQuery ? '没有找到相关好友' : '暂无好友' }}
-                                        </p>
+                                    <div v-else-if="filteredFriends.length === 0"
+                                        class="flex flex-col items-center py-10 opacity-20">
+                                        <Icon name="mingcute:user-search-line" size="48" />
+                                        <p class="text-sm font-bold mt-2">未找到相关好友</p>
                                     </div>
 
-                                    <!-- 好友列表 -->
-                                    <div v-else class="space-y-1">
+                                    <!-- 列表项 -->
+                                    <div v-else class="space-y-1.5">
                                         <div v-for="friend in filteredFriends" :key="friend.id"
-                                            class="group flex items-center gap-4 p-3 rounded-xl hover:bg-base-200/50 cursor-pointer transition-all"
+                                            class="group flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all hover:bg-primary/10"
                                             :class="{ 'bg-primary/5': selectedMembers.includes(friend.id) }"
                                             @click="toggleMember(friend.id)">
-                                            <!-- 头像 -->
+
                                             <div class="avatar">
                                                 <div
-                                                    class="w-12 h-12 rounded-full border-2 border-transparent group-hover:border-primary/20 transition-all">
-                                                    <img v-if="friend.image" :src="friend.image" :alt="friend.name"
-                                                        class="object-cover" />
+                                                    class="w-12 h-12 rounded-xl transition-transform group-hover:scale-105">
+                                                    <img v-if="friend.image" :src="friend.image" />
                                                     <div v-else
-                                                        class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                                                        <span class="text-primary font-medium">{{ getInitial(friend)
-                                                        }}</span>
-                                                    </div>
+                                                        class="w-full h-full bg-base-300 flex items-center justify-center text-primary font-black">
+                                                        {{ getInitial(friend) }}</div>
                                                 </div>
                                             </div>
 
-                                            <!-- 用户信息 -->
                                             <div class="flex-1 min-w-0">
-                                                <div class="font-medium text-base-content truncate">{{
-                                                    getDisplayName(friend) }}</div>
-                                                <div class="text-sm text-base-content/60 truncate">{{ friend.email }}
-                                                </div>
+                                                <div class="font-bold text-sm tracking-tight">{{ getDisplayName(friend)
+                                                }}</div>
+                                                <div class="text-xs opacity-40 truncate">{{ friend.email }}</div>
                                             </div>
 
-                                            <!-- 选中状态 -->
-                                            <div class="checkbox">
-                                                <input type="checkbox" :checked="selectedMembers.includes(friend.id)"
-                                                    class="checkbox checkbox-primary checkbox-sm" @click.stop />
+                                            <!-- 自定义 Checkbox -->
+                                            <div class="flex items-center justify-center w-6 h-6 rounded-lg border-2 transition-all"
+                                                :class="selectedMembers.includes(friend.id) ? 'bg-primary border-primary' : 'border-base-content/10 group-hover:border-primary/50'">
+                                                <Icon v-if="selectedMembers.includes(friend.id)"
+                                                    name="mingcute:check-line" size="16" class="text-primary-content" />
                                             </div>
                                         </div>
                                     </div>
@@ -435,31 +426,34 @@ const isMobile = computed(() => useDevice().isMobile);
                         </div>
                     </main>
 
-                    <!-- 底部操作 -->
-                    <footer class="p-8 pt-6 border-t border-base-200/50">
-                        <div class="flex items-center gap-3">
-                            <button v-if="step > 1" class="btn btn-ghost btn-md px-6 font-medium" @click="prevStep">
+                    <!-- 底部操作：磨砂背景 -->
+                    <footer class="p-8 pt-4 bg-base-100/50 backdrop-blur-md border-t border-base-200/30">
+                        <div class="flex items-center gap-4">
+                            <button v-if="step > 1" class="btn btn-ghost rounded-2xl font-bold" @click="prevStep">
                                 <Icon name="mingcute:left-line" size="18" />
                                 上一步
                             </button>
 
                             <div class="flex-1"></div>
 
-                            <button class="btn btn-ghost btn-md px-6 font-medium" @click="isOpen = false">
-                                取消
-                            </button>
+                            <button class="btn btn-ghost rounded-2xl font-bold opacity-50"
+                                @click="isOpen = false">取消</button>
 
                             <button v-if="step === 1"
-                                class="btn btn-primary btn-md px-8 font-medium shadow-lg shadow-primary/25"
+                                class="btn btn-primary px-8 rounded-2xl font-black shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
                                 :disabled="!groupName.trim() || groupName.trim().length < 2" @click="nextStep">
                                 下一步
                                 <Icon name="mingcute:right-line" size="18" />
                             </button>
 
-                            <button v-else class="btn btn-primary btn-md px-8 font-medium shadow-lg shadow-primary/25"
+                            <button v-else
+                                class="btn btn-primary px-10 rounded-2xl font-black shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
                                 :disabled="creating" @click="createGroup">
-                                <Icon v-if="creating" name="mingcute:loading-3-line" size="18" class="animate-spin" />
-                                <span v-else>创建群聊</span>
+                                <span v-if="creating" class="loading loading-spinner loading-xs"></span>
+                                <span v-else class="flex items-center gap-2">
+                                    <Icon name="mingcute:check-circle-line" size="20" />
+                                    完成创建
+                                </span>
                             </button>
                         </div>
                     </footer>
@@ -470,34 +464,76 @@ const isMobile = computed(() => useDevice().isMobile);
 </template>
 
 <style scoped>
-.modal-enter-active,
-.modal-leave-active {
+/* 极致动画 */
+.modal-bounce-enter-active {
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-bounce-leave-active {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-enter-from,
-.modal-leave-to {
+.modal-bounce-enter-from {
     opacity: 0;
-    transform: scale(0.9) translateY(20px);
+    transform: scale(0.9) translateY(40px);
 }
 
-.modal-enter-active .relative.bg-base-100,
-.modal-leave-active .relative.bg-base-100 {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.modal-bounce-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
 }
 
-.modal-enter-from .relative.bg-base-100,
-.modal-leave-to .relative.bg-base-100 {
-    transform: scale(0.9);
+.animate-fade-in-up {
+    animation: fadeInUp 0.4s ease-out both;
 }
 
-.custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--bc) / 0.1) transparent;
+.animate-fade-in-right {
+    animation: fadeInRight 0.4s ease-out both;
 }
 
+.animate-zoom-in {
+    animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 自定义滚动条 */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -505,11 +541,17 @@ const isMobile = computed(() => useDevice().isMobile);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--bc) / 0.1);
-    border-radius: 3px;
+    background: hsl(var(--bc) / 0.15);
+    border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--bc) / 0.2);
+    background: hsl(var(--bc) / 0.3);
+}
+
+/* 让输入框Placeholder更有质感 */
+::placeholder {
+    color: hsl(var(--bc) / 0.2);
+    font-weight: 500;
 }
 </style>
