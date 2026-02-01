@@ -169,13 +169,98 @@ import { AppService } from './app.service';
 ## Commit & PR Guidelines
 - 无预提交钩子；提交信息可使用约定式提交（非强制）
 
+## 现有工具封装（重要：使用现有工具，不要重复实现）
+
+### 前端工具封装
+
+#### API 调用工具 (`~/utils/api.ts`)
+- **统一 HTTP 客户端**: `api` 实例，基于 axios 封装
+- **自动认证**: 自动添加 Bearer token
+- **错误处理**: 统一错误处理和 toast 提示
+- **分页支持**: 自动应用默认分页参数
+- **方法**: `api.get()`, `api.post()`, `api.patch()`, `api.put()`, `api.delete()`
+- **使用示例**: `const response = await api.get('/users', { page: 1, limit: 10 })`
+
+#### 日志工具 (`~/utils/logger.ts`)
+- **统一日志记录**: `logger` 实例
+- **方法**: `logger.info()`, `logger.success()`, `logger.warn()`, `logger.error()`, `logger.api()`
+- **客户端存储**: 自动存储到 logger store
+
+#### 格式化工具 (`~/utils/format.ts`)
+- **时间格式化**: `formatTimeAgo(date)` - 相对时间显示
+- **资源路径解析**: `resolveAssetUrl(path, options)` - 自动拼接基础 URL
+- **支持**: data URL、blob URL、相对路径、绝对路径
+
+#### 环境检测工具 (`~/utils/check.ts`)
+- **平台检测**: `isTauri()`, `isMobile()`, `isDesktop()`, `isWeb()`, `isClient()`
+- **平台信息**: `getPlatform()` - 返回完整平台信息
+- **响应式**: 支持窗口大小检测
+
+#### 上传服务 (`~/core/editor/services/upload.service.ts`)
+- **企业级文件上传**: `UploadService` 类
+- **功能**: 文件验证、进度回调、多文件上传、拖拽上传、粘贴上传
+- **图片专用**: `handleImageUpload()` 方法
+- **配置灵活**: 支持自定义端点、文件类型、大小限制
+- **使用**: `const uploadService = createUploadService()`
+
+#### Composables
+- **应用状态**: `useAppState()` - 认证、主题、语言等状态管理
+- **应用初始化**: `useAppInitialization()` - 应用初始化逻辑
+- **认证管理**: `useAuth()` - 登录、注册、认证检查
+- **Toast 通知**: `useToast()` - 成功、错误、警告、信息提示
+- **对话框**: `useDialog()` - 确认框、提示框、错误框
+
+#### Stores
+- **用户状态**: `useUserStore()` - 用户信息和认证 token
+- **应用状态**: `useAppStore()` - 应用全局状态
+- **对话框状态**: `useDialogStore()` - 对话框状态管理
+- **日志状态**: `useLoggerStore()` - 日志存储和显示
+
+### 后端工具封装
+
+#### Prisma 客户端 (`~/utils/prisma/index.ts`)
+- **数据库连接**: `prisma` 实例，全局单例模式
+- **使用**: 直接导入 `import { prisma } from '~/utils/prisma'`
+
+#### 认证工厂 (`~/utils/auth/index.ts`)
+- **Better Auth 配置**: `authFactory(emailService)` 函数
+- **支持功能**: 邮箱密码、Email OTP、Passkey、SIWE（以太坊登录）
+- **插件**: admin、bearer、emailOTP、passkey、siwe
+- **ENS 解析**: 自动解析以太坊地址和头像
+
+## API 调用规范（重要）
+
+### 前端 API 调用规则
+- **禁止直接使用 fetch 或 axios**: 在页面或组件中禁止直接使用 `fetch()` 或 `axios`
+- **统一使用 API 定义**: 所有 API 调用都在 `apps/frontend/app/api` 目录中定义
+- **类型安全**: API 定义支持完整的 TypeScript 类型安全
+- **使用示例**:
+  ```typescript
+  // ✅ 正确 - 使用预定义的 API
+  import { userApi } from '~/api/user'
+  const users = await userApi.getUsers({ page: 1, limit: 10 })
+  
+  // ❌ 错误 - 直接使用 fetch 或 axios
+  const response = await fetch('/api/users')
+  const data = await axios.get('/api/users')
+  ```
+
+### API 目录结构
+- **位置**: `apps/frontend/app/api/`
+- **命名**: 按功能模块命名，如 `user.ts`, `auth.ts`, `chat.ts`
+- **导出**: 统一导出 API 实例和方法
+- **类型**: 使用 `@junction/types` 中的共享类型定义
+
 ## AI 助手注意事项
 - **所有回答和注释请使用中文**
-- 提交前在后端运行 `pnpm lint` 和 `pnpm format`
-- 确保 TypeScript 编译无误
-- 遵循同一文件/工作空间的现有模式
-- 添加新依赖时更新正确的工作空间 `package.json`
-- 注意共享类型；更改可能影响前后端
+- **优先使用现有工具**: 上述工具封装已提供完整功能，不要重复实现
+- **API 调用规范**: 严格遵守 API 调用规则，使用 `~/api` 中的预定义方法
+- **提交前在后端运行 `pnpm lint` 和 `pnpm format`
+- **确保 TypeScript 编译无误**
+- **遵循同一文件/工作空间的现有模式**
+- **添加新依赖时更新正确的工作空间 `package.json`**
+- **注意共享类型；更改可能影响前后端**
+- **检查现有工具**: 在实现新功能前，先检查 `utils/`, `composables/`, `stores/`, `services/`, `api/` 目录
 
 ---
 
