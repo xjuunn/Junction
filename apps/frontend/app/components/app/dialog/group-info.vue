@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
-import type { User } from '@junction/backend/src/resource/user/user.service';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
+import type { PrismaTypes, ApiResponse } from '@junction/types';
+import type { ExtractDataType } from '~/utils/types';
 import * as conversationApi from '~/api/conversation';
+import * as uploadApi from '~/api/upload';
 
 interface Props {
     conversationId: string;
@@ -22,7 +24,7 @@ const isOpen = computed({
 });
 
 const loading = ref(false);
-const members = ref<any[]>([]);
+const members = ref<ExtractDataType<AwaitedReturnType<typeof conversationApi.getMembers>>>(null);
 const groupName = ref('');
 const groupAvatar = ref('');
 const editingName = ref(false);
@@ -57,7 +59,7 @@ const loadGroupInfo = async () => {
 // 获取当前用户角色
 const myRole = computed(() => {
     const currentUserId = useUserStore().user.value?.id;
-    const myMember = members.value.find(m => m.user.id === currentUserId);
+    const myMember = members.value?.find(m => m.user.id === currentUserId);
     return myMember?.role || 'MEMBER';
 });
 
@@ -68,6 +70,9 @@ const hasPermission = computed(() => {
 
 // 按角色分组成员
 const groupedMembers = computed(() => {
+    if (!members.value) {
+        return { owner: [], admins: [], members: [] };
+    }
     const groups = {
         owner: members.value.filter(m => m.role === 'OWNER'),
         admins: members.value.filter(m => m.role === 'ADMIN'),
@@ -78,8 +83,8 @@ const groupedMembers = computed(() => {
 
 // 统计信息
 const stats = computed(() => ({
-    total: members.value.length,
-    online: members.value.filter(m => m.user.isOnline).length,
+    total: members.value?.length || 0,
+    online: members.value?.filter(m => m.user.isOnline).length || 0,
     owner: groupedMembers.value.owner.length,
     admins: groupedMembers.value.admins.length,
     regular: groupedMembers.value.members.length
@@ -136,15 +141,7 @@ const handleAvatarUpload = async (event: Event) => {
 
     uploadingAvatar.value = true;
     try {
-        const formData = new FormData();
-        formData.append('files', file);
-        formData.append('type', 'avatar');
-        
-        const response = await $fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
-        });
+        const response = await uploadApi.uploadFiles('avatar', [file]);
 
         if (response.success && response.data?.files?.[0]) {
             const newAvatar = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
@@ -204,7 +201,7 @@ const removeMember = async (memberId: string, memberName: string) => {
                 isOpen.value = false;
                 useRouter().push('/chat');
             } else {
-                useToast().success(res.message);
+                useToast().success('成员已移除');
             }
         }
     } catch (error) {
@@ -246,12 +243,12 @@ const getRoleBadgeClass = (role: string) => {
 };
 
 // 获取用户名显示
-const getDisplayName = (user: User) => {
+const getDisplayName = (user: { name?: string | null; email: string }) => {
     return user.name || user.email.split('@')[0] || '未知用户';
 };
 
 // 获取用户名首字符
-const getInitial = (user: User) => {
+const getInitial = (user: { name?: string | null; email: string }) => {
     const name = getDisplayName(user);
     return name.charAt(0).toUpperCase();
 };

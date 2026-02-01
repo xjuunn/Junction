@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import type { PrismaTypes } from '@junction/types';
 import * as conversationApi from '~/api/conversation';
 
 definePageMeta({ layout: 'main' });
 
 const loading = ref(false);
-const testResult = ref<any>(null);
+const testResult = ref<{
+    success: boolean;
+    data?: AwaitedReturnType<typeof conversationApi.create>['data'];
+    error?: string;
+    message: string;
+} | null>(null);
 
 // 测试创建群聊
 const testCreateGroup = async () => {
@@ -28,7 +34,7 @@ const testCreateGroup = async () => {
     } catch (error) {
         testResult.value = {
             success: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : '未知错误',
             message: '群聊创建失败'
         };
         console.error('创建群聊失败:', error);

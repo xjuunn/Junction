@@ -529,6 +529,33 @@ import type { InferSend, InferAck } from '~/core/socket/types'
 // 工具类型 → utils/types
 import type { AwaitedReturnType, PaginationOptions } from '~/utils/types'
 ```
+
+### 📋 **重复定义检查清单**
+
+#### AI 实现功能前检查
+- [ ] **ApiResponse**: 使用 `@junction/types` 中的定义
+- [ ] **PaginationData**: 使用共享包中的 `PaginationData<T>`
+- [ ] **PrismaTypes**: 通过 `type User = PrismaTypes.User` 导入
+- [ ] **EditorMode**: 使用编辑器类型定义
+- [ ] **UploadResponse**: 使用编辑器上传响应类型
+- [ ] **SocketEvents**: 使用 Socket 类型推断工具
+- [ ] **工具类型**: 检查是否在 utils/types 中已定义
+
+#### 常见错误避免
+```typescript
+// ❌ 错误 - 重复定义接口
+interface ApiResponse<T> { ... }  // 已在共享包中定义
+
+// ❌ 错误 - 重复定义类型
+type User = { id: string; name: string }  // 应使用 PrismaTypes.User
+
+// ❌ 错误 - 忽略泛型约束
+const func = <T>(data: T) => data  // 应明确约束
+
+// ✅ 正确 - 使用现有类型
+import { ApiResponse } from '@junction/types'
+import type { User } from '@junction/types'
+```
 ```
 
 ## AI 助手注意事项
