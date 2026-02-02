@@ -37,6 +37,16 @@ export class FriendshipController {
     return this.friendshipService.findOne(session.user.id, friendId);
   }
 
+  @Get('blocked/list')
+  @ApiPagination()
+  @ApiOperation({ summary: "拉黑的好友列表" })
+  findBlocked(
+    @Session() session: UserSession,
+    @Pagination() pagination: PaginationOptions
+  ) {
+    return this.friendshipService.findBlocked(session.user.id, pagination);
+  }
+
   @Patch('accept/:friendId')
   @ApiOperation({ summary: "接受好友请求" })
   accept(@Session() session: UserSession, @Param('friendId') friendId: string) {

@@ -92,14 +92,20 @@ export class FriendshipService {
    */
   async findAll(
     userId: string,
-    whereData: Omit<PrismaTypes.Prisma.FriendshipWhereInput, 'senderId'>,
+    whereData: Omit<PrismaTypes.Prisma.FriendshipWhereInput, 'senderId' | 'receiverId'>,
     { take, skip }: PaginationOptions
   ) {
     const { page, limit, ...clearWhere } = whereData as any;
-    const where = {
+    const status = clearWhere.status || 'ACCEPTED';
+
+    const where: PrismaTypes.Prisma.FriendshipWhereInput = {
       ...clearWhere,
-      senderId: userId,
-      status: clearWhere.status || 'ACCEPTED'
+      status,
+      isBlocked: false,
+      OR: [
+        { senderId: userId, receiverId: { not: userId } },
+        { receiverId: userId, senderId: { not: userId } }
+      ]
     };
 
     const [data, total] = await Promise.all([
@@ -107,13 +113,34 @@ export class FriendshipService {
         where,
         take,
         skip,
-        include: { receiver: true },
+        include: { sender: true, receiver: true },
         orderBy: { updatedAt: 'desc' }
       }),
       this.prisma.friendship.count({ where })
     ]);
 
-    return new PaginationData(data.map(i => ({ ...i, friend: i.receiver })), { total, limit, page });
+    const uniqueData = data.reduce((acc, item) => {
+      const friendId = item.senderId === userId ? item.receiverId : item.senderId;
+      if (!acc.has(friendId)) {
+        const friend = item.senderId === userId ? item.receiver : item.sender;
+        acc.set(friendId, {
+          id: item.id,
+          friendId: friend.id,
+          friend: {
+            id: friend.id,
+            name: friend.name,
+            email: friend.email,
+            image: friend.image
+          },
+          note: item.note,
+          updatedAt: item.updatedAt,
+          isBlocked: item.isBlocked
+        });
+      }
+      return acc;
+    }, new Map<string, { id: string; friendId: string; friend: { id: string; name: string; email: string; image: string | null }; note: string | null; updatedAt: Date; isBlocked: boolean }>());
+
+    return new PaginationData(Array.from(uniqueData.values()), { total, limit, page });
   }
 
   /**
@@ -133,7 +160,20 @@ export class FriendshipService {
     }
 
     if (!record) return null;
-    return { ...record, friend: record.senderId === userId ? record.receiver : record.sender };
+    const friend = record.senderId === userId ? record.receiver : record.sender;
+    return {
+      id: record.id,
+      friendId: friend.id,
+      friend: {
+        id: friend.id,
+        name: friend.name,
+        email: friend.email,
+        image: friend.image
+      },
+      note: record.note,
+      updatedAt: record.updatedAt,
+      isBlocked: record.isBlocked
+    };
   }
 
   /**
@@ -156,17 +196,49 @@ export class FriendshipService {
       }).then(i => ({ ...i, friend: i.sender }));
     }
 
-    // 针对自己视角的记录进行更新
-    return this.prisma.friendship.upsert({
-      where: { senderId_receiverId: { senderId: currentUserId, receiverId: friendId } },
-      create: {
-        senderId: currentUserId,
-        receiverId: friendId,
-        status: (data.status as any) || 'ACCEPTED'
-      },
-      update: data,
-      include: { receiver: true }
-    }).then(i => ({ ...i, friend: i.receiver }));
+    const record = await this.prisma.friendship.findUnique({
+      where: { senderId_receiverId: { senderId: currentUserId, receiverId: friendId } }
+    });
+
+    if (record) {
+      const updated = await this.prisma.friendship.update({
+        where: { id: record.id },
+        data,
+        include: { sender: true, receiver: true }
+      });
+      const friend = updated.senderId === currentUserId ? updated.receiver : updated.sender;
+      return {
+        id: updated.id,
+        friendId: friend.id,
+        friend: { id: friend.id, name: friend.name, email: friend.email, image: friend.image },
+        note: updated.note,
+        updatedAt: updated.updatedAt,
+        isBlocked: updated.isBlocked
+      };
+    }
+
+    const reverseRecord = await this.prisma.friendship.findUnique({
+      where: { senderId_receiverId: { senderId: friendId, receiverId: currentUserId } }
+    });
+
+    if (reverseRecord) {
+      const updated = await this.prisma.friendship.update({
+        where: { id: reverseRecord.id },
+        data,
+        include: { sender: true, receiver: true }
+      });
+      const friend = updated.senderId === currentUserId ? updated.receiver : updated.sender;
+      return {
+        id: updated.id,
+        friendId: friend.id,
+        friend: { id: friend.id, name: friend.name, email: friend.email, image: friend.image },
+        note: updated.note,
+        updatedAt: updated.updatedAt,
+        isBlocked: updated.isBlocked
+      };
+    }
+
+    throw new BadRequestException('找不到好友关系记录');
   }
 
   /**
@@ -183,5 +255,51 @@ export class FriendshipService {
       await tx.friendship.deleteMany({ where: { senderId: friendId, receiverId: userId } });
       return record ? { ...record, friend: record.receiver } : null;
     });
+  }
+
+  /**
+   * 查询拉黑的好友列表
+   */
+  async findBlocked(userId: string, { take, skip }: PaginationOptions) {
+    const where: PrismaTypes.Prisma.FriendshipWhereInput = {
+      OR: [
+        { senderId: userId, isBlocked: true },
+        { receiverId: userId, isBlocked: true }
+      ]
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.friendship.findMany({
+        where,
+        take,
+        skip,
+        include: { sender: true, receiver: true },
+        orderBy: { updatedAt: 'desc' }
+      }),
+      this.prisma.friendship.count({ where })
+    ]);
+
+    const uniqueData = data.reduce((acc, item) => {
+      const friendId = item.senderId === userId ? item.receiverId : item.senderId;
+      if (!acc.has(friendId)) {
+        const friend = item.senderId === userId ? item.receiver : item.sender;
+        acc.set(friendId, {
+          id: item.id,
+          friendId: friend.id,
+          friend: {
+            id: friend.id,
+            name: friend.name,
+            email: friend.email,
+            image: friend.image
+          },
+          note: item.note,
+          updatedAt: item.updatedAt,
+          isBlocked: item.isBlocked
+        });
+      }
+      return acc;
+    }, new Map<string, { id: string; friendId: string; friend: { id: string; name: string; email: string; image: string | null }; note: string | null; updatedAt: Date; isBlocked: boolean }>());
+
+    return new PaginationData(Array.from(uniqueData.values()), { total, limit: take, page: Math.floor(skip / take) + 1 });
   }
 }

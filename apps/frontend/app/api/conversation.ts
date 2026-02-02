@@ -20,7 +20,7 @@ export function create(data: {
 /**
  * 分页获取会话列表
  */
-export function findAll(pagination: PaginationOptions) {
+export function findAll(pagination: PaginationOptions & { type?: 'PRIVATE' | 'GROUP' }) {
     return api.get<AwaitedReturnType<ConversationService['findAll']>>(base, pagination);
 }
 

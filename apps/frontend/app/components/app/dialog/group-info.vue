@@ -41,11 +41,11 @@ const loadGroupInfo = async () => {
             conversationApi.getMembers(props.conversationId),
             conversationApi.findOne(props.conversationId)
         ]);
-        
+
         if (membersRes.success && membersRes.data) {
             members.value = membersRes.data;
         }
-        
+
         if (conversationRes.success && conversationRes.data) {
             groupName.value = conversationRes.data.title || '';
             groupAvatar.value = conversationRes.data.avatar || '';
@@ -97,22 +97,22 @@ const updateGroupName = async () => {
         newGroupName.value = groupName.value;
         return;
     }
-    
+
     if (newGroupName.value.trim().length < 2) {
         useToast().error('群聊名称至少需要2个字符');
         return;
     }
-    
+
     if (newGroupName.value.trim().length > 50) {
         useToast().error('群聊名称不能超过50个字符');
         return;
     }
-    
+
     try {
         const res = await conversationApi.updateGroupInfo(props.conversationId, {
             title: newGroupName.value.trim()
         });
-        
+
         if (res.success) {
             groupName.value = newGroupName.value.trim();
             editingName.value = false;
@@ -148,7 +148,7 @@ const handleAvatarUpload = async (event: Event) => {
             const res = await conversationApi.updateGroupInfo(props.conversationId, {
                 avatar: newAvatar
             });
-            
+
             if (res.success) {
                 groupAvatar.value = newAvatar;
                 emit('updated');
@@ -173,7 +173,7 @@ const removeAvatar = async () => {
         const res = await conversationApi.updateGroupInfo(props.conversationId, {
             avatar: ''
         });
-        
+
         if (res.success) {
             groupAvatar.value = '';
             emit('updated');
@@ -188,15 +188,15 @@ const removeAvatar = async () => {
 const removeMember = async (memberId: string, memberName: string) => {
     const isSelf = memberId === useUserStore().user.value?.id;
     const confirmText = isSelf ? '确定要退出群聊吗？' : `确定要将 ${memberName} 移出群聊吗？`;
-    
+
     if (!confirm(confirmText)) return;
-    
+
     try {
         const res = await conversationApi.removeMember(props.conversationId, memberId);
         if (res.success) {
             await loadGroupInfo();
             emit('updated');
-            
+
             if (isSelf) {
                 isOpen.value = false;
                 useRouter().push('/chat');
@@ -286,19 +286,23 @@ const isMobile = computed(() => useDevice().isMobile);
             <div v-if="isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <!-- 背景遮罩 -->
                 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isOpen = false"></div>
-                
+
                 <!-- 对话框主体 -->
-                <div class="relative bg-base-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-base-200/50">
-                    
+                <div
+                    class="relative bg-base-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-base-200/50">
+
                     <!-- 装饰性光效 -->
-                    <div class="absolute -top-20 -right-20 w-40 h-40 bg-primary/10 blur-[60px] pointer-events-none"></div>
-                    <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-secondary/10 blur-[60px] pointer-events-none"></div>
-                    
+                    <div class="absolute -top-20 -right-20 w-40 h-40 bg-primary/10 blur-[60px] pointer-events-none">
+                    </div>
+                    <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-secondary/10 blur-[60px] pointer-events-none">
+                    </div>
+
                     <!-- 头部 -->
                     <header class="relative p-8 pb-6 border-b border-base-200/50">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h1 class="text-2xl font-bold bg-gradient-to-r from-base-content to-base-content/70 bg-clip-text text-transparent">
+                                <h1
+                                    class="text-2xl font-bold bg-gradient-to-r from-base-content to-base-content/70 bg-clip-text text-transparent">
                                     群聊信息
                                 </h1>
                                 <p class="text-sm text-base-content/60 mt-1">管理群聊设置和成员</p>
@@ -308,7 +312,7 @@ const isMobile = computed(() => useDevice().isMobile);
                             </button>
                         </div>
                     </header>
-                    
+
                     <!-- 内容区域 -->
                     <main class="flex-1 overflow-y-auto p-8 pb-6">
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -318,77 +322,67 @@ const isMobile = computed(() => useDevice().isMobile);
                                 <div class="flex flex-col items-center space-y-4">
                                     <div class="relative group">
                                         <div class="avatar">
-                                            <div class="w-28 h-28 rounded-3xl border-4 border-base-200 shadow-xl transition-all group-hover:shadow-2xl">
-                                                <img v-if="groupAvatar" :src="groupAvatar" alt="群聊头像" class="object-cover" />
-                                                <div v-else class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                                                    <Icon name="mingcute:group-2-line" size="48" class="text-primary/30" />
+                                            <div
+                                                class="w-28 h-28 rounded-3xl border-4 border-base-200 shadow-xl transition-all group-hover:shadow-2xl">
+                                                <img v-if="groupAvatar" :src="groupAvatar" alt="群聊头像"
+                                                    class="object-cover" />
+                                                <div v-else
+                                                    class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                                                    <Icon name="mingcute:group-2-line" size="48"
+                                                        class="text-primary/30" />
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- 头像操作按钮 -->
                                         <div v-if="hasPermission" class="absolute -bottom-3 -right-3 flex gap-1">
-                                            <button 
-                                                v-if="!groupAvatar"
+                                            <button v-if="!groupAvatar"
                                                 class="btn btn-primary btn-circle btn-sm shadow-lg"
-                                                :class="{ 'loading': uploadingAvatar }"
-                                                @click="triggerAvatarUpload"
-                                                :disabled="uploadingAvatar"
-                                            >
+                                                :class="{ 'loading': uploadingAvatar }" @click="triggerAvatarUpload"
+                                                :disabled="uploadingAvatar">
                                                 <Icon v-if="!uploadingAvatar" name="mingcute:camera-line" size="16" />
                                             </button>
-                                            <button 
-                                                v-else
-                                                class="btn btn-error btn-circle btn-sm shadow-lg"
-                                                @click="removeAvatar"
-                                            >
+                                            <button v-else class="btn btn-error btn-circle btn-sm shadow-lg"
+                                                @click="removeAvatar">
                                                 <Icon name="mingcute:delete-line" size="16" />
                                             </button>
                                         </div>
-                                        
+
                                         <!-- 悬浮效果 -->
-                                        <div v-if="hasPermission && !groupAvatar" class="absolute inset-0 rounded-3xl bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" @click="triggerAvatarUpload"></div>
+                                        <div v-if="hasPermission && !groupAvatar"
+                                            class="absolute inset-0 rounded-3xl bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                            @click="triggerAvatarUpload"></div>
                                     </div>
-                                    
-                                    <input 
-                                        ref="avatarInput"
-                                        type="file" 
-                                        accept="image/*"
-                                        class="hidden"
-                                        @change="handleAvatarUpload"
-                                    />
+
+                                    <input ref="avatarInput" type="file" accept="image/*" class="hidden"
+                                        @change="handleAvatarUpload" />
                                 </div>
-                                
+
                                 <!-- 群聊名称 -->
                                 <div class="space-y-3">
                                     <label class="text-sm font-medium text-base-content/70">群聊名称</label>
                                     <div v-if="editingName" class="flex gap-2">
-                                        <input 
-                                            v-model="newGroupName" 
-                                            type="text" 
-                                            class="input input-bordered input-sm flex-1"
-                                            placeholder="群聊名称"
-                                            maxlength="50"
-                                            @keyup.enter="updateGroupName"
-                                            @keyup.escape="editingName = false; newGroupName = groupName"
-                                        />
+                                        <input v-model="newGroupName" type="text"
+                                            class="input input-bordered input-sm flex-1" placeholder="群聊名称"
+                                            maxlength="50" @keyup.enter="updateGroupName"
+                                            @keyup.escape="editingName = false; newGroupName = groupName" />
                                         <button class="btn btn-primary btn-sm" @click="updateGroupName">
                                             <Icon name="mingcute:check-line" size="16" />
                                         </button>
-                                        <button class="btn btn-ghost btn-sm" @click="editingName = false; newGroupName = groupName">
+                                        <button class="btn btn-ghost btn-sm"
+                                            @click="editingName = false; newGroupName = groupName">
                                             <Icon name="mingcute:close-line" size="16" />
                                         </button>
                                     </div>
                                     <div v-else class="flex items-center gap-2">
                                         <h2 class="text-lg font-bold truncate flex-1">{{ groupName }}</h2>
-                                        <button v-if="hasPermission" 
-                                                class="btn btn-ghost btn-circle btn-xs" 
-                                                @click="editingName = true">
+                                        <button v-if="hasPermission" class="btn btn-ghost btn-circle btn-xs"
+                                            @click="editingName = true">
                                             <Icon name="mingcute:edit-2-line" size="14" />
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <!-- 统计信息 -->
                                 <div class="space-y-3">
                                     <label class="text-sm font-medium text-base-content/70">群聊统计</label>
@@ -404,7 +398,7 @@ const isMobile = computed(() => useDevice().isMobile);
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- 右侧：成员列表 -->
                             <div class="lg:col-span-2 space-y-6">
                                 <!-- 成员管理工具栏 -->
@@ -413,20 +407,18 @@ const isMobile = computed(() => useDevice().isMobile);
                                         <h3 class="text-lg font-bold">成员列表</h3>
                                         <p class="text-sm text-base-content/60">{{ stats.total }} 位成员</p>
                                     </div>
-                                    <button 
-                                        v-if="hasPermission"
-                                        class="btn btn-primary btn-sm"
-                                        @click="showInviteDialog = true"
-                                    >
+                                    <button v-if="hasPermission" class="btn btn-primary btn-sm"
+                                        @click="showInviteDialog = true">
                                         <Icon name="mingcute:user-add-line" size="16" />
                                         邀请成员
                                     </button>
                                 </div>
-                                
+
                                 <!-- 成员列表 -->
                                 <div class="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
                                     <div v-if="loading" class="space-y-3">
-                                        <div v-for="i in 6" :key="i" class="flex items-center gap-4 p-4 rounded-xl bg-base-200/30 animate-pulse">
+                                        <div v-for="i in 6" :key="i"
+                                            class="flex items-center gap-4 p-4 rounded-xl bg-base-200/30 animate-pulse">
                                             <div class="w-12 h-12 bg-base-300 rounded-full"></div>
                                             <div class="flex-1 space-y-2">
                                                 <div class="h-4 bg-base-300 rounded w-1/3"></div>
@@ -434,30 +426,40 @@ const isMobile = computed(() => useDevice().isMobile);
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div v-else class="space-y-6">
                                         <!-- 群主 -->
                                         <div v-if="groupedMembers.owner.length" class="space-y-3">
-                                            <h4 class="text-sm font-medium text-base-content/60 uppercase tracking-wider flex items-center gap-2">
-                                                <Icon name="mingcute:crown-fill" size="16" class="text-warning" />
+                                            <h4
+                                                class="text-sm font-medium text-base-content/60 uppercase tracking-wider flex items-center gap-2">
+                                                <Icon name="mingcute:hand-fill" size="16" class="text-warning" />
                                                 群主
                                             </h4>
-                                            <div v-for="member in groupedMembers.owner" :key="member.id" 
-                                                 class="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-warning/5 to-transparent border border-warning/10">
+                                            <div v-for="member in groupedMembers.owner" :key="member.id"
+                                                class="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-warning/5 to-transparent border border-warning/10">
                                                 <div class="avatar">
                                                     <div class="w-12 h-12 rounded-full relative">
-                                                        <img v-if="member.user.image" :src="member.user.image" :alt="member.user.name" class="object-cover" />
-                                                        <div v-else class="w-full h-full bg-gradient-to-br from-warning/10 to-warning/5 flex items-center justify-center">
-                                                            <span class="text-warning font-medium text-sm">{{ getInitial(member.user) }}</span>
+                                                        <img v-if="member.user.image" :src="member.user.image"
+                                                            :alt="member.user.name" class="object-cover" />
+                                                        <div v-else
+                                                            class="w-full h-full bg-gradient-to-br from-warning/10 to-warning/5 flex items-center justify-center">
+                                                            <span class="text-warning font-medium text-sm">{{
+                                                                getInitial(member.user) }}</span>
                                                         </div>
-                                                        <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-base-100"></div>
+                                                        <div
+                                                            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-base-100">
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="flex-1 min-w-0">
-                                                    <div class="font-medium text-base-content truncate">{{ getDisplayName(member.user) }}</div>
-                                                    <div class="text-sm text-base-content/60 truncate flex items-center gap-2">
-                                                        <span class="badge badge-warning badge-sm">{{ getRoleName(member.role) }}</span>
-                                                        <span v-if="member.user.isOnline" class="text-success flex items-center gap-1">
+                                                    <div class="font-medium text-base-content truncate">{{
+                                                        getDisplayName(member.user) }}</div>
+                                                    <div
+                                                        class="text-sm text-base-content/60 truncate flex items-center gap-2">
+                                                        <span class="badge badge-warning badge-sm">{{
+                                                            getRoleName(member.role) }}</span>
+                                                        <span v-if="member.user.isOnline"
+                                                            class="text-success flex items-center gap-1">
                                                             <span class="w-2 h-2 bg-success rounded-full"></span>
                                                             在线
                                                         </span>
@@ -465,41 +467,54 @@ const isMobile = computed(() => useDevice().isMobile);
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- 管理员 -->
                                         <div v-if="groupedMembers.admins.length" class="space-y-3">
-                                            <h4 class="text-sm font-medium text-base-content/60 uppercase tracking-wider flex items-center gap-2">
+                                            <h4
+                                                class="text-sm font-medium text-base-content/60 uppercase tracking-wider flex items-center gap-2">
                                                 <Icon name="mingcute:shield-user-fill" size="16" class="text-info" />
                                                 管理员 ({{ groupedMembers.admins.length }})
                                             </h4>
-                                            <div v-for="member in groupedMembers.admins" :key="member.id" 
-                                                 class="flex items-center gap-4 p-4 rounded-xl hover:bg-base-200/50 transition-all group">
+                                            <div v-for="member in groupedMembers.admins" :key="member.id"
+                                                class="flex items-center gap-4 p-4 rounded-xl hover:bg-base-200/50 transition-all group">
                                                 <div class="avatar">
                                                     <div class="w-12 h-12 rounded-full relative">
-                                                        <img v-if="member.user.image" :src="member.user.image" :alt="member.user.name" class="object-cover" />
-                                                        <div v-else class="w-full h-full bg-gradient-to-br from-info/10 to-info/5 flex items-center justify-center">
-                                                            <span class="text-info font-medium text-sm">{{ getInitial(member.user) }}</span>
+                                                        <img v-if="member.user.image" :src="member.user.image"
+                                                            :alt="member.user.name" class="object-cover" />
+                                                        <div v-else
+                                                            class="w-full h-full bg-gradient-to-br from-info/10 to-info/5 flex items-center justify-center">
+                                                            <span class="text-info font-medium text-sm">{{
+                                                                getInitial(member.user) }}</span>
                                                         </div>
-                                                        <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-base-100" :class="member.user.isOnline ? 'bg-success' : 'bg-base-300'"></div>
+                                                        <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-base-100"
+                                                            :class="member.user.isOnline ? 'bg-success' : 'bg-base-300'">
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="flex-1 min-w-0">
-                                                    <div class="font-medium text-base-content truncate">{{ getDisplayName(member.user) }}</div>
-                                                    <div class="text-sm text-base-content/60 truncate flex items-center gap-2">
-                                                        <span class="badge badge-info badge-sm">{{ getRoleName(member.role) }}</span>
-                                                        <span v-if="member.user.isOnline" class="text-success flex items-center gap-1">
+                                                    <div class="font-medium text-base-content truncate">{{
+                                                        getDisplayName(member.user) }}</div>
+                                                    <div
+                                                        class="text-sm text-base-content/60 truncate flex items-center gap-2">
+                                                        <span class="badge badge-info badge-sm">{{
+                                                            getRoleName(member.role) }}</span>
+                                                        <span v-if="member.user.isOnline"
+                                                            class="text-success flex items-center gap-1">
                                                             <span class="w-2 h-2 bg-success rounded-full"></span>
                                                             在线
                                                         </span>
                                                     </div>
                                                 </div>
                                                 <!-- 群主操作 -->
-                                                <div v-if="myRole === 'OWNER'" class="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div v-if="myRole === 'OWNER'"
+                                                    class="opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <div class="dropdown dropdown-end">
-                                                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle btn-sm">
+                                                        <div tabindex="0" role="button"
+                                                            class="btn btn-ghost btn-circle btn-sm">
                                                             <Icon name="mingcute:more-2-line" size="16" />
                                                         </div>
-                                                        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow border border-base-200">
+                                                        <ul tabindex="0"
+                                                            class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow border border-base-200">
                                                             <li>
                                                                 <a @click="changeMemberRole(member.user.id, 'MEMBER')">
                                                                     <Icon name="mingcute:user-star-line" size="16" />
@@ -507,7 +522,8 @@ const isMobile = computed(() => useDevice().isMobile);
                                                                 </a>
                                                             </li>
                                                             <li>
-                                                                <a class="text-error" @click="removeMember(member.user.id, getDisplayName(member.user))">
+                                                                <a class="text-error"
+                                                                    @click="removeMember(member.user.id, getDisplayName(member.user))">
                                                                     <Icon name="mingcute:user-delete-line" size="16" />
                                                                     移出群聊
                                                                 </a>
@@ -517,41 +533,54 @@ const isMobile = computed(() => useDevice().isMobile);
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- 普通成员 -->
                                         <div v-if="groupedMembers.members.length" class="space-y-3">
-                                            <h4 class="text-sm font-medium text-base-content/60 uppercase tracking-wider flex items-center gap-2">
+                                            <h4
+                                                class="text-sm font-medium text-base-content/60 uppercase tracking-wider flex items-center gap-2">
                                                 <Icon name="mingcute:user-fill" size="16" />
                                                 成员 ({{ groupedMembers.members.length }})
                                             </h4>
-                                            <div v-for="member in groupedMembers.members" :key="member.id" 
-                                                 class="flex items-center gap-4 p-4 rounded-xl hover:bg-base-200/50 transition-all group">
+                                            <div v-for="member in groupedMembers.members" :key="member.id"
+                                                class="flex items-center gap-4 p-4 rounded-xl hover:bg-base-200/50 transition-all group">
                                                 <div class="avatar">
                                                     <div class="w-12 h-12 rounded-full relative">
-                                                        <img v-if="member.user.image" :src="member.user.image" :alt="member.user.name" class="object-cover" />
-                                                        <div v-else class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                                                            <span class="text-primary font-medium text-sm">{{ getInitial(member.user) }}</span>
+                                                        <img v-if="member.user.image" :src="member.user.image"
+                                                            :alt="member.user.name" class="object-cover" />
+                                                        <div v-else
+                                                            class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                                                            <span class="text-primary font-medium text-sm">{{
+                                                                getInitial(member.user) }}</span>
                                                         </div>
-                                                        <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-base-100" :class="member.user.isOnline ? 'bg-success' : 'bg-base-300'"></div>
+                                                        <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-base-100"
+                                                            :class="member.user.isOnline ? 'bg-success' : 'bg-base-300'">
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="flex-1 min-w-0">
-                                                    <div class="font-medium text-base-content truncate">{{ getDisplayName(member.user) }}</div>
-                                                    <div class="text-sm text-base-content/60 truncate flex items-center gap-2">
-                                                        <span class="badge badge-ghost badge-sm">{{ getRoleName(member.role) }}</span>
-                                                        <span v-if="member.user.isOnline" class="text-success flex items-center gap-1">
+                                                    <div class="font-medium text-base-content truncate">{{
+                                                        getDisplayName(member.user) }}</div>
+                                                    <div
+                                                        class="text-sm text-base-content/60 truncate flex items-center gap-2">
+                                                        <span class="badge badge-ghost badge-sm">{{
+                                                            getRoleName(member.role) }}</span>
+                                                        <span v-if="member.user.isOnline"
+                                                            class="text-success flex items-center gap-1">
                                                             <span class="w-2 h-2 bg-success rounded-full"></span>
                                                             在线
                                                         </span>
                                                     </div>
                                                 </div>
                                                 <!-- 管理员操作 -->
-                                                <div v-if="hasPermission" class="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div v-if="hasPermission"
+                                                    class="opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <div class="dropdown dropdown-end">
-                                                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle btn-sm">
+                                                        <div tabindex="0" role="button"
+                                                            class="btn btn-ghost btn-circle btn-sm">
                                                             <Icon name="mingcute:more-2-line" size="16" />
                                                         </div>
-                                                        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow border border-base-200">
+                                                        <ul tabindex="0"
+                                                            class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow border border-base-200">
                                                             <li v-if="myRole === 'OWNER'">
                                                                 <a @click="changeMemberRole(member.user.id, 'ADMIN')">
                                                                     <Icon name="mingcute:shield-user-line" size="16" />
@@ -559,7 +588,8 @@ const isMobile = computed(() => useDevice().isMobile);
                                                                 </a>
                                                             </li>
                                                             <li>
-                                                                <a class="text-error" @click="removeMember(member.user.id, getDisplayName(member.user))">
+                                                                <a class="text-error"
+                                                                    @click="removeMember(member.user.id, getDisplayName(member.user))">
                                                                     <Icon name="mingcute:user-delete-line" size="16" />
                                                                     移出群聊
                                                                 </a>
@@ -568,9 +598,10 @@ const isMobile = computed(() => useDevice().isMobile);
                                                     </div>
                                                 </div>
                                                 <!-- 自己退出群聊 -->
-                                                <div v-else-if="member.user.id === useUserStore().user.value?.id" class="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button class="btn btn-ghost btn-sm text-error" 
-                                                            @click="removeMember(member.user.id, getDisplayName(member.user))">
+                                                <div v-else-if="member.user.id === useUserStore().user.value?.id"
+                                                    class="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button class="btn btn-ghost btn-sm text-error"
+                                                        @click="removeMember(member.user.id, getDisplayName(member.user))">
                                                         退出群聊
                                                     </button>
                                                 </div>
@@ -584,13 +615,10 @@ const isMobile = computed(() => useDevice().isMobile);
                 </div>
             </div>
         </Transition>
-        
+
         <!-- 邀请成员对话框 -->
-        <AppDialogInviteMembers 
-            v-model="showInviteDialog"
-            :conversation-id="props.conversationId"
-            @success="handleInviteSuccess"
-        />
+        <AppDialogInviteMembers v-model="showInviteDialog" :conversation-id="props.conversationId"
+            @success="handleInviteSuccess" />
     </Teleport>
 </template>
 

@@ -51,6 +51,13 @@ export function remove(friendId: string) {
     return api.delete<AwaitedReturnType<FriendshipService['remove']>>(base + "/" + friendId)
 }
 
+/**
+ * 获取拉黑的好友列表
+ */
+export function findBlocked(pagination: PaginationOptions) {
+    return api.get<AwaitedReturnType<FriendshipService['findBlocked']>>(base + "/blocked/list", pagination)
+}
+
 export enum FriendshipStatus {
     "PENDING", // 开启
     "ACCEPTED", // 同意

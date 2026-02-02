@@ -201,7 +201,7 @@ export class MenuService {
             id: 'features',
             name: '功能',
             icon: 'mingcute:classify-2-line',
-            path: '/features',
+            path: '/dashboard',
             group: 'main',
             replace: true,
         });

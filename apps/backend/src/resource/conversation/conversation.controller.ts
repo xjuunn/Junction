@@ -30,9 +30,10 @@ export class ConversationController {
   @ApiOperation({ summary: "会话列表" })
   findAll(
     @Session() session: UserSession,
-    @Pagination() pagination: PaginationOptions
+    @Pagination() pagination: PaginationOptions,
+    @Query('type') type?: 'PRIVATE' | 'GROUP'
   ) {
-    return this.conversationService.findAll(session.user.id, pagination);
+    return this.conversationService.findAll(session.user.id, pagination, type);
   }
 
   /**

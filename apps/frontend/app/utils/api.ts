@@ -54,6 +54,10 @@ class Api {
                 const url = error?.config?.url || 'Unknown URL'
                 logger.api(url, status, error.response?.data || error, true)
                 if (import.meta.client) {
+                    if (status === 401) {
+                        navigateTo("/auth/sign-in", { replace: true })
+                        return Promise.reject(new Error("未登录"))
+                    }
                     useToast().error(message);
                 }
                 return Promise.reject(new Error(message))

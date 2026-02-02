@@ -59,5 +59,10 @@ export default defineNuxtConfig({
     "@nuxtjs/color-mode",
     "@nuxtjs/device",
     "@vueuse/motion/nuxt"
-  ]
+  ],
+  routeRules: {
+    "/": { ssr: false },
+    "/auth/**": { ssr: false },
+    "/chat/**": { ssr: false }
+  }
 })

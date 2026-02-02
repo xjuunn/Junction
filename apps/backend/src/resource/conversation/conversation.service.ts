@@ -72,8 +72,11 @@ export class ConversationService {
   /**
    * 获取当前用户的会话列表
    */
-  async findAll(userId: string, { take, skip, page, limit }: PaginationOptions) {
-    const where = { members: { some: { userId, isActive: true } } };
+  async findAll(userId: string, { take, skip, page, limit }: PaginationOptions, type?: 'PRIVATE' | 'GROUP') {
+    const where: any = { members: { some: { userId, isActive: true } } };
+    if (type) {
+      where.type = type;
+    }
     const [data, total] = await Promise.all([
       this.prisma.conversation.findMany({
         where,
