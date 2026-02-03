@@ -49,6 +49,29 @@ export class MessageService {
     const isMember = members.find(m => m.userId === userId);
     if (!isMember) throw new ForbiddenException('您不在此会话中');
 
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { type: true, ownerId: true }
+    });
+
+    if (conversation?.type === 'PRIVATE') {
+      const otherMemberId = members.find(m => m.userId !== userId)?.userId;
+      if (otherMemberId) {
+        const friendship = await this.prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { senderId: userId, receiverId: otherMemberId },
+              { senderId: otherMemberId, receiverId: userId }
+            ]
+          },
+          select: { status: true }
+        });
+        if (friendship?.status === 'BLOCKED') {
+          throw new ForbiddenException('无法与该用户发送消息');
+        }
+      }
+    }
+
     const message = await this.prisma.$transaction(async (tx) => {
       if (!isMember.isActive) {
         await tx.conversationMember.update({ where: { id: isMember.id }, data: { isActive: true } });

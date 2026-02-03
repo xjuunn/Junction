@@ -77,7 +77,8 @@ export class ConversationService {
     if (type) {
       where.type = type;
     }
-    const [data, total] = await Promise.all([
+    
+    const [data, total, blockedFriends] = await Promise.all([
       this.prisma.conversation.findMany({
         where,
         take,
@@ -93,14 +94,30 @@ export class ConversationService {
         },
         orderBy: { updatedAt: 'desc' }
       }),
-      this.prisma.conversation.count({ where })
+      this.prisma.conversation.count({ where }),
+      this.prisma.friendship.findMany({
+        where: {
+          OR: [
+            { senderId: userId, status: 'BLOCKED' },
+            { receiverId: userId, status: 'BLOCKED' }
+          ]
+        },
+        select: { senderId: true, receiverId: true }
+      })
     ]);
 
-    const allMemberIds = [...new Set(data.flatMap(c => c.members.map(m => m.userId)))];
+    const blockedUserIds = new Set(blockedFriends.flatMap(f => [f.senderId, f.receiverId]).filter(id => id !== userId));
+    const filteredData = data.filter(conv => {
+      if (conv.type !== 'PRIVATE') return true;
+      const otherMemberId = conv.members.find(m => m.userId !== userId)?.userId;
+      return otherMemberId && !blockedUserIds.has(otherMemberId);
+    });
+
+    const allMemberIds = [...new Set(filteredData.flatMap(c => c.members.map(m => m.userId)))];
     const onlineMap = await this.statusService.getStatuses(allMemberIds);
 
-    const formatted = await Promise.all(data.map(conv => this.formatConversation(conv, userId, onlineMap)));
-    return new PaginationData(formatted, { total, limit, page });
+    const formatted = await Promise.all(filteredData.map(conv => this.formatConversation(conv, userId, onlineMap)));
+    return new PaginationData(formatted, { total: filteredData.length, limit, page });
   }
 
   /**
