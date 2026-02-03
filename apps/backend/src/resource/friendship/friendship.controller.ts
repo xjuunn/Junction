@@ -60,9 +60,23 @@ export class FriendshipController {
   }
 
   @Patch('block/:friendId')
-  @ApiOperation({ summary: "拉黑好友" })
+  @ApiOperation({ summary: '拉黑好友' })
   block(@Session() session: UserSession, @Param('friendId') friendId: string) {
     return this.friendshipService.update(session.user.id, friendId, { status: 'BLOCKED', isBlocked: true });
+  }
+
+  @Patch(':friendId')
+  @ApiOperation({ summary: '更新好友信息（备注等）' })
+  update(
+    @Session() session: UserSession,
+    @Param('friendId') friendId: string,
+    @Body() data: { remark?: string }
+  ) {
+    const updateData: PrismaTypes.Prisma.FriendshipUpdateInput = {};
+    if (data.remark !== undefined) {
+      updateData.note = data.remark;
+    }
+    return this.friendshipService.update(session.user.id, friendId, updateData);
   }
 
   @Delete(':friendId')

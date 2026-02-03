@@ -27,28 +27,28 @@ export function findOne(friendId: string) {
  * 同意好友请求
  */
 export function accept(friendId: string) {
-    return api.patch<AwaitedReturnType<FriendshipService['accept']>>(base + `/accept/${friendId}`);
+    return api.patch<AwaitedReturnType<FriendshipService['accept']>>(base + `/accept/${friendId}`, {}, {});
 }
 
 /**
  * 拒绝好友请求
  */
 export function reject(friendId: string) {
-    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/reject/${friendId}`);
+    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/reject/${friendId}`, {}, {});
 }
 
 /**
  * 拉黑好友
  */
 export function block(friendId: string) {
-    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/block/${friendId}`);
+    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/block/${friendId}`, {}, {});
 }
 
 /**
  * 更新好友信息（备注等）
  */
 export function update(friendId: string, data: { remark?: string }) {
-    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + "/" + friendId, data);
+    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + "/" + friendId, data, {});
 }
 
 /**

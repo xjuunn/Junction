@@ -154,6 +154,7 @@ export class ConversationService {
     const mySettings = conv.members.find((m: any) => m.userId === currentUserId) || null;
     let { title, avatar } = conv;
     let online = 0;
+    let otherUserId: string | null = null;
 
     if (conv.type === 'PRIVATE') {
       const otherMember = await this.prisma.conversationMember.findFirst({
@@ -163,11 +164,10 @@ export class ConversationService {
       if (otherMember) {
         title = otherMember.user.name;
         avatar = otherMember.user.image;
-        // 关键：私聊状态仅取决于对方，与自己是否在刷新/离线无关
         online = onlineMap[otherMember.userId] ? 1 : 0;
+        otherUserId = otherMember.userId;
       }
     } else {
-      // 群聊维持在线人数统计
       online = conv.members.reduce((acc: number, m: any) => acc + (onlineMap[m.userId] ? 1 : 0), 0);
     }
 
@@ -182,6 +182,7 @@ export class ConversationService {
       lastMessage: conv.lastMessage,
       memberCount: conv._count?.members || 0,
       mySettings,
+      otherUserId,
       updatedAt: conv.updatedAt,
       createdAt: conv.createdAt
     };

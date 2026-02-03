@@ -35,7 +35,7 @@ export function findOne(id: string) {
  * 更新当前用户的会话偏好设置（置顶、静音等）
  */
 export function updateSettings(id: string, data: PrismaTypes.Prisma.ConversationMemberUpdateInput) {
-    return api.patch<AwaitedReturnType<ConversationService['updateMember']>>(`${base}/${id}/settings`, data);
+    return api.patch<AwaitedReturnType<ConversationService['updateMember']>>(`${base}/${id}/settings`, data, {});
 }
 
 /**
@@ -70,14 +70,14 @@ export function removeMember(conversationId: string, targetUserId: string) {
  * 修改成员角色
  */
 export function updateMemberRole(conversationId: string, targetUserId: string, role: 'ADMIN' | 'MEMBER') {
-    return api.patch<AwaitedReturnType<ConversationService['updateMemberRole']>>(`${base}/${conversationId}/members/${targetUserId}/role`, { role });
+    return api.patch<AwaitedReturnType<ConversationService['updateMemberRole']>>(`${base}/${conversationId}/members/${targetUserId}/role`, { role }, {});
 }
 
 /**
  * 更新群聊信息
  */
 export function updateGroupInfo(conversationId: string, data: { title?: string; avatar?: string }) {
-    return api.patch<AwaitedReturnType<ConversationService['updateGroupInfo']>>(`${base}/${conversationId}/info`, data);
+    return api.patch<AwaitedReturnType<ConversationService['updateGroupInfo']>>(`${base}/${conversationId}/info`, data, {});
 }
 
 // 会话类型

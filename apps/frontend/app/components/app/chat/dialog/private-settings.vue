@@ -28,11 +28,7 @@ const fetchCurrentUser = async () => {
     currentUserId.value = data?.user?.id || '';
 };
 
-const otherUserId = computed(() => {
-    if (!props.conversation?.members) return null;
-    const member = props.conversation.members.find((m: any) => m.userId !== currentUserId.value);
-    return member?.userId;
-});
+const otherUserId = computed(() => props.conversation?.otherUserId || null);
 
 const currentMember = computed(() => props.conversation?.mySettings);
 const isMuted = computed(() => currentMember.value?.muted ?? false);
@@ -46,7 +42,7 @@ const fetchFriendInfo = async () => {
         const res = await friendshipApi.findOne(otherUserId.value);
         if (res.data) {
             friendInfo.value = res.data;
-            remark.value = res.data.remark || '';
+            remark.value = res.data.note || '';
         }
     } finally {
         loading.value = false;
@@ -54,10 +50,19 @@ const fetchFriendInfo = async () => {
 };
 
 const handleSaveRemark = async () => {
-    if (!otherUserId.value) return;
-    const res = await friendshipApi.update(otherUserId.value, { remark: remark.value });
-    if (res.success) {
-        toast.success('备注已更新');
+    if (!otherUserId.value) {
+        toast.error('无法获取好友ID');
+        return;
+    }
+    try {
+        const res = await friendshipApi.update(otherUserId.value, { remark: remark.value });
+        if (res.success) {
+            toast.success('备注已更新');
+        } else {
+            toast.error(res.error || '更新失败');
+        }
+    } catch (e: any) {
+        toast.error(e.message || '更新备注失败');
     }
 };
 
@@ -86,6 +91,11 @@ const handleTogglePin = async () => {
 };
 
 const handleBlock = async () => {
+    if (!otherUserId.value) {
+        toast.error('无法获取用户ID');
+        return;
+    }
+    
     const confirmed = await dialog.confirm({
         title: isBlocked.value ? '解除拉黑' : '拉黑用户',
         content: isBlocked.value ? '确定要解除拉黑吗？' : '确定要拉黑该用户吗？拉黑后将不再接收对方的消息。',
@@ -93,11 +103,17 @@ const handleBlock = async () => {
         confirmText: isBlocked.value ? '解除拉黑' : '拉黑',
     });
     if (!confirmed) return;
-    if (!otherUserId.value) return;
-    const res = await friendshipApi.block(otherUserId.value);
-    if (res.success) {
-        toast.success(isBlocked.value ? '已解除拉黑' : '已拉黑用户');
-        fetchFriendInfo();
+    
+    try {
+        const res = await friendshipApi.block(otherUserId.value);
+        if (res.success) {
+            toast.success(isBlocked.value ? '已解除拉黑' : '已拉黑用户');
+            fetchFriendInfo();
+        } else {
+            toast.error(res.error || '操作失败');
+        }
+    } catch (e: any) {
+        toast.error(e.message || '操作失败');
     }
 };
 
@@ -138,6 +154,10 @@ onMounted(async () => {
     await fetchCurrentUser();
     fetchFriendInfo();
 });
+
+watch(() => props.conversation, () => {
+    fetchFriendInfo();
+}, { immediate: true });
 </script>
 
 <template>

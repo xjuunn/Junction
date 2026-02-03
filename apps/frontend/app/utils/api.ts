@@ -82,8 +82,8 @@ class Api {
         return await this.instance.post<ApiResponse<T>>(url, data, { params: query, ...options, }) as any
     }
 
-    async patch<T = any>(url: string, data?: any, params?: PaginationQuery, options?: RequestOptions): Promise<ApiResponse<T>> {
-        const query = this.applyPaginationOptions(params)
+    async patch<T = any>(url: string, data?: any, params?: PaginationQuery | undefined, options?: RequestOptions): Promise<ApiResponse<T>> {
+        const query = params && Object.keys(params).length > 0 ? this.applyPaginationOptions(params) : undefined;
         return await this.instance.patch<ApiResponse<T>>(url, data, { params: query, ...options, }) as any
     }
 
