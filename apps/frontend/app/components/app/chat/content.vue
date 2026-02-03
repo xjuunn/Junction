@@ -18,6 +18,7 @@ const initialLoading = ref(true);
 const sending = ref(false);
 const hasMore = ref(true);
 const showGroupInfo = ref(false);
+const showChatSettings = ref(false);
 
 // 编辑器相关状态
 const messageJson = ref<any>(null);
@@ -208,6 +209,7 @@ const setupSocketListeners = () => {
 watch(() => conversationId.value, () => {
     messages.value = [];
     currentConversation.value = null;
+    showChatSettings.value = false;
     fetchConversation();
     fetchMessages();
 }, { immediate: true });
@@ -247,6 +249,12 @@ onMounted(() => {
             <div v-if="currentConversation && currentConversation.type === 'GROUP'" class="flex items-center gap-2">
                 <button class="btn btn-ghost btn-circle btn-sm" @click="showGroupInfo = true">
                     <Icon name="mingcute:information-line" size="20" />
+                </button>
+            </div>
+            <!-- 设置按钮 -->
+            <div class="flex items-center gap-2">
+                <button class="btn btn-ghost btn-circle btn-sm" @click="showChatSettings = true">
+                    <Icon name="mingcute:settings-3-line" size="20" />
                 </button>
             </div>
         </header>
@@ -331,12 +339,20 @@ onMounted(() => {
         </footer>
         
         <!-- 群聊信息对话框 -->
-        <AppDialogGroupInfo 
+        <AppDialogGroupInfo
             v-if="currentConversation && currentConversation.type === 'GROUP'"
             :show="showGroupInfo"
             :conversation-id="conversationId"
             @update:show="showGroupInfo = $event"
             @updated="fetchConversation"
+        />
+
+        <!-- 聊天设置对话框 -->
+        <AppChatDialogChatSettings
+            :show="showChatSettings"
+            :conversation="currentConversation"
+            @update:show="showChatSettings = $event"
+            @conversation-deleted="fetchConversation"
         />
     </div>
 </template>

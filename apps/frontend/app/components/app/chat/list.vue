@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import * as conversationApi from '~/api/conversation';
 
@@ -38,11 +38,56 @@ const handleStatusUpdate = (data: { conversationId: string; onlineCount: number 
 };
 
 /**
+ * 将会话移到正确的排序位置
+ * 规则：置顶会话在前，按时间排序；非置顶会话在后，按时间排序
+ */
+const moveToCorrectPosition = (conversation: ConversationItem) => {
+    const index = conversations.value.findIndex(c => c.id === conversation.id);
+    if (index === -1) return;
+
+    // 找到目标位置
+    let targetIndex = 0;
+    for (let i = 0; i < conversations.value.length; i++) {
+        const current = conversations.value[i];
+        if (current === undefined) continue;
+        const currentPinned = current.mySettings?.pinned ? 1 : 0;
+        const targetPinned = conversation.mySettings?.pinned ? 1 : 0;
+
+        // 如果目标会话是置顶的
+        if (targetPinned === 1) {
+            // 找到第一个非置顶会话的位置
+            if (currentPinned === 0) {
+                targetIndex = i;
+                break;
+            }
+        } else {
+            // 如果目标会话是非置顶的
+            if (currentPinned === 0) {
+                // 找到比目标会话更旧的位置
+                if (new Date(current.updatedAt).getTime() <= new Date(conversation.updatedAt).getTime()) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+        }
+        targetIndex = i + 1;
+    }
+
+    // 移动到正确位置
+    if (index !== targetIndex) {
+        conversations.value.splice(index, 1);
+        conversations.value.splice(targetIndex, 0, conversation);
+    }
+};
+
+/**
  * 直接监听新消息事件，更新会话列表预览
  */
 const handleNewMessage = (msg: any) => {
-    const target = conversations.value.find(c => c.id === msg.conversationId);
-    if (target) {
+    const index = conversations.value.findIndex(c => c.id === msg.conversationId);
+    if (index !== -1) {
+        const target = conversations.value[index];
+        if (target === undefined) return;
         target.lastMessage = {
             content: msg.content,
             type: msg.type,
@@ -50,6 +95,9 @@ const handleNewMessage = (msg: any) => {
             sender: msg.sender
         };
         target.updatedAt = msg.createdAt;
+
+        // 将会话移到正确的排序位置
+        moveToCorrectPosition(target);
     }
 };
 
@@ -82,8 +130,10 @@ const handleGroupCreated = (conversationId: string) => {
  * 响应总线同步事件
  */
 const handleMessageSync = (msg: any) => {
-    const target = conversations.value.find(c => c.id === msg.conversationId);
-    if (target) {
+    const index = conversations.value.findIndex(c => c.id === msg.conversationId);
+    if (index !== -1) {
+        const target = conversations.value[index];
+        if (target === undefined) return;
         target.lastMessage = {
             content: msg.content,
             type: msg.type,
@@ -91,6 +141,9 @@ const handleMessageSync = (msg: any) => {
             sender: msg.sender
         };
         target.updatedAt = msg.createdAt;
+
+        // 将会话移到正确的排序位置
+        moveToCorrectPosition(target);
     }
 };
 
@@ -99,6 +152,21 @@ onMounted(() => {
     appSocket.on('conversation-status', handleStatusUpdate);
     appSocket.on('new-message', handleNewMessage);
     busOn('chat:message-sync', handleMessageSync);
+
+    // 监听置顶状态变化
+    watch(conversations, (newVal, oldVal) => {
+        // 比较新旧值，找出置顶状态变化的会话
+        newVal.forEach((conversation, index) => {
+            const oldConversation = oldVal?.[index];
+            if (oldConversation && oldConversation.id === conversation.id) {
+                const oldPinned = oldConversation.mySettings?.pinned ? 1 : 0;
+                const newPinned = conversation.mySettings?.pinned ? 1 : 0;
+                if (oldPinned !== newPinned) {
+                    moveToCorrectPosition(conversation);
+                }
+            }
+        });
+    }, { deep: true });
 });
 
 onUnmounted(() => {
@@ -126,7 +194,8 @@ onUnmounted(() => {
                     <button class="btn btn-ghost btn-circle btn-sm" @click="fetchConversations">
                         <Icon name="mingcute:refresh-3-line" size="18" :class="{ 'animate-spin': loading }" />
                     </button>
-                    <button class="btn btn-primary btn-circle btn-sm shadow-lg shadow-primary/20" @click="showCreateGroupDialog = true">
+                    <button class="btn btn-primary btn-circle btn-sm shadow-lg shadow-primary/20"
+                        @click="showCreateGroupDialog = true">
                         <Icon name="mingcute:add-line" size="20" />
                     </button>
                 </div>
@@ -176,11 +245,8 @@ onUnmounted(() => {
                 <AppChatItem v-for="chat in filteredList" :key="chat.id" :data="chat" />
             </div>
         </main>
-        
+
         <!-- 创建群聊对话框 -->
-        <AppDialogCreateGroup 
-            v-model="showCreateGroupDialog" 
-            @success="handleGroupCreated" 
-        />
+        <AppDialogCreateGroup v-model="showCreateGroupDialog" @success="handleGroupCreated" />
     </div>
 </template>
