@@ -65,6 +65,12 @@ export class FriendshipController {
     return this.friendshipService.update(session.user.id, friendId, { status: 'BLOCKED', isBlocked: true });
   }
 
+  @Patch('unblock/:friendId')
+  @ApiOperation({ summary: '解除拉黑' })
+  unblock(@Session() session: UserSession, @Param('friendId') friendId: string) {
+    return this.friendshipService.update(session.user.id, friendId, { status: 'ACCEPTED', isBlocked: false });
+  }
+
   @Patch(':friendId')
   @ApiOperation({ summary: '更新好友信息（备注等）' })
   update(

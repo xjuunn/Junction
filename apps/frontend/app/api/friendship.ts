@@ -45,6 +45,13 @@ export function block(friendId: string) {
 }
 
 /**
+ * 解除拉黑好友
+ */
+export function unblock(friendId: string) {
+    return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + `/unblock/${friendId}`, {}, {});
+}
+
+/**
  * 更新好友信息（备注等）
  */
 export function update(friendId: string, data: { remark?: string }) {

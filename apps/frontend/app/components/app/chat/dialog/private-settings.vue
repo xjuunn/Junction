@@ -33,7 +33,7 @@ const otherUserId = computed(() => props.conversation?.otherUserId || null);
 const currentMember = computed(() => props.conversation?.mySettings);
 const isMuted = computed(() => currentMember.value?.muted ?? false);
 const isPinned = computed(() => currentMember.value?.pinned ?? false);
-const isBlocked = computed(() => friendInfo.value?.status === 'BLOCKED');
+const isBlocked = computed(() => friendInfo.value?.isBlocked === true);
 
 const fetchFriendInfo = async () => {
     if (!otherUserId.value) return;
@@ -105,7 +105,9 @@ const handleBlock = async () => {
     if (!confirmed) return;
     
     try {
-        const res = await friendshipApi.block(otherUserId.value);
+        const res = isBlocked.value 
+            ? await friendshipApi.unblock(otherUserId.value)
+            : await friendshipApi.block(otherUserId.value);
         if (res.success) {
             toast.success(isBlocked.value ? '已解除拉黑' : '已拉黑用户');
             fetchFriendInfo();
