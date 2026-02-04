@@ -187,7 +187,7 @@ onMounted(async () => {
                 群信息
             </button>
             <button class="tab flex-1" :class="{ 'tab-active': activeTab === 'settings' }" @click="activeTab = 'settings'">
-                <Icon name="mingcute:settings-line" class="mr-2" />
+                <Icon name="mingcute:settings-3-line" class="mr-2" />
                 聊天设置
             </button>
         </div>
@@ -293,7 +293,7 @@ onMounted(async () => {
             <div class="space-y-2">
                 <template v-if="isOwner">
                     <button class="btn btn-soft btn-sm w-full justify-start" @click="activeTab = 'members'">
-                        <Icon name="mingcute:user-transfer-line" /> 转让群主
+                        <Icon name="mingcute:user-1-line" /> 转让群主
                     </button>
                     <button class="btn btn-soft btn-error btn-sm w-full justify-start" @click="handleDisbandGroup">
                         <Icon name="mingcute:alert-fill" /> 解散群聊
@@ -312,7 +312,7 @@ onMounted(async () => {
         <BaseModal v-model="showTransferDialog" boxClass="max-w-sm">
             <template #header>
                 <div class="flex items-center gap-3">
-                    <Icon name="mingcute:user-transfer-line" class="text-lg" />
+                    <Icon name="mingcute:user-1-line" class="text-lg" />
                     <span>转让群主</span>
                 </div>
             </template>
