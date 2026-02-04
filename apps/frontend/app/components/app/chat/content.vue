@@ -528,7 +528,7 @@ onUnmounted(() => {
                             <div v-if="showExtensionsMenu"
                                 class="absolute bottom-full left-0 mb-4 bg-base-100 border border-base-200 rounded-2xl shadow-2xl p-3 grid grid-cols-4 gap-2 z-50 animate-in fade-in slide-in-from-bottom-2 min-w-[200px]">
                                 <button
-                                    v-for="action in ['bold', 'italic', 'code', 'link', 'list', 'ordered-list', 'blockquote', 'code-block']"
+                                    v-for="action in ['bold', 'italic', 'code', 'link', 'list-check', 'list-ordered', 'blockquote', 'code']"
                                     :key="action" @click="handleExtensionAction(action)"
                                     class="btn btn-ghost btn-sm btn-square hover:bg-primary hover:text-white transition-colors">
                                     <Icon :name="`mingcute:${action.replace('ordered-', '')}-line`" size="18" />
