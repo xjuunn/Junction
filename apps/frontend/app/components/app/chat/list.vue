@@ -8,7 +8,7 @@ type ConversationItem = NonNullable<NonNullable<Awaited<ReturnType<typeof conver
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
-const currentUserId = computed(() => userStore.user?.id);
+const currentUserId = computed(() => userStore.user.value?.id);
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'personal' | 'group'>('all');
 const loading = ref(true);

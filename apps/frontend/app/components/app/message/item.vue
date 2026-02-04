@@ -5,8 +5,8 @@ import * as MessageApi from '~/api/message';
 import RichTextRenderer from './RichTextRenderer.vue';
 
 const props = defineProps<{
-    message: PrismaTypes.Message & {
-        sender?: { name: string; avatar?: string; image?: string };
+    message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId'> & {
+        sender?: { name: string; avatar?: string | null; image?: string | null } | null;
     };
     isMe: boolean;
     isRead?: boolean;
@@ -33,6 +33,14 @@ const displayRead = computed(() => props.isRead ?? props.readInfo?.isRead ?? fal
 const totalReceivers = computed(() => (props.readInfo ? props.readInfo.readCount + props.readInfo.unreadCount : 0));
 const isGroup = computed(() => props.isGroup);
 const readInfo = computed(() => props.readInfo);
+const imagePayload = computed<{ imageUrl: string } | null>(() => {
+    const payload = props.message.payload;
+    if (!payload || typeof payload !== 'object') return null;
+    if (!('imageUrl' in payload)) return null;
+    const imageUrl = (payload as { imageUrl?: string }).imageUrl;
+    if (!imageUrl) return null;
+    return { imageUrl };
+});
 
 /**
  * 获取完整的图片URL
@@ -101,14 +109,14 @@ const toggleReadDetail = () => {
 
                 <!-- 场景 2: 图片消息渲染 -->
                 <template v-else-if="renderMode === 'IMAGE'">
-                    <div v-if="message.payload?.imageUrl" class="space-y-2">
+                    <div v-if="imagePayload" class="space-y-2">
                         <!-- 图片显示 -->
                         <div class="relative max-w-xs">
                             <img
-                                :src="getImageUrl(message.payload.imageUrl)"
+                                :src="getImageUrl(imagePayload.imageUrl)"
                                 alt="图片消息"
                                 class="w-full h-auto rounded-lg border border-base-content/10 cursor-pointer hover:opacity-90 transition-opacity"
-                                @click="openImageViewer(message.payload.imageUrl)"
+                                @click="openImageViewer(imagePayload.imageUrl)"
                                 loading="lazy" />
                         </div>
                         <!-- 图片描述文本（如果有） -->

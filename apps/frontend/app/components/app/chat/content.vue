@@ -2,7 +2,7 @@
 import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
 import { uploadFiles } from '~/api/upload';
-import type { PrismaTypes } from '@junction/types';
+import type { ComponentPublicInstance, VNodeRef } from 'vue';
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -14,7 +14,9 @@ const conversationId = computed(() => route.params.id as string);
 const currentUserId = computed(() => unref(userStore.user)?.id);
 type ReadMember = { id: string; name: string; image?: string | null };
 type ReadInfo = { isRead: boolean; readCount: number; unreadCount: number; readMembers?: ReadMember[]; unreadMembers?: ReadMember[] };
-type MessageItem = PrismaTypes.Message & { sender?: { name: string; avatar?: string; image?: string }; readInfo?: ReadInfo };
+type MessageItem = NonNullable<NonNullable<Awaited<ReturnType<typeof messageApi.findAll>>['data']>['items']>[number] & {
+    readInfo?: ReadInfo;
+};
 
 const currentConversation = ref<any>(null);
 const messages = ref<MessageItem[]>([]);
@@ -76,7 +78,7 @@ const updateReadInfoForUser = (userId: string, sequence: number) => {
                 const index = readInfo.unreadMembers.findIndex(member => member?.id === userId);
                 if (index !== -1) {
                     const [member] = readInfo.unreadMembers.splice(index, 1);
-                    readInfo.readMembers.push(member);
+                    if (member) readInfo.readMembers.push(member);
                 }
                 readInfo.readCount = readInfo.readMembers.length;
                 readInfo.unreadCount = readInfo.unreadMembers.length;
@@ -156,16 +158,20 @@ const handleMessageVisibility = (entries: IntersectionObserverEntry[]) => {
 /**
  * 绑定消息元素引用
  */
-const setMessageRef = (message: MessageItem) => (el: Element | null) => {
+/**
+ * 绑定消息元素引用
+ */
+const setMessageRef = (message: MessageItem): VNodeRef => (el: Element | ComponentPublicInstance | null) => {
     const id = message.id;
     const existing = messageElementMap.get(id);
     if (existing) {
         messageObserver.value?.unobserve(existing);
         messageElementMap.delete(id);
     }
-    if (el) {
-        messageElementMap.set(id, el);
-        messageObserver.value?.observe(el);
+    const element = el && '$el' in el ? (el.$el as Element | null) : el;
+    if (element) {
+        messageElementMap.set(id, element);
+        messageObserver.value?.observe(element);
     }
 };
 
@@ -180,12 +186,12 @@ const fetchMessages = async (isMore = false) => {
     loading.value = true;
 
     try {
-        const cursor = isMore && messages.value.length > 0 ? messages.value[0].sequence : undefined;
+        const cursor = isMore && messages.value.length > 0 ? messages.value[0]?.sequence : undefined;
         const res = await messageApi.findAll(conversationId.value, { limit: 40 }, cursor);
 
         if (res.data) {
             if (isMore) {
-                messages.value = [...res.data.items, ...messages.value];
+                messages.value = [...(res.data.items as MessageItem[]), ...messages.value];
                 nextTick(() => {
                     if (el) {
                         el.style.scrollBehavior = 'auto';
@@ -193,7 +199,7 @@ const fetchMessages = async (isMore = false) => {
                     }
                 });
             } else {
-                messages.value = res.data.items;
+                messages.value = res.data.items as MessageItem[];
                 scrollToBottom('auto');
                 await reportReadIfNeeded();
             }
@@ -250,7 +256,7 @@ const handleSend = async () => {
         });
 
         if (res.data) {
-            messages.value.push(res.data);
+            messages.value.push(res.data as MessageItem);
             editorRef.value?.clear();
             messagePlainText.value = '';
             messageJson.value = null;
@@ -425,7 +431,7 @@ onUnmounted(() => {
                     :ref="setMessageRef(msg)"
                     :data-message-id="msg.id"
                 >
-                    <div v-if="index === 0 || new Date(msg.createdAt).toDateString() !== new Date(messages[index - 1].createdAt).toDateString()"
+                    <div v-if="index === 0 || new Date(msg.createdAt).toDateString() !== new Date(messages[index - 1]?.createdAt ?? msg.createdAt).toDateString()"
                         class="flex items-center justify-center my-10 opacity-20">
                         <span
                             class="px-4 py-1 rounded-full border border-base-content text-[10px] font-black uppercase tracking-[0.2em]">
