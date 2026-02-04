@@ -42,22 +42,48 @@ const processAndInsertImage = async (view: any, file: File, pos?: number) => {
     }
 };
 
+/**
+ * ??????????????
+ */
+const processAndInsertFile = async (view: any, file: File, pos?: number) => {
+    try {
+        const response = await uploadFiles('message', [file]);
+        if (response.success && response.data?.files?.[0]) {
+            const fileUrl = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+            const { state } = view;
+            const linkMark = state.schema.marks.link?.create({
+                href: fileUrl,
+                target: '_blank',
+                download: file.name
+            });
+            const textNode = state.schema.text(`File: ${file.name}`, linkMark ? [linkMark] : []);
+            const transaction = state.tr.insert(pos ?? state.selection.from, textNode);
+            view.dispatch(transaction);
+            emit('update:modelValue', editor.value?.getJSON());
+        }
+    } catch (error) {
+        console.error('??????:', error);
+    }
+};
+
 // --- 编辑器事件处理 ---
 const handlePaste = (view: any, event: ClipboardEvent) => {
     const items = event.clipboardData?.items;
     if (!items) return false;
 
-    let imageFound = false;
+    let handled = false;
     for (const item of items) {
-        if (item.type.indexOf('image') === 0) {
-            const file = item.getAsFile();
-            if (file) {
-                imageFound = true;
-                processAndInsertImage(view, file);
-            }
+        const file = item.kind === 'file' ? item.getAsFile() : null;
+        if (!file) continue;
+        if (file.type.indexOf('image') === 0) {
+            handled = true;
+            processAndInsertImage(view, file);
+            continue;
         }
+        handled = true;
+        processAndInsertFile(view, file);
     }
-    return imageFound;
+    return handled;
 };
 
 const handleDrop = (view: any, event: DragEvent) => {
@@ -68,13 +94,17 @@ const handleDrop = (view: any, event: DragEvent) => {
     if (!files || files.length === 0) return false;
 
     const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-    if (imageFiles.length > 0) {
+    const otherFiles = Array.from(files).filter(f => !f.type.startsWith('image/'));
+    if (imageFiles.length > 0 || otherFiles.length > 0) {
         event.preventDefault();
         const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
         const pos = coordinates ? coordinates.pos : view.state.selection.from;
 
         for (const file of imageFiles) {
             processAndInsertImage(view, file, pos);
+        }
+        for (const file of otherFiles) {
+            processAndInsertFile(view, file, pos);
         }
         return true;
     }

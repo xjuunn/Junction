@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import type { PrismaTypes } from '@junction/types';
 import * as MessageApi from '~/api/message';
 import RichTextRenderer from './RichTextRenderer.vue';
+import { isTauri } from '~/utils/check';
 
 const props = defineProps<{
     message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId'> & {
@@ -24,6 +25,8 @@ const emit = defineEmits<{
     revoke: [id: string];
 }>();
 const showReadDetail = ref(false);
+const toast = useToast();
+const dialog = useDialog();
 
 /**
  * 获取撤回状态
@@ -40,6 +43,16 @@ const imagePayload = computed<{ imageUrl: string } | null>(() => {
     const imageUrl = (payload as { imageUrl?: string }).imageUrl;
     if (!imageUrl) return null;
     return { imageUrl };
+});
+const filePayload = computed<{ fileUrl: string; fileName?: string; size?: number } | null>(() => {
+    const payload = props.message.payload;
+    if (!payload || typeof payload !== 'object') return null;
+    if (!('fileUrl' in payload)) return null;
+    const fileUrl = (payload as { fileUrl?: string }).fileUrl;
+    if (!fileUrl) return null;
+    const fileName = (payload as { fileName?: string }).fileName;
+    const size = (payload as { size?: number }).size;
+    return { fileUrl, fileName, size };
 });
 
 /**
@@ -70,6 +83,7 @@ const openImageViewer = (imageUrl: string) => {
 const renderMode = computed(() => {
     if (isRevoked.value) return 'REVOKED';
     if (props.message.type === 'IMAGE') return 'IMAGE';
+    if (props.message.type === 'FILE') return 'FILE';
     if (props.message.type === 'RICH_TEXT' || (props.message.payload && typeof props.message.payload === 'object')) return 'RICH_TEXT';
     return 'PLAIN_TEXT';
 });
@@ -79,6 +93,48 @@ const renderMode = computed(() => {
  */
 const toggleReadDetail = () => {
     showReadDetail.value = !showReadDetail.value;
+};
+
+/**
+ * 触发文件下载
+ */
+const handleDownload = async () => {
+    if (!filePayload.value) return;
+    const fileName = filePayload.value.fileName || '文件';
+    const confirmed = await dialog.confirm({
+        title: '下载文件',
+        content: `确认下载 ${fileName} 吗？`,
+        type: 'info'
+    });
+    if (!confirmed) return;
+
+    try {
+        const url = filePayload.value.fileUrl;
+        let blob: Blob | null = null;
+        if (isTauri()) {
+            try {
+                const { fetch } = await import('@tauri-apps/plugin-http');
+                const response = await fetch(url);
+                const data = await response.arrayBuffer();
+                blob = new Blob([data]);
+            } catch {
+                blob = null;
+            }
+        }
+        if (!blob) {
+            const response = await fetch(url);
+            const data = await response.blob();
+            blob = data;
+        }
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(objectUrl);
+    } catch (err: any) {
+        toast.error(err?.message || '下载失败');
+    }
 };
 </script>
 
@@ -130,10 +186,22 @@ const toggleReadDetail = () => {
                     </div>
                 </template>
 
-                <!-- 场景 3: Tiptap 富文本渲染 -->
+                <!-- 场景 3: 文件消息渲染 -->
+                <template v-else-if="renderMode === 'FILE'">
+                    <button v-if="filePayload" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-base-200 hover:bg-base-300 transition-colors"
+                        @click="handleDownload">
+                        <Icon name="mingcute:document-2-line" size="16" />
+                        <span class="truncate max-w-[220px]">{{ filePayload.fileName || '文件' }}</span>
+                    </button>
+                    <div v-else class="whitespace-pre-wrap">
+                        {{ message.content || '[文件]' }}
+                    </div>
+                </template>
+
+                <!-- 场景 4: Tiptap 富文本渲染 -->
                 <RichTextRenderer v-else-if="renderMode === 'RICH_TEXT'" :node="message.payload" />
 
-                <!-- 场景 4: 普通文本渲染 -->
+                <!-- 场景 5: 普通文本渲染 -->
                 <div v-else class="whitespace-pre-wrap">
                     {{ message.content }}
                 </div>

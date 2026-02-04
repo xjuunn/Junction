@@ -298,6 +298,44 @@ const handleImageUploadTrigger = () => {
     input.click();
 };
 
+/**
+ * 触发文件上传并发送
+ */
+const handleFileUploadTrigger = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (!files) return;
+
+        for (const file of Array.from(files)) {
+            try {
+                const response = await uploadFiles('message', [file]);
+                const filePath = response?.data?.files?.[0];
+                if (response.success && filePath) {
+                    const fileUrl = `${useRuntimeConfig().public.apiUrl}${filePath}`;
+                    const res = await messageApi.send({
+                        conversationId: conversationId.value,
+                        content: `[文件] ${file.name}`,
+                        payload: { fileUrl, fileName: file.name, size: file.size },
+                        type: messageApi.MessageType.FILE,
+                        clientMessageId: `c_${Date.now()}`
+                    });
+                    if (res.data) {
+                        messages.value.push(res.data as MessageItem);
+                        scrollToBottom('smooth');
+                        busEmit('chat:message-sync', res.data);
+                    }
+                }
+            } catch (err) {
+                toast.error(`文件 ${file.name} 上传失败`);
+            }
+        }
+    };
+    input.click();
+};
+
 const toggleExtensionsMenu = () => {
     showExtensionsMenu.value = !showExtensionsMenu.value;
 };
@@ -472,8 +510,13 @@ onUnmounted(() => {
                             </button>
 
                             <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100"
-                                @click="handleImageUploadTrigger">
+                                @click="handleFileUploadTrigger">
                                 <Icon name="mingcute:folder-2-line" size="22" />
+                            </button>
+
+                            <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100"
+                                @click="handleImageUploadTrigger">
+                                <Icon name="mingcute:pic-2-line" size="22" />
                             </button>
 
                             <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100"
