@@ -2,6 +2,7 @@
 import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
 import { uploadFiles } from '~/api/upload';
+import type { PrismaTypes } from '@junction/types';
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -11,14 +12,22 @@ const { emit: busEmit } = useEmitt();
 
 const conversationId = computed(() => route.params.id as string);
 const currentUserId = computed(() => unref(userStore.user)?.id);
+type ReadMember = { id: string; name: string; image?: string | null };
+type ReadInfo = { isRead: boolean; readCount: number; unreadCount: number; readMembers?: ReadMember[]; unreadMembers?: ReadMember[] };
+type MessageItem = PrismaTypes.Message & { sender?: { name: string; avatar?: string; image?: string }; readInfo?: ReadInfo };
+
 const currentConversation = ref<any>(null);
-const messages = ref<any[]>([]);
+const messages = ref<MessageItem[]>([]);
 const loading = ref(false);
 const initialLoading = ref(true);
 const sending = ref(false);
 const hasMore = ref(true);
 const showGroupInfo = ref(false);
 const showChatSettings = ref(false);
+const lastReportedReadId = ref<string | null>(null);
+const lastReportedReadSeq = ref<number>(0);
+const messageElementMap = new Map<string, Element>();
+const messageObserver = ref<IntersectionObserver | null>(null);
 
 // 编辑器相关状态
 const messageJson = ref<any>(null);
@@ -49,6 +58,117 @@ const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
     });
 };
 
+/**
+ * 更新本地消息已读信息
+ */
+const updateReadInfoForUser = (userId: string, sequence: number) => {
+    messages.value = messages.value.map(message => {
+        if (!message.readInfo || message.sequence > sequence) return message;
+
+        const readInfo: ReadInfo = {
+            ...message.readInfo,
+            readMembers: message.readInfo.readMembers ? [...message.readInfo.readMembers] : message.readInfo.readMembers,
+            unreadMembers: message.readInfo.unreadMembers ? [...message.readInfo.unreadMembers] : message.readInfo.unreadMembers
+        };
+
+        if (message.senderId === currentUserId.value) {
+            if (readInfo.readMembers && readInfo.unreadMembers) {
+                const index = readInfo.unreadMembers.findIndex(member => member?.id === userId);
+                if (index !== -1) {
+                    const [member] = readInfo.unreadMembers.splice(index, 1);
+                    readInfo.readMembers.push(member);
+                }
+                readInfo.readCount = readInfo.readMembers.length;
+                readInfo.unreadCount = readInfo.unreadMembers.length;
+                readInfo.isRead = readInfo.unreadCount === 0;
+            } else if (userId !== currentUserId.value) {
+                readInfo.readCount = Math.max(readInfo.readCount, 1);
+                readInfo.unreadCount = 0;
+                readInfo.isRead = true;
+            }
+        } else if (userId === currentUserId.value) {
+            readInfo.isRead = true;
+        }
+
+        return { ...message, readInfo };
+    });
+};
+
+/**
+ * 标记消息为已读
+ */
+const markMessageAsRead = async (message: MessageItem) => {
+    if (!message || !conversationId.value || !currentUserId.value) return;
+    if (!canMarkRead()) return;
+    if (message.senderId === currentUserId.value) return;
+    if (message.readInfo?.isRead) return;
+    if (message.sequence <= lastReportedReadSeq.value) return;
+
+    try {
+        lastReportedReadId.value = message.id;
+        lastReportedReadSeq.value = message.sequence;
+        await messageApi.markAsRead(conversationId.value, message.id);
+        updateReadInfoForUser(currentUserId.value, message.sequence);
+        busEmit('chat:conversation-read', conversationId.value);
+    } catch {
+        lastReportedReadId.value = null;
+    }
+};
+
+/**
+ * 判断是否允许标记已读
+ */
+const canMarkRead = () => {
+    const el = listRef.value?.$el as HTMLElement | undefined;
+    if (!el) return false;
+    if (document.visibilityState !== 'visible') return false;
+    if (el.offsetParent === null) return false;
+    if (el.clientHeight === 0) return false;
+    return true;
+};
+
+/**
+ * 上报当前会话已读进度
+ */
+const reportReadIfNeeded = async () => {
+    const lastMessage = messages.value[messages.value.length - 1];
+    if (!lastMessage) return;
+    if (lastReportedReadId.value === lastMessage.id) return;
+    await markMessageAsRead(lastMessage);
+};
+
+/**
+ * 监听消息可见性变化
+ */
+const handleMessageVisibility = (entries: IntersectionObserverEntry[]) => {
+    if (!canMarkRead()) return;
+    entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const target = entry.target as HTMLElement;
+        const messageId = target.dataset.messageId;
+        if (!messageId) return;
+        const message = messages.value.find(item => item.id === messageId);
+        if (!message || message.readInfo?.isRead) return;
+        markMessageAsRead(message);
+    });
+};
+
+/**
+ * 绑定消息元素引用
+ */
+const setMessageRef = (message: MessageItem) => (el: Element | null) => {
+    const id = message.id;
+    const existing = messageElementMap.get(id);
+    if (existing) {
+        messageObserver.value?.unobserve(existing);
+        messageElementMap.delete(id);
+    }
+    if (el) {
+        messageElementMap.set(id, el);
+        messageObserver.value?.observe(el);
+    }
+};
+
 const fetchMessages = async (isMore = false) => {
     if (loading.value || !conversationId.value || (isMore && !hasMore.value)) return;
 
@@ -75,6 +195,7 @@ const fetchMessages = async (isMore = false) => {
             } else {
                 messages.value = res.data.items;
                 scrollToBottom('auto');
+                await reportReadIfNeeded();
             }
             hasMore.value = res.data.items.length === 40;
         }
@@ -93,6 +214,9 @@ const handleScroll = (e: Event) => {
     const el = e.target as HTMLElement;
     if (el.scrollTop < 400 && !loading.value && hasMore.value && !initialLoading.value) {
         fetchMessages(true);
+    }
+    if (el.scrollHeight - (el.scrollTop + el.clientHeight) < 200) {
+        reportReadIfNeeded();
     }
 };
 
@@ -195,14 +319,22 @@ const handleExtensionAction = (action: string) => {
 };
 
 const setupSocketListeners = () => {
-    appSocket.on('new-message', (msg: any) => {
+    appSocket.on('new-message', (msg: MessageItem) => {
         if (msg.conversationId === conversationId.value) {
             if (!messages.value.some(m => m.id === msg.id)) {
                 messages.value.push(msg);
                 scrollToBottom('smooth');
                 busEmit('chat:message-sync', msg);
+                reportReadIfNeeded();
             }
         }
+    });
+
+    appSocket.on('message-read', (payload: { conversationId: string; userId: string; sequence?: number | string }) => {
+        if (payload.conversationId !== conversationId.value || payload.sequence === undefined) return;
+        const sequence = Number(payload.sequence);
+        if (Number.isNaN(sequence)) return;
+        updateReadInfoForUser(payload.userId, sequence);
     });
 };
 
@@ -210,6 +342,14 @@ watch(() => conversationId.value, () => {
     messages.value = [];
     currentConversation.value = null;
     showChatSettings.value = false;
+    lastReportedReadId.value = null;
+    lastReportedReadSeq.value = 0;
+    messageObserver.value?.disconnect();
+    messageObserver.value = new IntersectionObserver(handleMessageVisibility, {
+        root: listRef.value?.$el ?? null,
+        threshold: 0.6
+    });
+    messageElementMap.clear();
     fetchConversation();
     fetchMessages();
 }, { immediate: true });
@@ -219,6 +359,20 @@ onMounted(() => {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') showExtensionsMenu.value = false;
     });
+    messageObserver.value = new IntersectionObserver(handleMessageVisibility, {
+        root: listRef.value?.$el ?? null,
+        threshold: 0.6
+    });
+    messages.value.forEach(message => {
+        const el = messageElementMap.get(message.id);
+        if (el) messageObserver.value?.observe(el);
+    });
+});
+
+onUnmounted(() => {
+    messageObserver.value?.disconnect();
+    messageObserver.value = null;
+    messageElementMap.clear();
 });
 </script>
 
@@ -265,7 +419,12 @@ onMounted(() => {
 
             <AppMessageList ref="listRef" @scroll="handleScroll"
                 class="h-full overflow-y-auto px-4 md:px-10 py-6 custom-scrollbar">
-                <div v-for="(msg, index) in messages" :key="msg.id">
+                <div
+                    v-for="(msg, index) in messages"
+                    :key="msg.id"
+                    :ref="setMessageRef(msg)"
+                    :data-message-id="msg.id"
+                >
                     <div v-if="index === 0 || new Date(msg.createdAt).toDateString() !== new Date(messages[index - 1].createdAt).toDateString()"
                         class="flex items-center justify-center my-10 opacity-20">
                         <span
@@ -273,7 +432,14 @@ onMounted(() => {
                             {{ new Date(msg.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}
                         </span>
                     </div>
-                    <AppMessageItem :message="msg" :is-me="msg.senderId === currentUserId" class="mb-1" />
+                    <AppMessageItem
+                        :message="msg"
+                        :is-me="msg.senderId === currentUserId"
+                        :is-read="msg.readInfo?.isRead"
+                        :read-info="msg.readInfo"
+                        :is-group="currentConversation?.type === 'GROUP'"
+                        class="mb-1"
+                    />
                 </div>
                 <div v-if="sending" class="chat chat-end animate-in fade-in slide-in-from-bottom-2">
                     <div

@@ -89,7 +89,7 @@ export class ConversationService {
           },
           _count: { select: { members: true } },
           members: {
-            select: { userId: true, muted: true, pinned: true, role: true, joinedAt: true, isActive: true }
+            select: { userId: true, muted: true, pinned: true, role: true, joinedAt: true, isActive: true, lastReadMessageId: true }
           }
         },
         orderBy: { updatedAt: 'desc' }
@@ -115,8 +115,9 @@ export class ConversationService {
 
     const allMemberIds = [...new Set(filteredData.flatMap(c => c.members.map(m => m.userId)))];
     const onlineMap = await this.statusService.getStatuses(allMemberIds);
+    const unreadCountMap = await this.getUnreadCountMap(userId, filteredData);
 
-    const formatted = await Promise.all(filteredData.map(conv => this.formatConversation(conv, userId, onlineMap)));
+    const formatted = await Promise.all(filteredData.map(conv => this.formatConversation(conv, userId, onlineMap, unreadCountMap)));
     return new PaginationData(formatted, { total: filteredData.length, limit, page });
   }
 
@@ -140,8 +141,9 @@ export class ConversationService {
 
     const memberIds = conv.members.map(m => m.userId);
     const onlineMap = await this.statusService.getStatuses(memberIds);
+    const unreadCountMap = await this.getUnreadCountMap(userId, [conv]);
 
-    return this.formatConversation(conv, userId, onlineMap);
+    return this.formatConversation(conv, userId, onlineMap, unreadCountMap);
   }
 
   /**
@@ -167,7 +169,12 @@ export class ConversationService {
   /**
    * 格式化会话视图
    */
-  private async formatConversation(conv: any, currentUserId: string, onlineMap: Record<string, boolean> = {}) {
+  private async formatConversation(
+    conv: any,
+    currentUserId: string,
+    onlineMap: Record<string, boolean> = {},
+    unreadCountMap: Record<string, number> = {}
+  ) {
     const mySettings = conv.members.find((m: any) => m.userId === currentUserId) || null;
     let { title, avatar } = conv;
     let online = 0;
@@ -200,13 +207,60 @@ export class ConversationService {
       memberCount: conv._count?.members || 0,
       mySettings,
       otherUserId,
+      unreadCount: unreadCountMap[conv.id] ?? 0,
       updatedAt: conv.updatedAt,
       createdAt: conv.createdAt
     };
   }
 
   /**
-   * 获取会话中所有在线成员详情
+   * ?????????
+   */
+  private async getUnreadCountMap(
+    userId: string,
+    conversations: Array<{ id: string; members: Array<{ userId: string; lastReadMessageId?: string | null }> }>
+  ) {
+    if (!conversations.length) return {};
+
+    const lastReadMap = new Map<string, string | null>();
+    conversations.forEach(conv => {
+      const member = conv.members.find(m => m.userId === userId);
+      lastReadMap.set(conv.id, member?.lastReadMessageId ?? null);
+    });
+
+    const lastReadIds = [...new Set([...lastReadMap.values()].filter((id): id is string => !!id))];
+    const readMessages = lastReadIds.length
+      ? await this.prisma.message.findMany({
+        where: { id: { in: lastReadIds } },
+        select: { id: true, sequence: true }
+      })
+      : [];
+    const seqMap = new Map(readMessages.map(m => [m.id, m.sequence]));
+
+    const counts = await Promise.all(conversations.map(async conv => {
+      const lastReadId = lastReadMap.get(conv.id);
+      const lastReadSeq = lastReadId ? (seqMap.get(lastReadId) ?? 0) : 0;
+      const unreadCount = await this.prisma.message.count({
+        where: {
+          conversationId: conv.id,
+          senderId: { not: userId },
+          status: PrismaValues.MessageStatus.NORMAL,
+          sequence: { gt: lastReadSeq }
+        }
+      });
+      return [conv.id, unreadCount] as const;
+    }));
+
+    const map: Record<string, number> = {};
+    counts.forEach(([id, count]) => {
+      map[id] = count;
+    });
+
+    return map;
+  }
+
+  /**
+   * ?????????????
    */
   async getOnlineMembers(userId: string, conversationId: string) {
     const conversation = await this.prisma.conversation.findFirst({

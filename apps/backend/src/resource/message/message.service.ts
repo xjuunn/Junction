@@ -43,7 +43,7 @@ export class MessageService {
 
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId },
-      select: { userId: true, isActive: true, id: true }
+      select: { userId: true, isActive: true, id: true, user: { select: { id: true, name: true, image: true } } }
     });
 
     const isMember = members.find(m => m.userId === userId);
@@ -102,8 +102,11 @@ export class MessageService {
       return newMessage;
     });
 
-    this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'new-message', message, userId);
-    return message;
+    const readInfoMap = await this.buildReadInfo([message], members, userId, conversation?.type);
+    const enriched = { ...message, readInfo: readInfoMap[message.id] };
+
+    this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'new-message', enriched, userId);
+    return enriched;
   }
 
   /**
@@ -184,7 +187,7 @@ export class MessageService {
       status: { not: PrismaValues.MessageStatus.BLOCKED }
     };
 
-    const [items, total] = await Promise.all([
+    const [items, total, members, conversation] = await Promise.all([
       this.prisma.message.findMany({
         where,
         take: pagination.take,
@@ -192,10 +195,24 @@ export class MessageService {
         orderBy: { sequence: 'desc' },
         select: this.messageSelect
       }),
-      this.prisma.message.count({ where: { conversationId: cleanId } })
+      this.prisma.message.count({ where: { conversationId: cleanId } }),
+      this.prisma.conversationMember.findMany({
+        where: { conversationId: cleanId },
+        select: { userId: true, lastReadMessageId: true, user: { select: { id: true, name: true, image: true } } }
+      }),
+      this.prisma.conversation.findUnique({
+        where: { id: cleanId },
+        select: { type: true }
+      })
     ]);
 
-    return new PaginationData(items.reverse(), { total, limit: pagination.limit, page: pagination.page });
+    const readInfoMap = await this.buildReadInfo(items, members, userId, conversation?.type);
+    const enriched = items.map(item => ({
+      ...item,
+      readInfo: readInfoMap[item.id]
+    }));
+
+    return new PaginationData(enriched.reverse(), { total, limit: pagination.limit, page: pagination.page });
   }
 
   /**
@@ -203,10 +220,32 @@ export class MessageService {
    */
   async markAsRead(userId: string, conversationId: string, messageId: string) {
     const cleanId = conversationId?.trim();
-    return this.prisma.conversationMember.update({
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, conversationId: cleanId },
+      select: { id: true, sequence: true }
+    });
+
+    const result = await this.prisma.conversationMember.update({
       where: { conversationId_userId: { conversationId: cleanId, userId } },
       data: { lastReadMessageId: messageId }
     });
+
+    if (message) {
+      const members = await this.prisma.conversationMember.findMany({
+        where: { conversationId: cleanId, isActive: true },
+        select: { userId: true }
+      });
+
+      this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'message-read', {
+        conversationId: cleanId,
+        messageId: message.id,
+        userId,
+        sequence: message.sequence,
+        readAt: new Date().toISOString()
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -225,5 +264,58 @@ export class MessageService {
       orderBy: { sequence: 'desc' },
       select: this.messageSelect
     });
+  }
+
+  /**
+   * 鏋勫缓娑堟伅宸茶淇℃伅
+   */
+  private async buildReadInfo(
+    messages: Array<{ id: string; sequence: number; senderId: string | null }>,
+    members: Array<{ userId: string; lastReadMessageId?: string | null; user?: { id: string; name: string; image: string | null } }>,
+    currentUserId: string,
+    conversationType?: string | null
+  ) {
+    const lastReadIds = [...new Set(members.map(m => m.lastReadMessageId).filter((id): id is string => !!id))];
+    const readMessages = lastReadIds.length
+      ? await this.prisma.message.findMany({
+        where: { id: { in: lastReadIds } },
+        select: { id: true, sequence: true }
+      })
+      : [];
+
+    const seqMap = new Map(readMessages.map(m => [m.id, m.sequence]));
+    const lastReadSeqMap = new Map<string, number>();
+    members.forEach(m => {
+      const seq = m.lastReadMessageId ? (seqMap.get(m.lastReadMessageId) ?? 0) : 0;
+      lastReadSeqMap.set(m.userId, seq);
+    });
+
+    const infoMap: Record<string, any> = {};
+    messages.forEach(message => {
+      const targets = members.filter(m => m.userId !== message.senderId);
+      const readMembers = targets.filter(m => (lastReadSeqMap.get(m.userId) ?? 0) >= message.sequence);
+      const unreadMembers = targets.filter(m => (lastReadSeqMap.get(m.userId) ?? 0) < message.sequence);
+      const isRead = message.senderId === currentUserId
+        ? unreadMembers.length === 0
+        : (lastReadSeqMap.get(currentUserId) ?? 0) >= message.sequence;
+
+      if (conversationType === 'GROUP') {
+        infoMap[message.id] = {
+          isRead,
+          readCount: readMembers.length,
+          unreadCount: unreadMembers.length,
+          readMembers: readMembers.map(m => m.user),
+          unreadMembers: unreadMembers.map(m => m.user)
+        };
+      } else {
+        infoMap[message.id] = {
+          isRead,
+          readCount: readMembers.length,
+          unreadCount: unreadMembers.length
+        };
+      }
+    });
+
+    return infoMap;
   }
 }

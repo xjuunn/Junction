@@ -7,6 +7,8 @@ type ConversationItem = NonNullable<NonNullable<Awaited<ReturnType<typeof conver
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
+const currentUserId = computed(() => userStore.user?.id);
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'personal' | 'group'>('all');
 const loading = ref(true);
@@ -22,7 +24,16 @@ const fetchConversations = async (): Promise<void> => {
     loading.value = true;
     try {
         const res = await conversationApi.findAll({ page: 1, limit: 50 });
-        if (res.success && res.data) conversations.value = res.data.items;
+        if (res.success && res.data) {
+            const existingMap = new Map(conversations.value.map(item => [item.id, item]));
+            conversations.value = res.data.items.map(item => {
+                const existing = existingMap.get(item.id);
+                if (!existing) return item;
+                const currentUnread = existing.unreadCount ?? 0;
+                const nextUnread = item.unreadCount ?? 0;
+                return { ...item, unreadCount: Math.max(currentUnread, nextUnread) };
+            });
+        }
     } finally {
         loading.value = false;
     }
@@ -95,6 +106,13 @@ const handleNewMessage = (msg: any) => {
             sender: msg.sender
         };
         target.updatedAt = msg.createdAt;
+        target.unreadCount = 0;
+        target.unreadCount = 0;
+        if (route.params.id !== msg.conversationId && msg.senderId !== currentUserId.value) {
+            target.unreadCount = (target.unreadCount || 0) + 1;
+        } else {
+            target.unreadCount = 0;
+        }
 
         // 将会话移到正确的排序位置
         moveToCorrectPosition(target);
@@ -147,11 +165,30 @@ const handleMessageSync = (msg: any) => {
     }
 };
 
+/**
+ * 处理会话已读同步
+ */
+const handleConversationRead = (conversationId: string) => {
+    const target = conversations.value.find(c => c.id === conversationId);
+    if (target) target.unreadCount = 0;
+};
+
+/**
+ * 处理多端已读同步
+ */
+const handleMessageRead = (payload: { conversationId: string; userId: string }) => {
+    if (!currentUserId.value || payload.userId !== currentUserId.value) return;
+    const target = conversations.value.find(c => c.id === payload.conversationId);
+    if (target) target.unreadCount = 0;
+};
+
 onMounted(() => {
     fetchConversations();
     appSocket.on('conversation-status', handleStatusUpdate);
     appSocket.on('new-message', handleNewMessage);
+    appSocket.on('message-read', handleMessageRead);
     busOn('chat:message-sync', handleMessageSync);
+    busOn('chat:conversation-read', handleConversationRead);
 
     // 监听置顶状态变化
     watch(conversations, (newVal, oldVal) => {
@@ -172,7 +209,9 @@ onMounted(() => {
 onUnmounted(() => {
     appSocket.off('conversation-status');
     appSocket.off('new-message');
+    appSocket.off('message-read');
     busOff('chat:message-sync', handleMessageSync);
+    busOff('chat:conversation-read', handleConversationRead);
 });
 </script>
 

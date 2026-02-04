@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { PrismaTypes } from '@junction/types';
 import * as MessageApi from '~/api/message';
 import RichTextRenderer from './RichTextRenderer.vue';
@@ -10,16 +10,29 @@ const props = defineProps<{
     };
     isMe: boolean;
     isRead?: boolean;
+    isGroup?: boolean;
+    readInfo?: {
+        isRead: boolean;
+        readCount: number;
+        unreadCount: number;
+        readMembers?: Array<{ id: string; name: string; image?: string | null }>;
+        unreadMembers?: Array<{ id: string; name: string; image?: string | null }>;
+    };
 }>();
 
 const emit = defineEmits<{
     revoke: [id: string];
 }>();
+const showReadDetail = ref(false);
 
 /**
  * 获取撤回状态
  */
 const isRevoked = computed(() => props.message.status === MessageApi.MessageStatus.REVOKED);
+const displayRead = computed(() => props.isRead ?? props.readInfo?.isRead ?? false);
+const totalReceivers = computed(() => (props.readInfo ? props.readInfo.readCount + props.readInfo.unreadCount : 0));
+const isGroup = computed(() => props.isGroup);
+const readInfo = computed(() => props.readInfo);
 
 /**
  * 获取完整的图片URL
@@ -52,6 +65,13 @@ const renderMode = computed(() => {
     if (props.message.type === 'RICH_TEXT' || (props.message.payload && typeof props.message.payload === 'object')) return 'RICH_TEXT';
     return 'PLAIN_TEXT';
 });
+
+/**
+ * 切换已读详情显示
+ */
+const toggleReadDetail = () => {
+    showReadDetail.value = !showReadDetail.value;
+};
 </script>
 
 <template>
@@ -120,10 +140,34 @@ const renderMode = computed(() => {
             </div>
         </div>
 
-        <div class="chat-footer opacity-40 text-[10px] mt-1 flex items-center gap-1.5 px-1">
+        <div class="chat-footer opacity-40 text-[10px] mt-1 flex items-center gap-2 px-1">
             <template v-if="isMe && !isRevoked">
-                <Icon :name="isRead ? 'mingcute:check-all-fill' : 'mingcute:check-line'"
-                    :class="isRead ? 'text-primary' : ''" size="12" />
+                <Icon :name="displayRead ? 'mingcute:checks-fill' : 'mingcute:check-line'"
+                    :class="displayRead ? 'text-primary' : ''" size="12" />
+                <div v-if="isGroup && readInfo && totalReceivers" class="relative">
+                    <button class="btn btn-ghost btn-xs h-5 px-2 rounded-full" @click="toggleReadDetail">
+                        已读 {{ readInfo.readCount }}/{{ totalReceivers }}
+                    </button>
+                    <div v-if="showReadDetail"
+                        class="absolute bottom-full right-0 mb-2 w-48 bg-base-100 border border-base-200 rounded-xl shadow-xl p-3 space-y-2 text-[11px] opacity-100">
+                        <div class="font-bold opacity-70">已读</div>
+                        <div v-if="readInfo.readMembers?.length" class="flex flex-wrap gap-1">
+                            <span v-for="member in readInfo.readMembers" :key="member.id"
+                                class="badge badge-ghost badge-sm">
+                                {{ member.name }}
+                            </span>
+                        </div>
+                        <div v-else class="opacity-50">暂无</div>
+                        <div class="font-bold opacity-70 pt-1">未读</div>
+                        <div v-if="readInfo.unreadMembers?.length" class="flex flex-wrap gap-1">
+                            <span v-for="member in readInfo.unreadMembers" :key="member.id"
+                                class="badge badge-outline badge-sm">
+                                {{ member.name }}
+                            </span>
+                        </div>
+                        <div v-else class="opacity-50">暂无</div>
+                    </div>
+                </div>
             </template>
         </div>
     </div>
