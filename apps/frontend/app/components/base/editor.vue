@@ -34,7 +34,8 @@ const processAndInsertImage = async (view: any, file: File, pos?: number) => {
                 alt: file.name
             });
             // 使用事务插入图片
-            const transaction = state.tr.insert(pos ?? state.selection.from, node);
+            const selectionPos = pos ?? state.selection.from;
+            const transaction = state.tr.replaceRangeWith(selectionPos, selectionPos, node);
             view.dispatch(transaction);
 
             // 手动触发更新确保 v-model 同步
@@ -62,7 +63,8 @@ const processAndInsertFile = async (view: any, file: File, pos?: number) => {
             });
             const textNode = state.schema.text(`文件: ${file.name}`, linkMark ? [linkMark] : []);
             const block = state.schema.nodes.paragraph.create(null, textNode);
-            const transaction = state.tr.insert(pos ?? state.selection.from, block);
+            const selectionPos = pos ?? state.selection.from;
+            const transaction = state.tr.replaceRangeWith(selectionPos, selectionPos, block);
             view.dispatch(transaction);
             emit('update:modelValue', editor.value?.getJSON());
         }
