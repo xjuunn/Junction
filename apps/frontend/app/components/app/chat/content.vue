@@ -299,7 +299,7 @@ const handleImageUploadTrigger = () => {
 };
 
 /**
- * 触发文件上传并发送
+ * 触发文件上传并插入编辑器
  */
 const handleFileUploadTrigger = () => {
     const input = document.createElement('input');
@@ -309,27 +309,15 @@ const handleFileUploadTrigger = () => {
         const files = (e.target as HTMLInputElement).files;
         if (!files) return;
 
+        const editor = editorRef.value?.editor;
+        const view = editor?.view;
+        if (!editor || !view) return;
+
         for (const file of Array.from(files)) {
             try {
-                const response = await uploadFiles('message', [file]);
-                const filePath = response?.data?.files?.[0];
-                if (response.success && filePath) {
-                    const fileUrl = `${useRuntimeConfig().public.apiUrl}${filePath}`;
-                    const res = await messageApi.send({
-                        conversationId: conversationId.value,
-                        content: `[文件] ${file.name}`,
-                        payload: { fileUrl, fileName: file.name, size: file.size },
-                        type: messageApi.MessageType.FILE,
-                        clientMessageId: `c_${Date.now()}`
-                    });
-                    if (res.data) {
-                        messages.value.push(res.data as MessageItem);
-                        scrollToBottom('smooth');
-                        busEmit('chat:message-sync', res.data);
-                    }
-                }
-            } catch (err) {
-                toast.error(`文件 ${file.name} 上传失败`);
+                await editorRef.value?.processAndInsertFile(view, file);
+            } catch {
+                toast.error(`文件 ${file.name} 插入失败`);
             }
         }
     };

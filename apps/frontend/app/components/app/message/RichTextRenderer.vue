@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { EditorContent } from '@tiptap/vue-3'
 import { createReadonlyEditor } from '../../../core/editor'
+import { isTauri } from '~/utils/check'
 
 const props = defineProps<{
     node: any
 }>()
 
 const editor = createReadonlyEditor(props.node)
+const dialog = useDialog()
+const toast = useToast()
 
 watch(
     () => props.node,
@@ -19,10 +22,64 @@ watch(
 onBeforeUnmount(() => {
     editor.destroy()
 })
+
+/**
+ * 处理文件下载
+ */
+const handleFileDownload = async (url: string, fileName: string) => {
+    const confirmed = await dialog.confirm({
+        title: '下载文件',
+        content: `确认下载 ${fileName} 吗？`,
+        type: 'info'
+    })
+    if (!confirmed) return
+
+    try {
+        let blob: Blob | null = null
+        if (isTauri()) {
+            try {
+                const { fetch } = await import('@tauri-apps/plugin-http')
+                const response = await fetch(url)
+                const data = await response.arrayBuffer()
+                blob = new Blob([data])
+            } catch {
+                blob = null
+            }
+        }
+        if (!blob) {
+            const response = await fetch(url)
+            const data = await response.blob()
+            blob = data
+        }
+        const objectUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = objectUrl
+        link.download = fileName
+        link.click()
+        URL.revokeObjectURL(objectUrl)
+    } catch (error: any) {
+        toast.error(error?.message || '下载失败')
+    }
+}
+
+/**
+ * 处理文件块点击
+ */
+const handleClick = (event: MouseEvent) => {
+    const target = event.target as HTMLElement | null
+    const link = target?.closest('a.file-link, a[data-file]') as HTMLAnchorElement | null
+    if (!link) return
+    event.preventDefault()
+    event.stopPropagation()
+    const url = link.getAttribute('href') || ''
+    const fileName = link.getAttribute('title') || link.getAttribute('data-file-name') || link.textContent || '文件'
+    if (!url) return
+    handleFileDownload(url, fileName)
+}
 </script>
 
 <template>
-    <div class="tiptap-content">
+    <div class="tiptap-content" @click="handleClick">
         <EditorContent :editor="editor" />
     </div>
 </template>
@@ -54,5 +111,30 @@ onBeforeUnmount(() => {
     border: 1px solid hsl(var(--bc) / 0.1);
     margin: 4px 0;
     display: block !important;
+}
+
+.tiptap-content :deep(.ProseMirror a[data-file]),
+.tiptap-content :deep(.ProseMirror a.file-link) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, hsl(var(--b2)) 0%, hsl(var(--b3)) 100%);
+    color: inherit;
+    text-decoration: none;
+    border: 1px solid hsl(var(--bc) / 0.12);
+    box-shadow: 0 6px 16px hsl(var(--bc) / 0.08);
+}
+
+.tiptap-content :deep(.ProseMirror a[data-file]::before),
+.tiptap-content :deep(.ProseMirror a.file-link::before) {
+    content: '📎';
+}
+
+.tiptap-content :deep(.ProseMirror a[data-file]:hover),
+.tiptap-content :deep(.ProseMirror a.file-link:hover) {
+    background: linear-gradient(135deg, hsl(var(--b3)) 0%, hsl(var(--b2)) 100%);
+    border-color: hsl(var(--bc) / 0.2);
 }
 </style>

@@ -2,6 +2,7 @@
 import { EditorContent } from '@tiptap/vue-3'
 import { useEditorWithImageUpload } from '../../core/editor'
 import { uploadFiles } from '../../api/upload'
+import { isTauri } from '~/utils/check'
 
 const props = defineProps<{
     modelValue: any;
@@ -11,6 +12,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['update:modelValue', 'send', 'textChange']);
+const dialog = useDialog();
+const toast = useToast();
 
 // --- 状态管理 ---
 const isDragOver = ref(false);
@@ -43,7 +46,7 @@ const processAndInsertImage = async (view: any, file: File, pos?: number) => {
 };
 
 /**
- * ??????????????
+ * 统一的文件上传并插入下载链接
  */
 const processAndInsertFile = async (view: any, file: File, pos?: number) => {
     try {
@@ -53,16 +56,57 @@ const processAndInsertFile = async (view: any, file: File, pos?: number) => {
             const { state } = view;
             const linkMark = state.schema.marks.link?.create({
                 href: fileUrl,
-                target: '_blank',
-                download: file.name
+                download: file.name,
+                class: 'file-link',
+                title: file.name
             });
-            const textNode = state.schema.text(`File: ${file.name}`, linkMark ? [linkMark] : []);
-            const transaction = state.tr.insert(pos ?? state.selection.from, textNode);
+            const textNode = state.schema.text(`文件: ${file.name}`, linkMark ? [linkMark] : []);
+            const block = state.schema.nodes.paragraph.create(null, textNode);
+            const transaction = state.tr.insert(pos ?? state.selection.from, block);
             view.dispatch(transaction);
             emit('update:modelValue', editor.value?.getJSON());
         }
     } catch (error) {
-        console.error('??????:', error);
+        console.error('文件处理失败:', error);
+    }
+};
+
+/**
+ * 处理文件下载
+ */
+const handleFileDownload = async (url: string, fileName: string) => {
+    const confirmed = await dialog.confirm({
+        title: '下载文件',
+        content: `确认下载 ${fileName} 吗？`,
+        type: 'info'
+    });
+    if (!confirmed) return;
+
+    try {
+        let blob: Blob | null = null;
+        if (isTauri()) {
+            try {
+                const { fetch } = await import('@tauri-apps/plugin-http');
+                const response = await fetch(url);
+                const data = await response.arrayBuffer();
+                blob = new Blob([data]);
+            } catch {
+                blob = null;
+            }
+        }
+        if (!blob) {
+            const response = await fetch(url);
+            const data = await response.blob();
+            blob = data;
+        }
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(objectUrl);
+    } catch (error: any) {
+        toast.error(error?.message || '下载失败');
     }
 };
 
@@ -143,6 +187,32 @@ const editor = useEditorWithImageUpload({
             }
             return false;
         },
+        handleDOMEvents: {
+            click: (view, event) => {
+                const target = event.target as HTMLElement | null;
+                const link = target?.closest('a.file-link') as HTMLAnchorElement | null;
+                if (!link) return false;
+                event.preventDefault();
+                event.stopPropagation();
+                const url = link.getAttribute('href') || '';
+                const fileName = link.getAttribute('title') || link.textContent || '文件';
+                if (!url) return true;
+                handleFileDownload(url, fileName);
+                return true;
+            }
+        },
+        handleClick: (view, pos, event) => {
+            const target = event.target as HTMLElement | null;
+            const link = target?.closest('a.file-link') as HTMLAnchorElement | null;
+            if (!link) return false;
+            event.preventDefault();
+            event.stopPropagation();
+            const url = link.getAttribute('href') || '';
+            const fileName = link.getAttribute('title') || link.textContent || '文件';
+            if (!url) return true;
+            handleFileDownload(url, fileName);
+            return true;
+        },
         handlePaste,
         handleDrop,
     },
@@ -193,6 +263,7 @@ defineExpose({
     clear,              // 清空
     focus,              // 聚焦
     processAndInsertImage, // 图片插入
+    processAndInsertFile,  // ????
     insertContent,      // 插入内容
     setContent          // 替换内容
 });
@@ -244,6 +315,28 @@ onBeforeUnmount(() => {
     min-height: 40px;
     max-height: 192px;
     overflow-y: auto;
+}
+
+:deep(.ProseMirror a.file-link) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, hsl(var(--b2)) 0%, hsl(var(--b3)) 100%);
+    color: inherit;
+    text-decoration: none;
+    border: 1px solid hsl(var(--bc) / 0.12);
+    box-shadow: 0 6px 16px hsl(var(--bc) / 0.08);
+}
+
+:deep(.ProseMirror a.file-link::before) {
+    content: '📎';
+}
+
+:deep(.ProseMirror a.file-link:hover) {
+    background: linear-gradient(135deg, hsl(var(--b3)) 0%, hsl(var(--b2)) 100%);
+    border-color: hsl(var(--bc) / 0.2);
 }
 
 :deep(.ProseMirror p.is-editor-empty:first-child::before) {
