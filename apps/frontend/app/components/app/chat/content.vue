@@ -89,6 +89,18 @@ const applyRemarksToReadInfo = (items: MessageItem[]) => items.map(item => {
     };
 });
 
+const upsertMessage = (item: MessageItem) => {
+    const idx = messages.value.findIndex(m =>
+        (m.id && m.id === item.id) ||
+        (m.clientMessageId && item.clientMessageId && m.clientMessageId === item.clientMessageId)
+    );
+    if (idx >= 0) {
+        messages.value[idx] = item;
+        return;
+    }
+    messages.value.push(item);
+};
+
 // ???????????
 const messageJson = ref<any>(null);
 const messagePlainText = ref('');
@@ -316,7 +328,7 @@ const handleSend = async () => {
 
         if (res.data) {
             const patched = applyRemarksToReadInfo(applyRemarks([res.data as MessageItem]))[0] || (res.data as MessageItem);
-            messages.value.push(patched);
+            upsertMessage(patched);
             editorRef.value?.clear();
             messagePlainText.value = '';
             messageJson.value = null;
@@ -416,26 +428,29 @@ const handleConversationUpdated = (payload: { id: string; title: string }) => {
     messages.value = applyRemarksToReadInfo(applyRemarks(messages.value));
 };
 
-const setupSocketListeners = () => {
-    appSocket.on('new-message', async (msg: MessageItem) => {
-        if (msg.conversationId === conversationId.value) {
-            if (!messages.value.some(m => m.id === msg.id)) {
-                await ensureRemarks([msg]);
-                const patched = applyRemarksToReadInfo(applyRemarks([msg]))[0] || msg;
-                messages.value.push(patched);
-                scrollToBottom('smooth');
-                busEmit('chat:message-sync', patched);
-                reportReadIfNeeded();
-            }
-        }
-    });
+const handleNewMessage = async (msg: MessageItem) => {
+    if (msg.conversationId === conversationId.value) {
+        await ensureRemarks([msg]);
+        const patched = applyRemarksToReadInfo(applyRemarks([msg]))[0] || msg;
+        upsertMessage(patched);
+        scrollToBottom('smooth');
+        busEmit('chat:message-sync', patched);
+        reportReadIfNeeded();
+    }
+};
 
-    appSocket.on('message-read', (payload: { conversationId: string; userId: string; sequence?: number | string }) => {
-        if (payload.conversationId !== conversationId.value || payload.sequence === undefined) return;
-        const sequence = Number(payload.sequence);
-        if (Number.isNaN(sequence)) return;
-        updateReadInfoForUser(payload.userId, sequence);
-    });
+const handleMessageRead = (payload: { conversationId: string; userId: string; sequence?: number | string }) => {
+    if (payload.conversationId !== conversationId.value || payload.sequence === undefined) return;
+    const sequence = Number(payload.sequence);
+    if (Number.isNaN(sequence)) return;
+    updateReadInfoForUser(payload.userId, sequence);
+};
+
+const setupSocketListeners = () => {
+    appSocket.off('new-message');
+    appSocket.off('message-read');
+    appSocket.on('new-message', handleNewMessage);
+    appSocket.on('message-read', handleMessageRead);
 };
 
 watch(() => conversationId.value, () => {
@@ -472,6 +487,8 @@ onMounted(() => {
 
 onUnmounted(() => {
     busOff('chat:conversation-updated', handleConversationUpdated);
+    appSocket.off('new-message');
+    appSocket.off('message-read');
     messageObserver.value?.disconnect();
     messageObserver.value = null;
     messageElementMap.clear();
