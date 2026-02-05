@@ -39,6 +39,7 @@ async function bootstrap() {
     origin: allowedOrigins,
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
+    exposedHeaders: ['set-auth-token', 'set-refresh-token'],
   });
 
   app.useWebSocketAdapter(new BetterAuthIoAdapter(app, allowedOrigins));

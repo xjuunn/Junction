@@ -6,6 +6,8 @@ export class SocketClient<N extends NSKeys> {
     private socket: Socket;
     private namespace: N;
     private isConnected = false;
+    private refreshAttempts = 0;
+    private isRefreshing = false;
 
     private pendingListeners: Array<{ event: string; listener: (...args: any[]) => void }> = [];
 
@@ -29,19 +31,23 @@ export class SocketClient<N extends NSKeys> {
             console.debug('[Socket] Tauri detection:', { ...checks, isTauriEnv });
             return isTauriEnv;
         })();
-        const serverHost = isTauri ? 'localhost' : config.public.serverHost;
+        const serverHost = isTauri
+            ? (config.public.tauriServerHost || config.public.serverHost || 'localhost')
+            : config.public.serverHost;
         const backendPort = config.public.backendPort;
         const backendUrl = `${config.public.httpType}://${serverHost}:${backendPort}/${namespace}`;
         console.log(`[Socket] Environment: ${isTauri ? 'Tauri' : 'Web'}, Host: ${serverHost}, Port: ${backendPort}, URL: ${backendUrl}`);
 
+        const initialToken = userStore.authToken.value;
         const socketOptions: any = {
             transports: ["websocket", "polling"],
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             auth: {
-                token: userStore.authToken.value
-            }
+                token: initialToken
+            },
+            autoConnect: !!initialToken
         };
 
         if (!isTauri) {
@@ -49,6 +55,17 @@ export class SocketClient<N extends NSKeys> {
         }
 
         this.socket = io(backendUrl, socketOptions);
+        if (!initialToken) {
+            const stop = watch(
+                () => userStore.authToken.value,
+                (token) => {
+                    if (!token) return;
+                    this.socket.auth = { token };
+                    if (!this.socket.connected) this.socket.connect();
+                    stop();
+                }
+            );
+        }
 
         this.socket.on("connect", () => {
             console.log(`[Socket] Connected: ${namespace}`);
@@ -61,8 +78,24 @@ export class SocketClient<N extends NSKeys> {
             this.isConnected = false;
         });
 
-        this.socket.on('connect_error', (error) => {
-            console.error(`[Socket] Connect error: ${namespace}`, error.message, error);
+        this.socket.on('connect_error', (error: any) => {
+            console.error(
+                `[Socket] Connect error: ${namespace}`,
+                error?.message,
+                {
+                    description: error?.description,
+                    data: error?.data,
+                    stack: error?.stack,
+                }
+            );
+            const reason = error?.data?.reason;
+            if (
+                (reason === 'invalid_token_or_session' || reason === 'missing_token')
+                && this.refreshAttempts < 1
+            ) {
+                this.refreshAttempts += 1;
+                this.refreshAuthTokenAndReconnect();
+            }
         });
 
         this.socket.on('connect_timeout', (timeout) => {
@@ -84,6 +117,31 @@ export class SocketClient<N extends NSKeys> {
         this.socket.on('reconnect_failed', () => {
             console.error(`[Socket] Reconnect failed: ${namespace}`);
         });
+    }
+
+    private async refreshAuthTokenAndReconnect() {
+        if (this.isRefreshing) return;
+        this.isRefreshing = true;
+        try {
+            const authClient = useAuthClient();
+            await authClient.getSession({
+                fetchOptions: {
+                    onResponse(context) {
+                        const t = context.response.headers.get('set-auth-token') ?? '';
+                        if (t) useUserStore().setAuthToken(t);
+                    },
+                },
+            });
+        } catch (error) {
+            console.error('[Socket] Refresh auth token failed', error);
+        } finally {
+            this.isRefreshing = false;
+            const token = useUserStore().authToken.value;
+            if (token) {
+                this.socket.auth = { token };
+                if (!this.socket.connected) this.socket.connect();
+            }
+        }
     }
 
     static getInstance<N extends NSKeys>(namespace: N): SocketClient<N> {

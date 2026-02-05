@@ -51,14 +51,21 @@ export class BetterAuthIoAdapter extends IoAdapter {
                 });
 
                 if (!sessionData) {
-                    return next(new ApiResponse(null, false, 'Unauthorized'));
+                    const err: any = new Error('Unauthorized');
+                    err.data = {
+                        code: 'UNAUTHORIZED',
+                        reason: authToken ? 'invalid_token_or_session' : 'missing_token',
+                    };
+                    return next(err);
                 }
                 socket.data.user = sessionData.user;
                 socket.data.session = sessionData.session;
                 next();
             } catch (error) {
                 this.logger.error('Socket Middleware Error', error);
-                next(new ApiResponse(null, false, 'Internal Server Error'));
+                const err: any = new Error('Internal Server Error');
+                err.data = { code: 'SOCKET_AUTH_ERROR' };
+                next(err);
             }
         };
         server.use(authMiddleware);

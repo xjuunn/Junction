@@ -38,7 +38,7 @@ export const authFactory = (emailService: EmailService): Auth => betterAuth({
         }
     },
     plugins: [
-        // jwt(),
+        jwt(),
         bearer(),
         admin(),
         emailOTP({

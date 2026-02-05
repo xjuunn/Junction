@@ -32,6 +32,7 @@ export default defineNuxtConfig({
       apiUrl: process.env.NUXT_PUBLIC_API_URL,
       httpType: process.env.NUXT_PUBLIC_HTTP_TYPE,
       serverHost: process.env.NUXT_PUBLIC_SERVER_HOST,
+      tauriServerHost: process.env.NUXT_PUBLIC_TAURI_SERVER_HOST,
       backendPort: process.env.NUXT_PUBLIC_BACKEND_PORT,
       frontendPort: process.env.NUXT_PUBLIC_FRONTEND_PORT,
     },
