@@ -27,6 +27,7 @@
     "@tauri-apps/plugin-fs": "~2.4.5",
     "@tauri-apps/plugin-http": "~2.5.4",
     "@tauri-apps/plugin-os": "~2.3.1",
+    "@tauri-apps/plugin-shell": "~2.3.5",
     "@tauri-store/pinia": "^4.1.0",
     "@tiptap/extension-audio": "^3.16.0",
     "@tiptap/extension-blockquote": "^3.16.0",

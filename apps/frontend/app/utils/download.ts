@@ -263,3 +263,72 @@ export const createDownloader = (defaults: DownloadOptions) => {
     hooks: { ...defaults.hooks, ...options.hooks },
   });
 };
+
+/**
+ * 获取可能的下载路径（仅 Tauri）
+ */
+export const getDownloadCandidates = async (fileName: string, target?: DownloadTarget) => {
+  if (!isTauri()) return [];
+  const safeName = sanitizeFileName(fileName || '');
+  if (!safeName) return [];
+  const { join, downloadDir } = await import('@tauri-apps/api/path');
+  const candidates: string[] = [];
+  const pushUnique = (value?: string) => {
+    if (!value) return;
+    if (!candidates.includes(value)) candidates.push(value);
+  };
+
+  if (target?.path) {
+    pushUnique(target.path);
+  } else if (target?.dir) {
+    pushUnique(await join(target.dir, safeName));
+  } else {
+    const savedDir = getSavedDownloadDir();
+    if (savedDir) {
+      pushUnique(await join(savedDir, safeName));
+    }
+  }
+
+  const systemDir = await downloadDir();
+  pushUnique(await join(systemDir, safeName));
+  return candidates;
+};
+
+/**
+ * 查找已存在的下载文件路径（仅 Tauri）
+ */
+export const findExistingDownloadPath = async (fileName: string, target?: DownloadTarget) => {
+  if (!isTauri()) return null;
+  const safeName = sanitizeFileName(fileName || '');
+  if (!safeName) return null;
+  const { exists } = await import('@tauri-apps/plugin-fs');
+  const candidates = await getDownloadCandidates(safeName, target);
+  for (const candidate of candidates) {
+    try {
+      if (await exists(candidate)) return candidate;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+};
+
+/**
+ * 打开本地文件（仅 Tauri）
+ */
+export const openLocalPath = async (path: string) => {
+  if (!isTauri()) return;
+  const { open } = await import('@tauri-apps/plugin-shell');
+  await open(path);
+};
+
+/**
+ * 打开文件所在目录（仅 Tauri）
+ */
+export const openLocalDirForFile = async (filePath: string) => {
+  if (!isTauri()) return;
+  const { dirname } = await import('@tauri-apps/api/path');
+  const { open } = await import('@tauri-apps/plugin-shell');
+  const dir = await dirname(filePath);
+  await open(dir);
+};

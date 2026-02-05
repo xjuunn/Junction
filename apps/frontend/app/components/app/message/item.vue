@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import type { PrismaTypes } from '@junction/types';
 import * as MessageApi from '~/api/message';
-import { downloadFile } from '~/utils/download';
+import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download';
 import { isTauri } from '~/utils/check';
 import RichTextRenderer from './RichTextRenderer.vue';
 
@@ -102,6 +102,34 @@ const toggleReadDetail = () => {
 const handleDownload = async () => {
     if (!filePayload.value) return;
     const fileName = filePayload.value.fileName || '文件';
+    if (isTauri()) {
+        const existingPath = await findExistingDownloadPath(fileName, { fileName });
+        if (existingPath) {
+            const openFile = await dialog.confirm({
+                title: '文件已下载',
+                content: `检测到 ${fileName} 已下载，请选择操作。`,
+                type: 'info',
+                confirmText: '打开文件',
+                cancelText: '打开目录',
+                persistent: true,
+                hideCloseButton: true
+            });
+            if (openFile) {
+                try {
+                    await openLocalPath(existingPath);
+                } catch (err: any) {
+                    toast.error(err?.message || '打开文件失败');
+                }
+            } else {
+                try {
+                    await openLocalDirForFile(existingPath);
+                } catch (err: any) {
+                    toast.error(err?.message || '打开目录失败');
+                }
+            }
+            return;
+        }
+    }
     const confirmed = await dialog.confirm({
         title: '下载文件',
         content: `确认下载 ${fileName} 吗？`,

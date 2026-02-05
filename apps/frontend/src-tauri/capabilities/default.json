@@ -55,6 +55,7 @@
         }
       ]
     },
-    "fs:default"
+    "fs:default",
+    "shell:default"
   ]
 }

@@ -2,7 +2,7 @@
 import { EditorContent } from '@tiptap/vue-3'
 import { useEditorWithImageUpload } from '../../core/editor'
 import { uploadFiles } from '../../api/upload'
-import { downloadFile } from '~/utils/download'
+import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download'
 import { isTauri } from '~/utils/check'
 
 const props = defineProps<{
@@ -78,6 +78,34 @@ const processAndInsertFile = async (view: any, file: File, pos?: number) => {
  * 处理文件下载
  */
 const handleFileDownload = async (url: string, fileName: string) => {
+    if (isTauri()) {
+        const existingPath = await findExistingDownloadPath(fileName, { fileName });
+        if (existingPath) {
+            const openFile = await dialog.confirm({
+                title: '文件已下载',
+                content: `检测到 ${fileName} 已下载，请选择操作。`,
+                type: 'info',
+                confirmText: '打开文件',
+                cancelText: '打开目录',
+                persistent: true,
+                hideCloseButton: true
+            });
+            if (openFile) {
+                try {
+                    await openLocalPath(existingPath);
+                } catch (error: any) {
+                    toast.error(error?.message || '打开文件失败');
+                }
+            } else {
+                try {
+                    await openLocalDirForFile(existingPath);
+                } catch (error: any) {
+                    toast.error(error?.message || '打开目录失败');
+                }
+            }
+            return;
+        }
+    }
     const confirmed = await dialog.confirm({
         title: '下载文件',
         content: `确认下载 ${fileName} 吗？`,

@@ -47,6 +47,9 @@
           "junc"
         ]
       }
+    },
+    "shell": {
+      "open": "^([a-zA-Z]:\\\\|\\\\\\\\|/|https?://|mailto:|tel:).+"
     }
   }
 }

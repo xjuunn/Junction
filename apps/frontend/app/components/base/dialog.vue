@@ -39,6 +39,14 @@ const handleBackdropClick = () => {
   }
 }
 
+const handleCancel = (event: Event) => {
+  if (store.options.persistent) {
+    event.preventDefault()
+    return
+  }
+  handleClose(false)
+}
+
 // 获取类型对应的颜色
 const getTypeColor = (type: DialogType | undefined) => {
   switch (type) {
@@ -60,7 +68,8 @@ const getDefaultTitle = (type: DialogType | undefined) => {
 </script>
 
 <template>
-  <dialog ref="modalRef" class="modal modal-bottom sm:modal-middle" @close="handleClose(false)">
+  <dialog ref="modalRef" class="modal modal-bottom sm:modal-middle" @close="handleClose(false)"
+    @cancel="handleCancel">
     <div
       class="modal-box relative overflow-hidden bg-base-100/80 backdrop-blur-md border border-base-content/5 shadow-2xl transition-all duration-300 flex flex-col p-0"
       :class="[store.options.maxWidth || 'max-w-lg']">

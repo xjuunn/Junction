@@ -14,7 +14,8 @@ export const useDialog = () => {
     type?: DialogType,
     confirmText?: string,
     cancelText?: string,
-    persistent?: boolean
+    persistent?: boolean,
+    hideCloseButton?: boolean
   }): Promise<boolean> => {
     return openDialog({
       ...options,
