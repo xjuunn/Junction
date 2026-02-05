@@ -20,9 +20,10 @@
     "deep-link:default",
     "dialog:allow-open",
     "fs:allow-read",
-    "fs:allow-write",
+    "fs:allow-write-file",
     "fs:allow-mkdir",
     "fs:allow-exists",
+    "fs:allow-download-write",
     {
       "identifier": "fs:scope",
       "allow": [
@@ -39,6 +40,15 @@
         },
         {
           "url": "http://**"
+        },
+        {
+          "url": "http://10.105.86.133:8080/**"
+        },
+        {
+          "url": "http://localhost:8080/**"
+        },
+        {
+          "url": "http://127.0.0.1:8080/**"
         },
         {
           "url": "https://*.tauri.app"

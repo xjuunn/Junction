@@ -1,4 +1,5 @@
 import { isTauri } from '~/utils/check';
+import { useSettingsStore } from '~/stores/settings';
 
 export type DownloadMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -71,7 +72,16 @@ export const DOWNLOAD_PATH_KEY = 'junction.downloadPath';
 
 export const getSavedDownloadDir = () => {
   if (typeof window === 'undefined') return null;
-  const value = window.localStorage.getItem(DOWNLOAD_PATH_KEY);
+  let value = '';
+  try {
+    const settings = useSettingsStore();
+    value = settings?.downloadPath || '';
+  } catch {
+    value = '';
+  }
+  if (!value) {
+    value = window.localStorage.getItem(DOWNLOAD_PATH_KEY) || '';
+  }
   return value && value.trim() ? value.trim() : null;
 };
 
@@ -166,7 +176,7 @@ const downloadInTauri = async (options: DownloadOptions): Promise<DownloadResult
   const fileName = resolveFileName(options.source, options.target, options.resolveFileName);
   try {
     const { fetch } = await import('@tauri-apps/plugin-http');
-    const { writeFile, createDir, exists } = await import('@tauri-apps/plugin-fs');
+    const { writeFile, mkdir, exists } = await import('@tauri-apps/plugin-fs');
     const { join, dirname, downloadDir } = await import('@tauri-apps/api/path');
 
     const response = await fetch(options.source.url, {
@@ -184,35 +194,45 @@ const downloadInTauri = async (options: DownloadOptions): Promise<DownloadResult
     const finalBytes = next?.bytes || bytes;
 
     const target = options.target || {};
-    let path = target.path;
-    if (!path && target.dir) {
-      path = await join(target.dir, finalName);
-    }
-    if (!path) {
+    const candidates: string[] = [];
+    if (target.path) {
+      candidates.push(target.path);
+    } else if (target.dir) {
+      candidates.push(await join(target.dir, finalName));
+    } else {
       const savedDir = getSavedDownloadDir();
       if (savedDir) {
-        path = await join(savedDir, finalName);
+        candidates.push(await join(savedDir, finalName));
       }
     }
-    if (!path) {
-      const dir = await downloadDir();
-      path = await join(dir, finalName);
-    }
+    const systemDir = await downloadDir();
+    candidates.push(await join(systemDir, finalName));
 
-    const dirPath = await dirname(path);
-    if (target.ensureDir !== false) {
-      await createDir(dirPath, { recursive: true });
+    let lastError: any = null;
+    for (const candidate of candidates) {
+      try {
+        const dirPath = await dirname(candidate);
+        if (target.ensureDir !== false) {
+          await mkdir(dirPath, { recursive: true });
+        }
+        if (target.overwrite !== true) {
+          const has = await exists(candidate);
+          if (has) {
+            lastError = new Error('目标文件已存在');
+            continue;
+          }
+        }
+        await writeFile(candidate, finalBytes);
+        await options.hooks?.afterSave?.({ fileName: finalName, path: candidate });
+        return { success: true, fileName: finalName, path: candidate };
+      } catch (err) {
+        lastError = err;
+      }
     }
-    if (target.overwrite !== true) {
-      const has = await exists(path);
-      if (has) return { success: false, error: '目标文件已存在' };
-    }
-
-    await writeFile(path, finalBytes);
-    await options.hooks?.afterSave?.({ fileName: finalName, path });
-    return { success: true, fileName: finalName, path };
+    const message = lastError?.message || String(lastError || '');
+    return { success: false, error: message || '下载失败' };
   } catch (error: any) {
-    return { success: false, error: error?.message || '下载失败' };
+    return { success: false, error: error?.message || String(error || '下载失败') };
   }
 };
 

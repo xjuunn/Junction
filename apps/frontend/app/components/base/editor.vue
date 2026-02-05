@@ -2,7 +2,7 @@
 import { EditorContent } from '@tiptap/vue-3'
 import { useEditorWithImageUpload } from '../../core/editor'
 import { uploadFiles } from '../../api/upload'
-import { downloadFile, getSavedDownloadDir } from '~/utils/download'
+import { downloadFile } from '~/utils/download'
 import { isTauri } from '~/utils/check'
 
 const props = defineProps<{
@@ -86,10 +86,9 @@ const handleFileDownload = async (url: string, fileName: string) => {
     if (!confirmed) return;
 
     try {
-        const savedDir = isTauri() ? getSavedDownloadDir() : null;
         const result = await downloadFile({
             source: { url },
-            target: savedDir ? { dir: savedDir } : { fileName }
+            target: { fileName }
         });
         if (!result.success) {
             toast.error(result.error || '下载失败');

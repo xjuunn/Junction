@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import type { PrismaTypes } from '@junction/types';
 import * as MessageApi from '~/api/message';
-import { downloadFile, getSavedDownloadDir } from '~/utils/download';
+import { downloadFile } from '~/utils/download';
 import { isTauri } from '~/utils/check';
 import RichTextRenderer from './RichTextRenderer.vue';
 
@@ -111,10 +111,9 @@ const handleDownload = async () => {
 
     try {
         const url = filePayload.value.fileUrl;
-        const savedDir = isTauri() ? getSavedDownloadDir() : null;
         const result = await downloadFile({
             source: { url },
-            target: savedDir ? { dir: savedDir } : { fileName }
+            target: { fileName }
         });
         if (!result.success) {
             toast.error(result.error || '下载失败');
