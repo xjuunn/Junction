@@ -102,11 +102,18 @@ export class MessageService {
       return newMessage;
     });
 
-    const readInfoMap = await this.buildReadInfo([message], members, userId, conversation?.type);
-    const enriched = { ...message, readInfo: readInfoMap[message.id] };
+    const enrichedForSender = await this.buildMessageForUser(message, members, userId, conversation?.type);
 
-    this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'new-message', enriched, userId);
-    return enriched;
+    await Promise.all(
+      members.map(async member => {
+        const enriched = member.userId === userId
+          ? enrichedForSender
+          : await this.buildMessageForUser(message, members, member.userId, conversation?.type);
+        this.messageGateway.broadcastToUsers([member.userId], 'new-message', enriched);
+      })
+    );
+
+    return enrichedForSender;
   }
 
   /**
@@ -120,11 +127,12 @@ export class MessageService {
 
     if (!message || message.senderId !== userId) throw new ForbiddenException('无权撤回');
 
-    const revokedMessage = await this.prisma.message.update({
+    const revokedMessageRaw = await this.prisma.message.update({
       where: { id: messageId },
       data: { status: PrismaValues.MessageStatus.REVOKED, content: null as any, payload: null as any },
       select: this.messageSelect
     });
+    const revokedMessage = (await this.attachRemarkToMessages([revokedMessageRaw], userId))[0];
 
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId: message.conversationId },
@@ -146,11 +154,12 @@ export class MessageService {
 
     if (!message || message.senderId !== userId) throw new ForbiddenException('只能编辑自己的消息');
 
-    const updated = await this.prisma.message.update({
+    const updatedRaw = await this.prisma.message.update({
       where: { id: messageId },
       data: { content, payload, isEdited: true },
       select: this.messageSelect
     });
+    const updated = (await this.attachRemarkToMessages([updatedRaw], userId))[0];
 
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId: message.conversationId },
@@ -207,7 +216,8 @@ export class MessageService {
     ]);
 
     const readInfoMap = await this.buildReadInfo(items, members, userId, conversation?.type);
-    const enriched = items.map(item => ({
+    const remarkMessages = await this.attachRemarkToMessages(items, userId);
+    const enriched = remarkMessages.map(item => ({
       ...item,
       readInfo: readInfoMap[item.id]
     }));
@@ -263,7 +273,7 @@ export class MessageService {
       take: 50,
       orderBy: { sequence: 'desc' },
       select: this.messageSelect
-    });
+    }).then(items => this.attachRemarkToMessages(items, userId));
   }
 
   /**
@@ -317,5 +327,60 @@ export class MessageService {
     });
 
     return infoMap;
+  }
+
+  /**
+   * 附加备注显示名称
+   */
+  private async attachRemarkToMessages<
+    T extends { senderId: string | null; sender?: { id: string; name: string; image: string | null } | null }
+  >(
+    messages: T[],
+    currentUserId: string
+  ): Promise<T[]> {
+    const senderIds = [...new Set(messages.map(m => m.senderId).filter((id): id is string => !!id && id !== currentUserId))];
+    if (!senderIds.length) return messages;
+
+    const friendships = await this.prisma.friendship.findMany({
+      where: {
+        OR: [
+          { senderId: currentUserId, receiverId: { in: senderIds } },
+          { receiverId: currentUserId, senderId: { in: senderIds } }
+        ]
+      },
+      select: { senderId: true, receiverId: true, note: true }
+    });
+
+    const remarkMap = new Map<string, string>();
+    friendships.forEach(f => {
+      const otherId = f.senderId === currentUserId ? f.receiverId : f.senderId;
+      if (f.note && f.note.trim()) remarkMap.set(otherId, f.note.trim());
+    });
+
+    return messages.map(message => {
+      if (!message.sender || !message.senderId || message.senderId === currentUserId) return message;
+      const remark = remarkMap.get(message.senderId);
+      if (!remark) return message;
+      return {
+        ...message,
+        sender: { ...message.sender, name: remark }
+      } as T;
+    });
+  }
+
+  /**
+   * 鏍规嵁鎸囧畾鐢ㄦ埛鏋勫缓鍙箍鎾殑娑堟伅瀵硅薄
+   */
+  private async buildMessageForUser<
+    T extends { id: string; sequence: number; senderId: string | null; sender?: { id: string; name: string; image: string | null } | null }
+  >(
+    message: T,
+    members: Array<{ userId: string; lastReadMessageId?: string | null; user?: { id: string; name: string; image: string | null } }>,
+    currentUserId: string,
+    conversationType?: string | null
+  ) {
+    const readInfoMap = await this.buildReadInfo([message], members, currentUserId, conversationType);
+    const remarkMessages = await this.attachRemarkToMessages([message], currentUserId);
+    return { ...remarkMessages[0], readInfo: readInfoMap[message.id] };
   }
 }

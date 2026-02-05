@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
+import * as friendshipApi from '~/api/friendship';
 import { uploadFiles } from '~/api/upload';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
 
@@ -8,7 +9,7 @@ const route = useRoute();
 const userStore = useUserStore();
 const toast = useToast();
 const appSocket = useSocket('app');
-const { emit: busEmit } = useEmitt();
+const { emit: busEmit, on: busOn, off: busOff } = useEmitt();
 
 const conversationId = computed(() => route.params.id as string);
 const currentUserId = computed(() => unref(userStore.user)?.id);
@@ -31,13 +32,70 @@ const lastReportedReadSeq = ref<number>(0);
 const messageElementMap = new Map<string, Element>();
 const messageObserver = ref<IntersectionObserver | null>(null);
 
-// 编辑器相关状态
+const remarkMap = ref<Record<string, string>>({});
+
+/**
+ * ????????????
+ */
+const ensureRemarks = async (items: MessageItem[]) => {
+    const memberIds = items.flatMap(item => {
+        const read = item.readInfo?.readMembers?.map(m => m.id) || [];
+        const unread = item.readInfo?.unreadMembers?.map(m => m.id) || [];
+        return [...read, ...unread];
+    });
+    const ids = Array.from(new Set([
+        ...items.map(item => item.senderId).filter((id): id is string => !!id && id !== currentUserId.value),
+        ...memberIds.filter((id): id is string => !!id && id !== currentUserId.value)
+    ]));
+    const missing = ids.filter(id => !remarkMap.value[id]);
+    if (!missing.length) return;
+    const results = await Promise.all(missing.map(id => friendshipApi.findOne(id).catch(() => null)));
+    results.forEach(res => {
+        const note = res?.data?.note;
+        const friendId = res?.data?.friendId;
+        if (friendId && note && note.trim()) {
+            remarkMap.value = { ...remarkMap.value, [friendId]: note.trim() };
+        }
+    });
+};
+
+/**
+ * ??????????????
+ */
+const applyRemarks = (items: MessageItem[]) => items.map(item => {
+    if (!item.sender || !item.senderId || item.senderId === currentUserId.value) return item;
+    const note = remarkMap.value[item.senderId];
+    if (!note) return item;
+    return { ...item, sender: { ...item.sender, name: note } };
+});
+
+const applyRemarksToReadInfo = (items: MessageItem[]) => items.map(item => {
+    if (!item.readInfo) return item;
+    const mapMember = (member: ReadMember) => {
+        if (!member?.id) return member;
+        const note = remarkMap.value[member.id];
+        if (!note) return member;
+        return { ...member, name: note };
+    };
+    const readMembers = item.readInfo.readMembers?.map(mapMember);
+    const unreadMembers = item.readInfo.unreadMembers?.map(mapMember);
+    return {
+        ...item,
+        readInfo: {
+            ...item.readInfo,
+            readMembers,
+            unreadMembers
+        }
+    };
+});
+
+// ???????????
 const messageJson = ref<any>(null);
 const messagePlainText = ref('');
 const listRef = ref<any>(null);
 const editorRef = ref<any>(null);
 
-// 扩展功能状态
+// ??????????
 const showExtensionsMenu = ref(false);
 
 const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
@@ -60,11 +118,8 @@ const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
     });
 };
 
-/**
- * 更新本地消息已读信息
- */
 const updateReadInfoForUser = (userId: string, sequence: number) => {
-    messages.value = messages.value.map(message => {
+    const updatedMessages = messages.value.map(message => {
         if (!message.readInfo || message.sequence > sequence) return message;
 
         const readInfo: ReadInfo = {
@@ -94,6 +149,7 @@ const updateReadInfoForUser = (userId: string, sequence: number) => {
 
         return { ...message, readInfo };
     });
+    messages.value = applyRemarksToReadInfo(updatedMessages);
 };
 
 /**
@@ -190,8 +246,11 @@ const fetchMessages = async (isMore = false) => {
         const res = await messageApi.findAll(conversationId.value, { limit: 40 }, cursor);
 
         if (res.data) {
+            const incoming = res.data.items as MessageItem[];
+            await ensureRemarks(incoming);
+            const merged = applyRemarksToReadInfo(applyRemarks(incoming));
             if (isMore) {
-                messages.value = [...(res.data.items as MessageItem[]), ...messages.value];
+                messages.value = [...merged, ...messages.value];
                 nextTick(() => {
                     if (el) {
                         el.style.scrollBehavior = 'auto';
@@ -199,7 +258,7 @@ const fetchMessages = async (isMore = false) => {
                     }
                 });
             } else {
-                messages.value = res.data.items as MessageItem[];
+                messages.value = merged;
                 scrollToBottom('auto');
                 await reportReadIfNeeded();
             }
@@ -256,12 +315,13 @@ const handleSend = async () => {
         });
 
         if (res.data) {
-            messages.value.push(res.data as MessageItem);
+            const patched = applyRemarksToReadInfo(applyRemarks([res.data as MessageItem]))[0] || (res.data as MessageItem);
+            messages.value.push(patched);
             editorRef.value?.clear();
             messagePlainText.value = '';
             messageJson.value = null;
             scrollToBottom('smooth');
-            busEmit('chat:message-sync', res.data);
+            busEmit('chat:message-sync', patched);
         }
     } catch (e: any) {
         toast.error(e.message || '发送失败');
@@ -350,13 +410,21 @@ const handleExtensionAction = (action: string) => {
     showExtensionsMenu.value = false;
 };
 
+const handleConversationUpdated = (payload: { id: string; title: string }) => {
+    if (!payload?.id || payload.id !== conversationId.value) return;
+    if (!messages.value.length) return;
+    messages.value = applyRemarksToReadInfo(applyRemarks(messages.value));
+};
+
 const setupSocketListeners = () => {
-    appSocket.on('new-message', (msg: MessageItem) => {
+    appSocket.on('new-message', async (msg: MessageItem) => {
         if (msg.conversationId === conversationId.value) {
             if (!messages.value.some(m => m.id === msg.id)) {
-                messages.value.push(msg);
+                await ensureRemarks([msg]);
+                const patched = applyRemarksToReadInfo(applyRemarks([msg]))[0] || msg;
+                messages.value.push(patched);
                 scrollToBottom('smooth');
-                busEmit('chat:message-sync', msg);
+                busEmit('chat:message-sync', patched);
                 reportReadIfNeeded();
             }
         }
@@ -388,6 +456,7 @@ watch(() => conversationId.value, () => {
 
 onMounted(() => {
     setupSocketListeners();
+    busOn('chat:conversation-updated', handleConversationUpdated);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') showExtensionsMenu.value = false;
     });
@@ -402,6 +471,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    busOff('chat:conversation-updated', handleConversationUpdated);
     messageObserver.value?.disconnect();
     messageObserver.value = null;
     messageElementMap.clear();

@@ -192,7 +192,7 @@ const editor = useEditorWithImageUpload({
         handleDOMEvents: {
             click: (view, event) => {
                 const target = event.target as HTMLElement | null;
-                const link = target?.closest('a.file-link') as HTMLAnchorElement | null;
+                const link = target?.closest('a.file-link, a[href*="/uploads/"]') as HTMLAnchorElement | null;
                 if (!link) return false;
                 event.preventDefault();
                 event.stopPropagation();
@@ -205,7 +205,7 @@ const editor = useEditorWithImageUpload({
         },
         handleClick: (view, pos, event) => {
             const target = event.target as HTMLElement | null;
-            const link = target?.closest('a.file-link') as HTMLAnchorElement | null;
+            const link = target?.closest('a.file-link, a[href*="/uploads/"]') as HTMLAnchorElement | null;
             if (!link) return false;
             event.preventDefault();
             event.stopPropagation();
@@ -320,8 +320,9 @@ onBeforeUnmount(() => {
 }
 
 :deep(.ProseMirror a.file-link) {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
     padding: 10px 14px;
     border-radius: 12px;
@@ -330,6 +331,8 @@ onBeforeUnmount(() => {
     text-decoration: none;
     border: 1px solid hsl(var(--bc) / 0.12);
     box-shadow: 0 6px 16px hsl(var(--bc) / 0.08);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 :deep(.ProseMirror a.file-link::before) {

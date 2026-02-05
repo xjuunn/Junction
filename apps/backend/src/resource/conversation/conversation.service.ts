@@ -186,7 +186,19 @@ export class ConversationService {
         select: { userId: true, user: { select: { name: true, image: true } } }
       });
       if (otherMember) {
+        const friendship = await this.prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { senderId: currentUserId, receiverId: otherMember.userId },
+              { senderId: otherMember.userId, receiverId: currentUserId }
+            ]
+          },
+          select: { note: true }
+        });
         title = otherMember.user.name;
+        if (friendship?.note && friendship.note.trim()) {
+          title = friendship.note.trim();
+        }
         avatar = otherMember.user.image;
         online = onlineMap[otherMember.userId] ? 1 : 0;
         otherUserId = otherMember.userId;

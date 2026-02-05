@@ -76,12 +76,11 @@ export class FriendshipController {
   update(
     @Session() session: UserSession,
     @Param('friendId') friendId: string,
-    @Body() data: { remark?: string }
+    @Body() data: { remark?: string; note?: string }
   ) {
     const updateData: PrismaTypes.Prisma.FriendshipUpdateInput = {};
-    if (data.remark !== undefined) {
-      updateData.note = data.remark;
-    }
+    if (data.note !== undefined) updateData.note = data.note;
+    if (data.remark !== undefined) updateData.note = data.remark;
     return this.friendshipService.update(session.user.id, friendId, updateData);
   }
 

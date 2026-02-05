@@ -54,7 +54,7 @@ export function unblock(friendId: string) {
 /**
  * 更新好友信息（备注等）
  */
-export function update(friendId: string, data: { remark?: string }) {
+export function update(friendId: string, data: { note?: string }) {
     return api.patch<AwaitedReturnType<FriendshipService['update']>>(base + "/" + friendId, data, {});
 }
 

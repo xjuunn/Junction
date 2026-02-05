@@ -1,10 +1,19 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import * as conversationApi from '~/api/conversation';
 import * as friendshipApi from '~/api/friendship';
 import type { PrismaTypes } from '@junction/types';
 
+type ConversationView = PrismaTypes.Conversation & {
+    online?: boolean;
+    otherUserId?: string | null;
+    mySettings?: {
+        muted?: boolean;
+        pinned?: boolean;
+    } | null;
+};
+
 interface Props {
-    conversation: PrismaTypes.Conversation | null;
+    conversation: ConversationView | null;
 }
 
 const props = defineProps<Props>();
@@ -17,6 +26,7 @@ const toast = useToast();
 const dialog = useDialog();
 const router = useRouter();
 const authClient = useAuthClient();
+const { emit: busEmit } = useEmitt();
 
 const friendInfo = ref<any>(null);
 const remark = ref('');
@@ -34,6 +44,8 @@ const currentMember = computed(() => props.conversation?.mySettings);
 const isMuted = computed(() => currentMember.value?.muted ?? false);
 const isPinned = computed(() => currentMember.value?.pinned ?? false);
 const isBlocked = computed(() => friendInfo.value?.isBlocked === true);
+const displayName = computed(() => remark.value.trim() || props.conversation?.title || '');
+const isOnline = computed(() => Boolean(props.conversation?.online));
 
 const fetchFriendInfo = async () => {
     if (!otherUserId.value) return;
@@ -55,9 +67,13 @@ const handleSaveRemark = async () => {
         return;
     }
     try {
-        const res = await friendshipApi.update(otherUserId.value, { remark: remark.value });
+        const res = await friendshipApi.update(otherUserId.value, { note: remark.value });
         if (res.success) {
-            toast.success('备注已更新');
+            toast.success('备注已保存');
+            friendInfo.value = { ...(friendInfo.value || {}), note: remark.value };
+            if (props.conversation?.id) {
+                busEmit('chat:conversation-updated', { id: props.conversation.id, title: displayName.value });
+            }
         } else {
             toast.error(res.error || '更新失败');
         }
@@ -95,7 +111,7 @@ const handleBlock = async () => {
         toast.error('无法获取用户ID');
         return;
     }
-    
+
     const confirmed = await dialog.confirm({
         title: isBlocked.value ? '解除拉黑' : '拉黑用户',
         content: isBlocked.value ? '确定要解除拉黑吗？' : '确定要拉黑该用户吗？拉黑后将不再接收对方的消息。',
@@ -103,9 +119,9 @@ const handleBlock = async () => {
         confirmText: isBlocked.value ? '解除拉黑' : '拉黑',
     });
     if (!confirmed) return;
-    
+
     try {
-        const res = isBlocked.value 
+        const res = isBlocked.value
             ? await friendshipApi.unblock(otherUserId.value)
             : await friendshipApi.block(otherUserId.value);
         if (res.success) {
@@ -147,7 +163,7 @@ const handleBlockAndDelete = async () => {
     if (!otherUserId.value || !props.conversation?.id) return;
     await friendshipApi.block(otherUserId.value);
     await conversationApi.remove(props.conversation.id);
-    toast.success('已加入黑名单并删除聊天');
+    toast.success('已加入黑名单并删除聊天记录');
     emit('conversation-deleted');
     router.push('/chat');
 };
@@ -167,11 +183,11 @@ watch(() => props.conversation, () => {
         <div class="flex flex-col items-center gap-4 pb-6 border-b border-base-200">
             <BaseAvatar :text="conversation?.title" :src="conversation?.avatar" :size="80" :radius="20" />
             <div class="text-center">
-                <h3 class="text-xl font-bold">{{ conversation?.title }}</h3>
+                <h3 class="text-xl font-bold">{{ displayName }}</h3>
                 <p class="text-sm opacity-50">ID: {{ otherUserId }}</p>
                 <div class="flex items-center justify-center gap-2 mt-2">
-                    <span class="badge" :class="conversation?.online ? 'badge-success' : 'badge-ghost'">
-                        {{ conversation?.online ? '在线' : '离线' }}
+                    <span class="badge" :class="isOnline ? 'badge-success' : 'badge-ghost'">
+                        {{ isOnline ? '在线' : '离线' }}
                     </span>
                 </div>
             </div>
@@ -183,8 +199,7 @@ watch(() => props.conversation, () => {
                     <span class="label-text font-medium">设置备注</span>
                 </label>
                 <div class="flex gap-2">
-                    <input v-model="remark" type="text" placeholder="输入备注名"
-                        class="input input-bordered input-sm flex-1" />
+                    <input v-model="remark" type="text" placeholder="输入备注" class="input input-bordered input-sm flex-1" />
                     <button class="btn btn-soft btn-primary btn-sm" @click="handleSaveRemark">
                         保存
                     </button>
@@ -229,3 +244,4 @@ watch(() => props.conversation, () => {
         </div>
     </div>
 </template>
+

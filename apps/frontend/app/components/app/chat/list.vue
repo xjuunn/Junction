@@ -182,6 +182,14 @@ const handleMessageRead = (payload: { conversationId: string; userId: string }) 
     if (target) target.unreadCount = 0;
 };
 
+/**
+ * 处理会话标题更新
+ */
+const handleConversationUpdated = (payload: { id: string; title: string }) => {
+    const target = conversations.value.find(c => c.id === payload.id);
+    if (target) target.title = payload.title;
+};
+
 onMounted(() => {
     fetchConversations();
     appSocket.on('conversation-status', handleStatusUpdate);
@@ -189,6 +197,7 @@ onMounted(() => {
     appSocket.on('message-read', handleMessageRead);
     busOn('chat:message-sync', handleMessageSync);
     busOn('chat:conversation-read', handleConversationRead);
+    busOn('chat:conversation-updated', handleConversationUpdated);
 
     // 监听置顶状态变化
     watch(conversations, (newVal, oldVal) => {
@@ -212,6 +221,7 @@ onUnmounted(() => {
     appSocket.off('message-read');
     busOff('chat:message-sync', handleMessageSync);
     busOff('chat:conversation-read', handleConversationRead);
+    busOff('chat:conversation-updated', handleConversationUpdated);
 });
 </script>
 

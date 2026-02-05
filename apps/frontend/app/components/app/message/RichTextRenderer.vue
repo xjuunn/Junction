@@ -67,7 +67,7 @@ const handleFileDownload = async (url: string, fileName: string) => {
  */
 const handleClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement | null
-    const link = target?.closest('a.file-link, a[data-file]') as HTMLAnchorElement | null
+    const link = target?.closest('a.file-link, a[data-file], a[href*="/uploads/"]') as HTMLAnchorElement | null
     if (!link) return
     event.preventDefault()
     event.stopPropagation()
@@ -115,8 +115,9 @@ const handleClick = (event: MouseEvent) => {
 
 .tiptap-content :deep(.ProseMirror a[data-file]),
 .tiptap-content :deep(.ProseMirror a.file-link) {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
     padding: 10px 14px;
     border-radius: 12px;
@@ -125,6 +126,8 @@ const handleClick = (event: MouseEvent) => {
     text-decoration: none;
     border: 1px solid hsl(var(--bc) / 0.12);
     box-shadow: 0 6px 16px hsl(var(--bc) / 0.08);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .tiptap-content :deep(.ProseMirror a[data-file]::before),
