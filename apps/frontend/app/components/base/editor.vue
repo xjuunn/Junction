@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
 :deep(.ProseMirror a.file-link) {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
     padding: 10px 14px;
     border-radius: 12px;

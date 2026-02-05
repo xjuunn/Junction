@@ -3,6 +3,7 @@ import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
 import * as friendshipApi from '~/api/friendship';
 import { uploadFiles } from '~/api/upload';
+import { isTauri } from '~/utils/check';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
 
 const route = useRoute();
@@ -106,9 +107,12 @@ const messageJson = ref<any>(null);
 const messagePlainText = ref('');
 const listRef = ref<any>(null);
 const editorRef = ref<any>(null);
+const editorContainerRef = ref<HTMLElement | null>(null);
+let unlistenTauriDrop: (() => void) | null = null;
 
 // ??????????
 const showExtensionsMenu = ref(false);
+const isTauriDragOver = ref(false);
 
 const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
     nextTick(() => {
@@ -396,6 +400,66 @@ const handleFileUploadTrigger = () => {
     input.click();
 };
 
+const getFileNameFromPath = (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    return normalized.split('/').pop() || 'file';
+};
+
+const getMimeTypeByName = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (!ext) return '';
+    const map: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+        bmp: 'image/bmp',
+        svg: 'image/svg+xml',
+    };
+    return map[ext] || '';
+};
+
+const createFileFromPath = async (path: string) => {
+    const { readFile } = await import('@tauri-apps/plugin-fs');
+    const bytes = await readFile(path);
+    const name = getFileNameFromPath(path);
+    const type = getMimeTypeByName(name);
+    return type ? new File([bytes], name, { type }) : new File([bytes], name);
+};
+
+const isPointInEditor = (position?: { x: number; y: number }, fallback = false) => {
+    if (!position || !editorContainerRef.value) return fallback;
+    const rect = editorContainerRef.value.getBoundingClientRect();
+    return position.x >= rect.left && position.x <= rect.right && position.y >= rect.top && position.y <= rect.bottom;
+};
+
+const handleTauriFileDrop = async (paths: string[], position?: { x: number; y: number }) => {
+    if (sending.value || !paths.length) return;
+    if (!isPointInEditor(position, true)) return;
+
+    const editor = editorRef.value?.editor;
+    const view = editor?.view;
+    if (!editor || !view) return;
+
+    const files = (await Promise.all(paths.map(path => createFileFromPath(path).catch(() => null))))
+        .filter((file): file is File => !!file);
+    if (!files.length) return;
+
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const otherFiles = files.filter(file => !file.type.startsWith('image/'));
+    const pos = position
+        ? (view.posAtCoords({ left: position.x, top: position.y })?.pos ?? view.state.selection.from)
+        : view.state.selection.from;
+
+    for (const file of imageFiles) {
+        await editorRef.value?.processAndInsertImage(view, file, pos);
+    }
+    for (const file of otherFiles) {
+        await editorRef.value?.processAndInsertFile(view, file, pos);
+    }
+};
+
 const toggleExtensionsMenu = () => {
     showExtensionsMenu.value = !showExtensionsMenu.value;
 };
@@ -469,7 +533,7 @@ watch(() => conversationId.value, () => {
     fetchMessages();
 }, { immediate: true });
 
-onMounted(() => {
+onMounted(async () => {
     setupSocketListeners();
     busOn('chat:conversation-updated', handleConversationUpdated);
     document.addEventListener('keydown', (e) => {
@@ -483,6 +547,30 @@ onMounted(() => {
         const el = messageElementMap.get(message.id);
         if (el) messageObserver.value?.observe(el);
     });
+
+    if (isTauri()) {
+        const { getCurrentWebview } = await import('@tauri-apps/api/webview');
+        const webview = getCurrentWebview();
+        unlistenTauriDrop = await webview.onDragDropEvent(async (event) => {
+            const payload = event?.payload as any;
+            if (!payload) return;
+
+            if (payload.type === 'over' || payload.type === 'enter') {
+                const position = 'position' in payload ? payload.position : undefined;
+                isTauriDragOver.value = isPointInEditor(position, false);
+            }
+
+            if (payload.type === 'leave' || payload.type === 'drop' || payload.type === 'cancel') {
+                isTauriDragOver.value = false;
+            }
+
+            if (payload.type === 'drop') {
+                const position = 'position' in payload ? payload.position : undefined;
+                const paths = Array.isArray(payload.paths) ? payload.paths : [];
+                await handleTauriFileDrop(paths, position);
+            }
+        });
+    }
 });
 
 onUnmounted(() => {
@@ -492,6 +580,11 @@ onUnmounted(() => {
     messageObserver.value?.disconnect();
     messageObserver.value = null;
     messageElementMap.clear();
+    isTauriDragOver.value = false;
+    if (unlistenTauriDrop) {
+        unlistenTauriDrop();
+        unlistenTauriDrop = null;
+    }
 });
 </script>
 
@@ -517,7 +610,7 @@ onUnmounted(() => {
                     </div>
                 </div>
             </div>
-            
+
             <!-- 群聊信息按钮 -->
             <div v-if="currentConversation && currentConversation.type === 'GROUP'" class="flex items-center gap-2">
                 <button class="btn btn-ghost btn-circle btn-sm" @click="showGroupInfo = true">
@@ -538,12 +631,7 @@ onUnmounted(() => {
 
             <AppMessageList ref="listRef" @scroll="handleScroll"
                 class="h-full overflow-y-auto px-4 md:px-10 py-6 custom-scrollbar">
-                <div
-                    v-for="(msg, index) in messages"
-                    :key="msg.id"
-                    :ref="setMessageRef(msg)"
-                    :data-message-id="msg.id"
-                >
+                <div v-for="(msg, index) in messages" :key="msg.id" :ref="setMessageRef(msg)" :data-message-id="msg.id">
                     <div v-if="index === 0 || new Date(msg.createdAt).toDateString() !== new Date(messages[index - 1]?.createdAt ?? msg.createdAt).toDateString()"
                         class="flex items-center justify-center my-10 opacity-20">
                         <span
@@ -551,14 +639,9 @@ onUnmounted(() => {
                             {{ new Date(msg.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}
                         </span>
                     </div>
-                    <AppMessageItem
-                        :message="msg"
-                        :is-me="msg.senderId === currentUserId"
-                        :is-read="msg.readInfo?.isRead"
-                        :read-info="msg.readInfo"
-                        :is-group="currentConversation?.type === 'GROUP'"
-                        class="mb-1"
-                    />
+                    <AppMessageItem :message="msg" :is-me="msg.senderId === currentUserId"
+                        :is-read="msg.readInfo?.isRead" :read-info="msg.readInfo"
+                        :is-group="currentConversation?.type === 'GROUP'" class="mb-1" />
                 </div>
                 <div v-if="sending" class="chat chat-end animate-in fade-in slide-in-from-bottom-2">
                     <div
@@ -571,11 +654,19 @@ onUnmounted(() => {
 
         <footer class="p-4 md:p-8 bg-gradient-to-t from-base-100 via-base-100 to-transparent z-20">
             <div class="max-w-5xl mx-auto relative">
-                <div
-                    class="bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg focus-within:bg-base-100/80 transition-all">
+                <div ref="editorContainerRef"
+                    class="relative bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg focus-within:bg-base-100/80 transition-all">
 
                     <BaseEditor ref="editorRef" v-model="messageJson" :disabled="sending" @send="handleSend"
                         @textChange="val => messagePlainText = val" class="px-4 py-2 min-h-[44px]" />
+
+                    <div v-show="isTauriDragOver"
+                        class="absolute inset-2 bg-primary/10 backdrop-blur-sm flex items-center justify-center rounded-[24px] border-2 border-dashed border-primary z-50 pointer-events-none">
+                        <div class="flex items-center gap-2 text-primary font-medium">
+                            <Icon name="mingcute:add-line" size="24" />
+                            <span>释放鼠标上传文件</span>
+                        </div>
+                    </div>
 
                     <div class="flex items-center justify-between px-2 pt-2.5 border-t border-base-content/5">
                         <div class="flex gap-0.5 relative">
@@ -627,22 +718,13 @@ onUnmounted(() => {
                 </div>
             </div>
         </footer>
-        
+
         <!-- 群聊信息对话框 -->
-        <AppDialogGroupInfo
-            v-if="currentConversation && currentConversation.type === 'GROUP'"
-            :show="showGroupInfo"
-            :conversation-id="conversationId"
-            @update:show="showGroupInfo = $event"
-            @updated="fetchConversation"
-        />
+        <AppDialogGroupInfo v-if="currentConversation && currentConversation.type === 'GROUP'" :show="showGroupInfo"
+            :conversation-id="conversationId" @update:show="showGroupInfo = $event" @updated="fetchConversation" />
 
         <!-- 聊天设置对话框 -->
-        <AppChatDialogChatSettings
-            :show="showChatSettings"
-            :conversation="currentConversation"
-            @update:show="showChatSettings = $event"
-            @conversation-deleted="fetchConversation"
-        />
+        <AppChatDialogChatSettings :show="showChatSettings" :conversation="currentConversation"
+            @update:show="showChatSettings = $event" @conversation-deleted="fetchConversation" />
     </div>
 </template>
