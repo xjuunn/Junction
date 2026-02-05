@@ -4,28 +4,7 @@
  */
 
 import { api } from '~/utils/api'
-
-/**
- * 上传响应
- */
-export interface UploadResponse {
-  /**
-   * 是否成功
-   */
-  success: boolean
-  /**
-   * 文件URL
-   */
-  url?: string
-  /**
-   * 错误信息
-   */
-  error?: string
-  /**
-   * 原始响应
-   */
-  data?: any
-}
+import type { UploadResponse } from '../types'
 
 /**
  * 上传服务配置

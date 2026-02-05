@@ -92,6 +92,8 @@ const handleFileDownload = async (url: string, fileName: string) => {
         });
         if (!result.success) {
             toast.error(result.error || '下载失败');
+        } else {
+            toast.success('下载完成');
         }
     } catch (error: any) {
         toast.error(error?.message || '下载失败');

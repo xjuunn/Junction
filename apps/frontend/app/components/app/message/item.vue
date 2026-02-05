@@ -117,6 +117,8 @@ const handleDownload = async () => {
         });
         if (!result.success) {
             toast.error(result.error || '下载失败');
+        } else {
+            toast.success('下载完成');
         }
     } catch (err: any) {
         toast.error(err?.message || '下载失败');
