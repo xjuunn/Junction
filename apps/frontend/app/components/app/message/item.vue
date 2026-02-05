@@ -2,8 +2,9 @@
 import { computed, ref } from 'vue';
 import type { PrismaTypes } from '@junction/types';
 import * as MessageApi from '~/api/message';
-import RichTextRenderer from './RichTextRenderer.vue';
+import { downloadFile, getSavedDownloadDir } from '~/utils/download';
 import { isTauri } from '~/utils/check';
+import RichTextRenderer from './RichTextRenderer.vue';
 
 const props = defineProps<{
     message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId'> & {
@@ -110,28 +111,14 @@ const handleDownload = async () => {
 
     try {
         const url = filePayload.value.fileUrl;
-        let blob: Blob | null = null;
-        if (isTauri()) {
-            try {
-                const { fetch } = await import('@tauri-apps/plugin-http');
-                const response = await fetch(url);
-                const data = await response.arrayBuffer();
-                blob = new Blob([data]);
-            } catch {
-                blob = null;
-            }
+        const savedDir = isTauri() ? getSavedDownloadDir() : null;
+        const result = await downloadFile({
+            source: { url },
+            target: savedDir ? { dir: savedDir } : { fileName }
+        });
+        if (!result.success) {
+            toast.error(result.error || '下载失败');
         }
-        if (!blob) {
-            const response = await fetch(url);
-            const data = await response.blob();
-            blob = data;
-        }
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(objectUrl);
     } catch (err: any) {
         toast.error(err?.message || '下载失败');
     }

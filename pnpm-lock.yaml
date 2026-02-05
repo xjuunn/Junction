@@ -220,6 +220,12 @@ importers:
       '@tauri-apps/plugin-deep-link':
         specifier: ~2.4.5
         version: 2.4.5
+      '@tauri-apps/plugin-dialog':
+        specifier: ^2.6.0
+        version: 2.6.0
+      '@tauri-apps/plugin-fs':
+        specifier: ~2.4.5
+        version: 2.4.5
       '@tauri-apps/plugin-http':
         specifier: ~2.5.4
         version: 2.5.4
@@ -2629,6 +2635,12 @@ packages:
   '@tauri-apps/plugin-deep-link@2.4.5':
     resolution: {integrity: sha512-Zf2RTj1D9IQQ45/jqW8XTKvql24HqlPjcpv0mV/O2jHQkNe11HOTZBVj6IK37qs+MWV7xZzcmazx/QVZnhAwaQ==}
 
+  '@tauri-apps/plugin-dialog@2.6.0':
+    resolution: {integrity: sha512-q4Uq3eY87TdcYzXACiYSPhmpBA76shgmQswGkSVio4C82Sz2W4iehe9TnKYwbq7weHiL88Yw19XZm7v28+Micg==}
+
+  '@tauri-apps/plugin-fs@2.4.5':
+    resolution: {integrity: sha512-dVxWWGE6VrOxC7/jlhyE+ON/Cc2REJlM35R3PJX3UvFw2XwYhLGQVAIyrehenDdKjotipjYEVc4YjOl3qq90fA==}
+
   '@tauri-apps/plugin-http@2.5.4':
     resolution: {integrity: sha512-/i4U/9za3mrytTgfRn5RHneKubZE/dwRmshYwyMvNRlkWjvu1m4Ma72kcbVJMZFGXpkbl+qLyWMGrihtWB76Zg==}
 
@@ -2658,7 +2670,7 @@ packages:
       '@tiptap/pm': ^3.14.0
 
   '@tiptap/extension-audio@3.16.0':
-    resolution: {integrity: sha512-xrTFWeYOB5uC/rDsljdE+8v/1ea3U6st8L8KSJY/yLCG+A9R3flcMeL+FjVn65IOWb1y6CdtWH709pbxSbI0Nw==, tarball: https://registry.npmjs.org/@tiptap/extension-audio/-/extension-audio-3.16.0.tgz}
+    resolution: {integrity: sha512-xrTFWeYOB5uC/rDsljdE+8v/1ea3U6st8L8KSJY/yLCG+A9R3flcMeL+FjVn65IOWb1y6CdtWH709pbxSbI0Nw==}
     peerDependencies:
       '@tiptap/core': ^3.16.0
 
@@ -10494,6 +10506,14 @@ snapshots:
       '@tauri-apps/cli-win32-x64-msvc': 2.8.4
 
   '@tauri-apps/plugin-deep-link@2.4.5':
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+
+  '@tauri-apps/plugin-dialog@2.6.0':
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+
+  '@tauri-apps/plugin-fs@2.4.5':
     dependencies:
       '@tauri-apps/api': 2.9.1
 

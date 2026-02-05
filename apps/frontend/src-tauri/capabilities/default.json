@@ -18,6 +18,19 @@
     "core:event:default",
     "pinia:default",
     "deep-link:default",
+    "dialog:allow-open",
+    "fs:allow-read",
+    "fs:allow-write",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
     {
       "identifier": "http:default",
       "allow": [
@@ -31,6 +44,7 @@
           "url": "https://*.tauri.app"
         }
       ]
-    }
+    },
+    "fs:default"
   ]
 }

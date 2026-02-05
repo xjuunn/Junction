@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { EditorContent } from '@tiptap/vue-3'
 import { createReadonlyEditor } from '../../../core/editor'
+import { downloadFile, getSavedDownloadDir } from '~/utils/download'
 import { isTauri } from '~/utils/check'
 
 const props = defineProps<{
@@ -35,28 +36,14 @@ const handleFileDownload = async (url: string, fileName: string) => {
     if (!confirmed) return
 
     try {
-        let blob: Blob | null = null
-        if (isTauri()) {
-            try {
-                const { fetch } = await import('@tauri-apps/plugin-http')
-                const response = await fetch(url)
-                const data = await response.arrayBuffer()
-                blob = new Blob([data])
-            } catch {
-                blob = null
-            }
+        const savedDir = isTauri() ? getSavedDownloadDir() : null
+        const result = await downloadFile({
+            source: { url },
+            target: savedDir ? { dir: savedDir } : { fileName }
+        })
+        if (!result.success) {
+            toast.error(result.error || '下载失败')
         }
-        if (!blob) {
-            const response = await fetch(url)
-            const data = await response.blob()
-            blob = data
-        }
-        const objectUrl = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = objectUrl
-        link.download = fileName
-        link.click()
-        URL.revokeObjectURL(objectUrl)
     } catch (error: any) {
         toast.error(error?.message || '下载失败')
     }
