@@ -1,20 +1,174 @@
-<template>
-    <div>
-        <button class="btn btn-primary" @click="test">test</button>
-    </div>
-</template>
-
 <script setup lang="ts">
+import type { ModelMessage } from 'ai'
+import { streamAiText } from '~/api/ai'
 
-const appSocket = useSocket('app');
-onMounted(() => {
-    appSocket.on('conversation-status', (data) => {
-        console.log("在线状态改变：", data);
-    })
-})
+const toast = useToast()
 
-function test() {
+const input = ref('')
+const systemPrompt = ref('你是一个专业、可靠的 AI 助手。')
+const isSending = ref(false)
+const messages = ref<Array<{ role: 'user' | 'assistant'; content: string }>>([])
 
+const canSend = computed(() => !isSending.value && input.value.trim().length > 0)
 
+/**
+ * 转换为模型消息
+ */
+function toModelMessages() {
+    return messages.value.map<ModelMessage>((item) => ({
+        role: item.role,
+        content: item.content,
+    }))
+}
+
+/**
+ * 追加用户消息
+ */
+function appendUserMessage(content: string) {
+    messages.value.push({ role: 'user', content })
+}
+
+/**
+ * 追加助手消息
+ */
+function appendAssistantMessage() {
+    messages.value.push({ role: 'assistant', content: '' })
+    return messages.value.length - 1
+}
+
+/**
+ * 更新助手消息
+ */
+function updateAssistantMessage(index: number, content: string) {
+    if (!messages.value[index]) return
+    messages.value[index].content = content
+}
+
+/**
+ * 发送消息并流式接收回复
+ */
+async function handleSend() {
+    if (!canSend.value) return
+    const content = input.value.trim()
+    input.value = ''
+    appendUserMessage(content)
+    const assistantIndex = appendAssistantMessage()
+    isSending.value = true
+    try {
+        const stream = await streamAiText({
+            system: systemPrompt.value.trim() || undefined,
+            messages: toModelMessages(),
+        })
+        let assistantText = ''
+        for await (const chunk of stream.textStream) {
+            assistantText += chunk
+            updateAssistantMessage(assistantIndex, assistantText)
+        }
+    } catch (error: any) {
+        const message = error?.message || 'AI 请求失败'
+        toast.error(message)
+        updateAssistantMessage(assistantIndex, `请求失败：${message}`)
+    } finally {
+        isSending.value = false
+    }
+}
+
+/**
+ * 清空对话
+ */
+function handleClear() {
+    messages.value = []
+    input.value = ''
 }
 </script>
+
+<template>
+    <div class="h-full bg-base-200 p-4 md:p-8 overflow-y-auto">
+        <div class="mx-auto max-w-5xl space-y-6">
+            <div class="flex items-center gap-3">
+                <div class="avatar placeholder">
+                    <div class="bg-primary text-primary-content rounded-xl w-12 h-12">
+                        <Icon name="mingcute:ai-line" size="24" />
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">AI 对话测试</h1>
+                    <p class="text-base-content/60 text-sm">用于验证 Deepseek 连接与流式回复效果</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div class="lg:col-span-8 space-y-4">
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-6 md:p-8">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="font-bold">对话记录</div>
+                                <button class="btn btn-ghost btn-sm" @click="handleClear" :disabled="isSending">
+                                    清空
+                                </button>
+                            </div>
+
+                            <div class="space-y-4 max-h-[480px] overflow-y-auto pr-2">
+                                <div v-if="!messages.length" class="text-sm text-base-content/50">
+                                    还没有消息，发送一条测试吧。
+                                </div>
+                                <div v-for="(message, index) in messages" :key="index" class="flex"
+                                    :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
+                                    <div class="max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap"
+                                        :class="message.role === 'user' ? 'bg-primary text-primary-content' : 'bg-base-200 text-base-content'">
+                                        {{ message.content }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-6 md:p-8 space-y-4">
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-bold">系统提示词</span>
+                                </label>
+                                <textarea v-model="systemPrompt"
+                                    class="textarea textarea-bordered w-full bg-base-100 min-h-[90px]"
+                                    placeholder="可选，留空则不发送系统提示词"></textarea>
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-bold">输入消息</span>
+                                </label>
+                                <textarea v-model="input"
+                                    class="textarea textarea-bordered w-full bg-base-100 min-h-[120px]"
+                                    placeholder="请输入你要发送的内容"></textarea>
+                            </div>
+
+                            <div class="flex items-center justify-end gap-3">
+                                <button class="btn btn-ghost" @click="handleClear" :disabled="isSending">
+                                    清空对话
+                                </button>
+                                <button class="btn btn-primary" @click="handleSend" :disabled="!canSend">
+                                    <span v-if="isSending" class="loading loading-spinner loading-xs"></span>
+                                    发送
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-4 space-y-4">
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-6">
+                            <div class="font-bold mb-3">使用说明</div>
+                            <div class="text-sm text-base-content/60 space-y-2">
+                                <div>默认读取本地 AI 配置，未填写则使用系统默认。</div>
+                                <div>当前使用流式接口，适用于验证实时输出。</div>
+                                <div>测试完成后可用于接入正式聊天页面。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
