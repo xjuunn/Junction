@@ -348,11 +348,19 @@ export class AiBotService {
     const payloadText = this.extractPlainTextFromPayload(event.payload)
     const eventText = `${event.content || ''}\n${payloadText}`.trim()
 
-    const bots = conversation.members
-      .map(m => m.user.botProfile)
-      .filter((bot): bot is NonNullable<typeof bot> => !!bot)
-      .filter(bot => bot.status === PrismaValues.BotStatus.ACTIVE)
-      .filter(bot => bot.userId !== senderId)
+    const botUserIds = conversation.members
+      .map(m => m.user.botProfile?.userId)
+      .filter((id): id is string => !!id)
+      .filter(id => id !== senderId)
+
+    if (!botUserIds.length) return
+
+    const bots = await this.prisma.aiBot.findMany({
+      where: {
+        userId: { in: botUserIds },
+        status: PrismaValues.BotStatus.ACTIVE
+      }
+    })
 
     if (!bots.length) return
 
