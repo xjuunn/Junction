@@ -17,30 +17,32 @@ interface FriendItem {
         id: string;
         name: string;
         email: string;
-        image?: string;
+        image?: string | null;
+        accountType?: string;
     };
-    note?: string;
-    updatedAt: string;
+    note?: string | null;
+    updatedAt: string | Date;
     isBlocked?: boolean;
 }
 
 interface GroupItem {
     id: string;
     title: string;
-    avatar?: string;
+    avatar?: string | null;
     memberCount: number;
-    type: 'group';
-    updatedAt: string;
+    updatedAt: string | Date;
 }
 
-type ContactItem = FriendItem | GroupItem;
+type FriendContact = FriendItem & { type: 'friend' };
+type GroupContact = GroupItem & { type: 'group' };
+type ContactItem = FriendContact | GroupContact;
 
 const loading = ref(true);
 const friends = ref<FriendItem[]>([]);
 const groups = ref<GroupItem[]>([]);
 const blockedFriends = ref<Array<FriendItem & { isBlocked: true }>>([]);
 const searchQuery = ref('');
-const activeTab = ref<'all' | 'friend' | 'group' | 'blocked'>('all');
+const activeTab = ref<'all' | 'friend' | 'group' | 'bot' | 'blocked'>('all');
 
 const pagination = reactive({
     page: 1,
@@ -64,8 +66,32 @@ const tabs = [
     { key: 'all', label: '全部' },
     { key: 'friend', label: '好友' },
     { key: 'group', label: '群组' },
+    { key: 'bot', label: 'BOT' },
     { key: 'blocked', label: '拉黑' }
 ] as const;
+
+const normalizeFriend = (item: any): FriendItem => ({
+    id: item.id,
+    friendId: item.friendId,
+    friend: {
+        id: item.friend?.id,
+        name: item.friend?.name,
+        email: item.friend?.email,
+        image: item.friend?.image ?? null,
+        accountType: item.friend?.accountType
+    },
+    note: item.note ?? null,
+    updatedAt: item.updatedAt,
+    isBlocked: item.isBlocked
+});
+
+const normalizeGroup = (item: any): GroupItem => ({
+    id: item.id,
+    title: item.title,
+    avatar: item.avatar ?? null,
+    memberCount: item.memberCount,
+    updatedAt: item.updatedAt
+});
 
 const fetchData = async (reset = false): Promise<void> => {
     if (reset) {
@@ -95,15 +121,17 @@ const fetchData = async (reset = false): Promise<void> => {
             ]);
 
             if (friendRes.success && friendRes.data) {
-                const newFriends = friendRes.data.items.filter(
+                const normalized = friendRes.data.items.map(normalizeFriend);
+                const newFriends = normalized.filter(
                     item => !friends.value.some(existing => existing.id === item.id)
                 );
                 friends.value = reset ? newFriends : [...friends.value, ...newFriends];
             }
 
             if (groupRes.success && groupRes.data) {
-                const newGroups = groupRes.data.items.filter(
-                    (item: any) => !groups.value.some(existing => existing.id === item.id)
+                const normalizedGroups = groupRes.data.items.map(normalizeGroup);
+                const newGroups = normalizedGroups.filter(
+                    item => !groups.value.some(existing => existing.id === item.id)
                 );
                 groups.value = reset ? newGroups : [...groups.value, ...newGroups];
             }
@@ -119,9 +147,10 @@ const fetchData = async (reset = false): Promise<void> => {
             });
 
             if (blockedRes.success && blockedRes.data) {
-                const newBlocked = blockedRes.data.items.filter(
+                const normalized = blockedRes.data.items.map(normalizeFriend);
+                const newBlocked: Array<FriendItem & { isBlocked: true }> = normalized.filter(
                     item => !blockedFriends.value.some(existing => existing.id === item.id)
-                ).map(item => ({ ...item, type: 'friend' as const, isBlocked: true as const }));
+                ).map(item => ({ ...item, isBlocked: true as const }));
                 blockedFriends.value = reset ? newBlocked : [...blockedFriends.value, ...newBlocked];
                 pagination.total = blockedRes.data.meta.total;
                 pagination.hasMore = blockedRes.data.items.length === pagination.limit;
@@ -138,30 +167,47 @@ const fetchData = async (reset = false): Promise<void> => {
 
 const allContacts = computed<ContactItem[]>(() => {
     return [
-        ...friends.value.map(f => ({ ...f, type: 'friend' as const })),
-        ...groups.value.map(g => ({ ...g, type: 'group' as const }))
+        ...friends.value.map((f): FriendContact => ({ ...f, type: 'friend' })),
+        ...groups.value.map((g): GroupContact => ({ ...g, type: 'group' }))
     ];
+});
+
+const isFriendContact = (item: ContactItem): item is FriendContact => item.type === 'friend';
+const isGroupContact = (item: ContactItem): item is GroupContact => item.type === 'group';
+const isBotFriend = (friend?: FriendItem['friend']) => {
+    if (!friend) return false;
+    if (friend.accountType === 'BOT') return true;
+    if (friend.email && friend.email.startsWith('bot+') && friend.email.endsWith('@bot.local')) return true;
+    return false;
+};
+
+const botContacts = computed<ContactItem[]>(() => {
+    return friends.value
+        .filter(item => isBotFriend(item.friend))
+        .map((item): FriendContact => ({ ...item, type: 'friend' }));
 });
 
 const filteredList = computed<ContactItem[]>(() => {
     let result: ContactItem[] = [];
 
     if (activeTab.value === 'blocked') {
-        result = [...blockedFriends.value] as ContactItem[];
+        result = blockedFriends.value.map((item): FriendContact => ({ ...item, type: 'friend' }));
     } else {
         result = allContacts.value;
 
         if (activeTab.value === 'friend') {
-            result = result.filter(item => item.type === 'friend');
+            result = result.filter(item => isFriendContact(item) && !isBotFriend(item.friend));
         } else if (activeTab.value === 'group') {
-            result = result.filter(item => item.type === 'group');
+            result = result.filter(item => isGroupContact(item));
+        } else if (activeTab.value === 'bot') {
+            result = botContacts.value;
         }
     }
 
     if (searchQuery.value.trim()) {
         const query = searchQuery.value.toLowerCase();
         result = result.filter(item => {
-            if (item.type === 'friend') {
+            if (isFriendContact(item)) {
                 const name = item.friend?.name || '';
                 const note = item.note || '';
                 return name.toLowerCase().includes(query) || note.toLowerCase().includes(query);
@@ -179,9 +225,9 @@ const filteredList = computed<ContactItem[]>(() => {
 });
 
 const handleItemClick = (item: ContactItem) => {
-    if (item.type === 'friend') {
-        if ((item as FriendItem).friendId) {
-            router.push(`/contacts/${(item as FriendItem).friendId}`);
+    if (isFriendContact(item)) {
+        if (item.friendId) {
+            router.push(`/contacts/${item.friendId}`);
         }
     } else {
         router.push(`/contacts/group/${item.id}`);
@@ -206,7 +252,7 @@ const removeGroup = (groupId: string) => {
 };
 
 const addBlockedFriend = (friend: FriendItem) => {
-    blockedFriends.value.unshift({ ...friend, type: 'friend' as const, isBlocked: true as const });
+    blockedFriends.value.unshift({ ...friend, isBlocked: true as const });
     friends.value = friends.value.filter(f => f.friendId !== friend.friendId);
 };
 
@@ -228,8 +274,7 @@ defineExpose({
 <template>
     <LayoutListDetail :show-detail="isDetailOpen" @back="handleBack">
         <template #list>
-            <div
-                class="flex flex-col h-full bg-base-100 select-none border-r border-base-200 overflow-hidden relative">
+            <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-200 overflow-hidden relative">
                 <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary/5 blur-[80px] pointer-events-none"></div>
 
                 <header class="p-6 pb-2 space-y-5 relative z-10">
@@ -249,8 +294,7 @@ defineExpose({
                         </div>
                         <div class="flex gap-1 bg-base-200 p-1 rounded-full">
                             <button class="btn btn-ghost btn-circle btn-sm" @click="handleRefresh">
-                                <Icon name="mingcute:refresh-3-line" size="18"
-                                    :class="{ 'animate-spin': loading }" />
+                                <Icon name="mingcute:refresh-3-line" size="18" :class="{ 'animate-spin': loading }" />
                             </button>
                         </div>
                     </div>
@@ -291,9 +335,11 @@ defineExpose({
 
                     <div v-else-if="!filteredList.length"
                         class="h-full flex flex-col items-center justify-center text-center p-12 opacity-20">
-                        <Icon :name="activeTab === 'blocked' ? 'mingcute:forbidden-line' : 'mingcute:user-search-line'" size="64" />
+                        <Icon
+                            :name="activeTab === 'blocked' ? 'mingcute:forbidden-line' : activeTab === 'bot' ? 'mingcute:ai-line' : 'mingcute:user-search-line'"
+                            size="64" />
                         <p class="mt-4 font-black uppercase tracking-widest text-xs">
-                            {{ activeTab === 'blocked' ? '暂无拉黑用户' : '暂无联系人' }}
+                            {{ activeTab === 'blocked' ? '暂无拉黑用户' : activeTab === 'bot' ? '暂无机器人' : '暂无联系人' }}
                         </p>
                     </div>
 
@@ -301,46 +347,51 @@ defineExpose({
                         <div v-for="item in filteredList" :key="item.id" @click="handleItemClick(item)"
                             class="group relative flex items-center gap-4 px-3 py-3 cursor-pointer transition-all duration-200 rounded-2xl"
                             :class="[
-                                item.type === 'friend' && activeContactId === (item as FriendItem).friendId
+                                item.type === 'friend' && activeContactId === item.friendId
                                     ? 'bg-base-200/80'
                                     : item.type === 'group' && activeContactId === `group/${item.id}`
                                         ? 'bg-base-200/80'
                                         : 'hover:bg-base-200/40 active:scale-[0.98]'
                             ]">
                             <div class="relative shrink-0">
-                                <BaseAvatar v-if="item.type === 'friend'" :text="(item as FriendItem).friend?.name || ''" :height="46" :width="46" :radius="12"
-                                    :src="(item as FriendItem).friend?.image" :alt="(item as FriendItem).friend?.name" :placeholder-length="2"
-                                    :class="[
-                                        item.type === 'friend' && activeContactId === (item as FriendItem).friendId
+                                <BaseAvatar v-if="item.type === 'friend'" :text="item.friend?.name || ''" :height="46"
+                                    :width="46" :radius="12" :src="item.friend?.image || undefined"
+                                    :alt="item.friend?.name" :placeholder-length="2" :class="[
+                                        item.type === 'friend' && activeContactId === item.friendId
                                             ? 'ring-2 ring-primary/20'
                                             : 'ring-1 ring-base-content/5'
                                     ]" />
                                 <BaseAvatar v-else :text="item.title" :height="46" :width="46" :radius="12"
                                     :src="item.avatar" :alt="item.title" :placeholder-length="2"
                                     class="ring-1 ring-base-content/5" />
-                                <div v-if="(item as FriendItem).isBlocked" class="absolute -bottom-1 -right-1 bg-error rounded-full p-0.5">
+                                <div v-if="item.type === 'friend' && item.isBlocked"
+                                    class="absolute -bottom-1 -right-1 bg-error rounded-full p-0.5">
                                     <Icon name="mingcute:forbidden-line" size="10" class="text-error-content" />
                                 </div>
                             </div>
 
                             <div class="flex-1 min-w-0 flex flex-col gap-0">
                                 <div class="flex items-center justify-between gap-2">
-                                    <h3 class="font-bold text-[14px] truncate tracking-tight">
-                                        {{ item.type === 'friend' ? (item as FriendItem).friend?.name : item.title }}
+                                    <h3 class="font-bold text-[14px] truncate tracking-tight flex items-center gap-2">
+                                        <span>{{ item.type === 'friend' ? item.friend?.name : item.title }}</span>
+                                        <span v-if="item.type === 'friend' && isBotFriend(item.friend)"
+                                            class="badge badge-outline badge-xs">机器人</span>
                                     </h3>
                                     <span class="text-[10px] font-bold tabular-nums tracking-wider opacity-40 shrink-0">
                                         {{ formatTimeAgo(item.updatedAt) }}
                                     </span>
                                 </div>
-                                <div v-if="item.type === 'friend' && (item as FriendItem).note" class="text-[13px] truncate opacity-50 leading-tight font-medium">
-                                    {{ (item as FriendItem).note }}
+                                <div v-if="item.type === 'friend' && item.note"
+                                    class="text-[13px] truncate opacity-50 leading-tight font-medium">
+                                    {{ item.note }}
                                 </div>
-                                <div v-else-if="item.type === 'group'" class="text-[13px] truncate opacity-40 leading-tight">
+                                <div v-else-if="item.type === 'group'"
+                                    class="text-[13px] truncate opacity-40 leading-tight">
                                     {{ item.memberCount }} 位成员
                                 </div>
-                                <div v-else-if="item.type === 'friend' && (item as FriendItem).friend?.email"
+                                <div v-else-if="item.type === 'friend' && item.friend?.email"
                                     class="text-[13px] truncate opacity-40 leading-tight">
-                                    {{ (item as FriendItem).friend?.email }}
+                                    {{ item.friend?.email }}
                                 </div>
                             </div>
 
@@ -352,7 +403,8 @@ defineExpose({
                         </div>
 
                         <div v-if="pagination.hasMore" class="py-4 flex justify-center w-full">
-                            <button @click="() => fetchData()" class="btn btn-ghost btn-xs text-base-content/40 hover:text-base-content"
+                            <button @click="() => fetchData()"
+                                class="btn btn-ghost btn-xs text-base-content/40 hover:text-base-content"
                                 :disabled="loading">
                                 <span v-if="loading" class="loading loading-spinner loading-xs"></span>
                                 <span v-else>加载更多</span>

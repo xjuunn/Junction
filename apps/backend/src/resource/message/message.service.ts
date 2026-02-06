@@ -3,12 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
 import { MessageGateway } from './message.gateway';
+import { EventBus } from '../events/event-bus.service';
 
 @Injectable()
 export class MessageService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly messageGateway: MessageGateway
+    private readonly messageGateway: MessageGateway,
+    private readonly eventBus: EventBus
   ) { }
 
   private readonly messageSelect = {
@@ -23,7 +25,7 @@ export class MessageService {
     senderId: true,
     conversationId: true,
     clientMessageId: true,
-    sender: { select: { id: true, name: true, image: true } },
+    sender: { select: { id: true, name: true, image: true, accountType: true } },
     replyTo: {
       select: {
         id: true,
@@ -37,13 +39,21 @@ export class MessageService {
   /**
    * 创建消息
    */
-  async create(userId: string, data: PrismaTypes.Prisma.MessageUncheckedCreateInput) {
+  async create(
+    userId: string,
+    data: Omit<PrismaTypes.Prisma.MessageUncheckedCreateInput, 'sequence' | 'senderId'> & {
+      sequence?: number;
+      senderId?: string | null;
+    },
+    options?: { emitEvent?: boolean }
+  ) {
+    const emitEvent = options?.emitEvent !== false;
     const conversationId = data.conversationId?.trim();
     if (!conversationId) throw new BadRequestException('会话 ID 不能为空');
 
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId },
-      select: { userId: true, isActive: true, id: true, user: { select: { id: true, name: true, image: true } } }
+      select: { userId: true, isActive: true, id: true, user: { select: { id: true, name: true, image: true, accountType: true } } }
     });
 
     const isMember = members.find(m => m.userId === userId);
@@ -113,7 +123,45 @@ export class MessageService {
       })
     );
 
+    if (emitEvent) {
+      const senderIsBot = members.find(m => m.userId === userId)?.user?.accountType === 'BOT';
+      if (!senderIsBot) {
+        this.eventBus.emit('message.created', {
+          messageId: enrichedForSender.id,
+          conversationId: enrichedForSender.conversationId,
+          senderId: enrichedForSender.senderId ?? null,
+          type: enrichedForSender.type,
+          content: enrichedForSender.content ?? null,
+          payload: enrichedForSender.payload,
+          isBotMessage: false
+        });
+      }
+    }
+
     return enrichedForSender;
+  }
+
+  /**
+   * 内部更新消息（机器人流式等场景）
+   */
+  async updateInternal(messageId: string, data: { content?: string | null; payload?: any }) {
+    const updatedRaw = await this.prisma.message.update({
+      where: { id: messageId },
+      data: {
+        ...(data.content !== undefined ? { content: data.content } : {}),
+        ...(data.payload !== undefined ? { payload: data.payload } : {}),
+        isEdited: false
+      },
+      select: this.messageSelect
+    });
+
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId: updatedRaw.conversationId },
+      select: { userId: true }
+    });
+
+    this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'message-updated', updatedRaw);
+    return updatedRaw;
   }
 
   /**

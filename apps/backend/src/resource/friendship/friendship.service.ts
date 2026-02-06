@@ -130,7 +130,8 @@ export class FriendshipService {
             id: friend.id,
             name: friend.name,
             email: friend.email,
-            image: friend.image
+            image: friend.image,
+            accountType: friend.accountType
           },
           note: item.note,
           updatedAt: item.updatedAt,
@@ -138,7 +139,7 @@ export class FriendshipService {
         });
       }
       return acc;
-    }, new Map<string, { id: string; friendId: string; friend: { id: string; name: string; email: string; image: string | null }; note: string | null; updatedAt: Date; isBlocked: boolean }>());
+    }, new Map<string, { id: string; friendId: string; friend: { id: string; name: string; email: string; image: string | null; accountType?: string | null }; note: string | null; updatedAt: Date; isBlocked: boolean }>());
 
     return new PaginationData(Array.from(uniqueData.values()), { total, limit, page });
   }
@@ -168,7 +169,8 @@ export class FriendshipService {
         id: friend.id,
         name: friend.name,
         email: friend.email,
-        image: friend.image
+        image: friend.image,
+        accountType: friend.accountType
       },
       note: record.note,
       updatedAt: record.updatedAt,
@@ -210,7 +212,7 @@ export class FriendshipService {
       return {
         id: updated.id,
         friendId: friend.id,
-        friend: { id: friend.id, name: friend.name, email: friend.email, image: friend.image },
+        friend: { id: friend.id, name: friend.name, email: friend.email, image: friend.image, accountType: friend.accountType },
         note: updated.note,
         updatedAt: updated.updatedAt,
         isBlocked: updated.isBlocked
@@ -231,7 +233,7 @@ export class FriendshipService {
       return {
         id: updated.id,
         friendId: friend.id,
-        friend: { id: friend.id, name: friend.name, email: friend.email, image: friend.image },
+        friend: { id: friend.id, name: friend.name, email: friend.email, image: friend.image, accountType: friend.accountType },
         note: updated.note,
         updatedAt: updated.updatedAt,
         isBlocked: updated.isBlocked
@@ -290,7 +292,8 @@ export class FriendshipService {
             id: friend.id,
             name: friend.name,
             email: friend.email,
-            image: friend.image
+            image: friend.image,
+            accountType: friend.accountType
           },
           note: item.note,
           updatedAt: item.updatedAt,
@@ -298,7 +301,7 @@ export class FriendshipService {
         });
       }
       return acc;
-    }, new Map<string, { id: string; friendId: string; friend: { id: string; name: string; email: string; image: string | null }; note: string | null; updatedAt: Date; isBlocked: boolean }>());
+    }, new Map<string, { id: string; friendId: string; friend: { id: string; name: string; email: string; image: string | null; accountType?: string | null }; note: string | null; updatedAt: Date; isBlocked: boolean }>());
 
     return new PaginationData(Array.from(uniqueData.values()), { total, limit: take, page: Math.floor(skip / take) + 1 });
   }

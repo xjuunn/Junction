@@ -25,6 +25,8 @@ import { ConversationModule } from './resource/conversation/conversation.module'
 import { MessageModule } from './resource/message/message.module';
 import { RedisModule } from './resource/redis/redis.module';
 import { StatusModule } from './resource/status/status.module';
+import { AiBotModule } from './resource/ai-bot/ai-bot.module';
+import { AdminModule } from './resource/admin/admin.module';
 
 @Module({
   imports: [
@@ -73,6 +75,8 @@ import { StatusModule } from './resource/status/status.module';
     EventsModule,
     ConversationModule,
     MessageModule,
+    AiBotModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

@@ -2,6 +2,7 @@
 import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
 import * as friendshipApi from '~/api/friendship';
+import * as userApi from '~/api/user';
 import { uploadFiles } from '~/api/upload';
 import { isTauri } from '~/utils/check';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
@@ -32,6 +33,9 @@ const lastReportedReadId = ref<string | null>(null);
 const lastReportedReadSeq = ref<number>(0);
 const messageElementMap = new Map<string, Element>();
 const messageObserver = ref<IntersectionObserver | null>(null);
+const botMembers = ref<Array<{ id: string; name: string; image?: string | null }>>([]);
+const mentionActive = ref(false);
+const mentionQuery = ref('');
 
 const remarkMap = ref<Record<string, string>>({});
 
@@ -304,7 +308,33 @@ const handleScroll = (e: Event) => {
 const fetchConversation = async () => {
     if (!conversationId.value) return;
     const res = await conversationApi.findOne(conversationId.value);
-    if (res.data) currentConversation.value = res.data;
+    if (res.data) {
+        currentConversation.value = res.data;
+        await fetchBotMembers();
+    }
+};
+
+const fetchBotMembers = async () => {
+    const conv = currentConversation.value;
+    if (!conv) return;
+    if (conv.type === 'GROUP') {
+        const res = await conversationApi.getMembers(conv.id);
+        if (res.data) {
+            botMembers.value = res.data
+                .map(item => item.user)
+                .filter((user: any) => user.accountType === 'BOT')
+                .map((user: any) => ({ id: user.id, name: user.name, image: user.image || null }));
+        }
+        return;
+    }
+    if (conv.type === 'PRIVATE' && conv.otherUserId) {
+        const res = await userApi.findOne(conv.otherUserId);
+        if (res.data && res.data.accountType === 'BOT') {
+            botMembers.value = [{ id: res.data.id, name: res.data.name, image: res.data.image || null }];
+        } else {
+            botMembers.value = [];
+        }
+    }
 };
 
 // 发送消息
@@ -336,6 +366,8 @@ const handleSend = async () => {
             editorRef.value?.clear();
             messagePlainText.value = '';
             messageJson.value = null;
+            mentionActive.value = false;
+            mentionQuery.value = '';
             scrollToBottom('smooth');
             busEmit('chat:message-sync', patched);
         }
@@ -503,6 +535,60 @@ const handleNewMessage = async (msg: MessageItem) => {
     }
 };
 
+const updateMentionState = (text: string) => {
+    if (!botMembers.value.length) {
+        mentionActive.value = false;
+        mentionQuery.value = '';
+        return;
+    }
+    const idx = text.lastIndexOf('@');
+    if (idx < 0) {
+        mentionActive.value = false;
+        mentionQuery.value = '';
+        return;
+    }
+    const tail = text.slice(idx + 1);
+    if (tail.includes(' ') || tail.includes('\n')) {
+        mentionActive.value = false;
+        mentionQuery.value = '';
+        return;
+    }
+    mentionActive.value = true;
+    mentionQuery.value = tail.trim();
+};
+
+const filteredBots = computed(() => {
+    if (!mentionActive.value) return [];
+    const query = mentionQuery.value.toLowerCase();
+    if (!query) return botMembers.value;
+    return botMembers.value.filter(bot => bot.name.toLowerCase().includes(query));
+});
+
+const handleSelectBot = (bot: { id: string; name: string }) => {
+    editorRef.value?.insertContent(`@${bot.name} `);
+    mentionActive.value = false;
+    mentionQuery.value = '';
+};
+
+const handleMessageUpdated = async (msg: MessageItem) => {
+    if (msg.conversationId !== conversationId.value) return;
+    await ensureRemarks([msg]);
+    const patched = applyRemarksToReadInfo(applyRemarks([msg]))[0] || msg;
+    upsertMessage(patched);
+};
+
+const handleMessageStream = (payload: { conversationId: string; messageId: string; delta?: string; fullContent?: string }) => {
+    if (payload.conversationId !== conversationId.value) return;
+    const idx = messages.value.findIndex(item => item.id === payload.messageId);
+    if (idx < 0) return;
+    const message = messages.value[idx];
+    const nextContent = payload.fullContent ?? `${message.content || ''}${payload.delta || ''}`;
+    messages.value[idx] = {
+        ...message,
+        content: nextContent
+    };
+};
+
 const handleMessageRead = (payload: { conversationId: string; userId: string; sequence?: number | string }) => {
     if (payload.conversationId !== conversationId.value || payload.sequence === undefined) return;
     const sequence = Number(payload.sequence);
@@ -512,8 +598,12 @@ const handleMessageRead = (payload: { conversationId: string; userId: string; se
 
 const setupSocketListeners = () => {
     appSocket.off('new-message');
+    appSocket.off('message-updated');
+    appSocket.off('message-stream');
     appSocket.off('message-read');
     appSocket.on('new-message', handleNewMessage);
+    appSocket.on('message-updated', handleMessageUpdated);
+    appSocket.on('message-stream', handleMessageStream);
     appSocket.on('message-read', handleMessageRead);
 };
 
@@ -537,7 +627,11 @@ onMounted(async () => {
     setupSocketListeners();
     busOn('chat:conversation-updated', handleConversationUpdated);
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') showExtensionsMenu.value = false;
+        if (e.key === 'Escape') {
+            showExtensionsMenu.value = false;
+            mentionActive.value = false;
+            mentionQuery.value = '';
+        }
     });
     messageObserver.value = new IntersectionObserver(handleMessageVisibility, {
         root: listRef.value?.$el ?? null,
@@ -576,6 +670,8 @@ onMounted(async () => {
 onUnmounted(() => {
     busOff('chat:conversation-updated', handleConversationUpdated);
     appSocket.off('new-message');
+    appSocket.off('message-updated');
+    appSocket.off('message-stream');
     appSocket.off('message-read');
     messageObserver.value?.disconnect();
     messageObserver.value = null;
@@ -600,8 +696,11 @@ onUnmounted(() => {
                     <BaseAvatar :text="currentConversation.title" :src="currentConversation.avatar" :height="44"
                         :width="44" :radius="14" />
                     <div class="flex flex-col min-w-0">
-                        <h2 class="text-[15px] font-black tracking-tight truncate leading-tight">{{
-                            currentConversation.title }}</h2>
+                        <h2 class="text-[15px] font-black tracking-tight truncate leading-tight flex items-center gap-2">
+                            <span>{{ currentConversation.title }}</span>
+                            <span v-if="currentConversation.type === 'PRIVATE' && currentConversation.otherUserAccountType === 'BOT'"
+                                class="badge badge-outline badge-xs">机器人</span>
+                        </h2>
                         <div
                             class="flex items-center gap-1.5 mt-0.5 text-[10px] font-bold opacity-40 uppercase tracking-widest">
                             {{ currentConversation.type === 'PRIVATE' ? (currentConversation.online ? 'Online' :
@@ -658,7 +757,8 @@ onUnmounted(() => {
                     class="relative bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg focus-within:bg-base-100/80 transition-all">
 
                     <BaseEditor ref="editorRef" v-model="messageJson" :disabled="sending" @send="handleSend"
-                        @textChange="val => messagePlainText = val" class="px-4 py-2 min-h-[44px]" />
+                        @textChange="val => { messagePlainText = val; updateMentionState(val); }"
+                        class="px-4 py-2 min-h-[44px]" />
 
                     <div v-show="isTauriDragOver"
                         class="absolute inset-2 bg-primary/10 backdrop-blur-sm flex items-center justify-center rounded-[24px] border-2 border-dashed border-primary z-50 pointer-events-none">
@@ -666,6 +766,18 @@ onUnmounted(() => {
                             <Icon name="mingcute:add-line" size="24" />
                             <span>释放鼠标上传文件</span>
                         </div>
+                    </div>
+
+                    <div v-if="mentionActive && filteredBots.length"
+                        class="absolute left-2 right-2 bottom-full mb-3 bg-base-100 border border-base-200 rounded-2xl shadow-2xl p-3 space-y-2 z-40 max-h-64 overflow-y-auto">
+                        <div class="text-xs font-bold opacity-50">选择要 @ 的机器人</div>
+                        <button v-for="bot in filteredBots" :key="bot.id"
+                            class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-base-200 text-left"
+                            @click="handleSelectBot(bot)">
+                            <BaseAvatar :text="bot.name" :src="bot.image" :height="32" :width="32" />
+                            <span class="text-sm font-medium truncate">{{ bot.name }}</span>
+                            <span class="badge badge-outline badge-xs ml-auto">机器人</span>
+                        </button>
                     </div>
 
                     <div class="flex items-center justify-between px-2 pt-2.5 border-t border-base-content/5">

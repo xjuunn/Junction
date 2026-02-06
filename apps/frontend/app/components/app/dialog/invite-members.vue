@@ -320,6 +320,7 @@ const isMobile = computed(() => useDevice().isMobile);
                                         <div class="font-medium text-base-content truncate flex items-center gap-2">
                                             {{ getDisplayName(friend) }}
                                             <Icon name="mingcute:verified-fill" v-if="friend.role === 'admin'" size="14" class="text-primary" />
+                                            <span v-if="friend.accountType === 'BOT'" class="badge badge-outline badge-xs">机器人</span>
                                         </div>
                                         <div class="text-sm text-base-content/60 truncate">{{ friend.email }}</div>
                                     </div>

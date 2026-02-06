@@ -52,7 +52,14 @@ export class MessageController {
    */
   @Post()
   @ApiOperation({ summary: "发送消息" })
-  create(@Session() session: UserSession, @Body() data: PrismaTypes.Prisma.MessageUncheckedCreateInput) {
+  create(
+    @Session() session: UserSession,
+    @Body()
+    data: Omit<PrismaTypes.Prisma.MessageUncheckedCreateInput, 'sequence' | 'senderId'> & {
+      sequence?: number;
+      senderId?: string | null;
+    }
+  ) {
     return this.messageService.create(session.user.id, data);
   }
 

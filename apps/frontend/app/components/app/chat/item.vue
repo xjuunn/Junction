@@ -8,6 +8,7 @@ interface ConversationItem {
     title: string;
     avatar?: string;
     online?: number;
+    otherUserAccountType?: string | null;
     lastMessage?: {
         content: string;
         type: string;
@@ -70,8 +71,10 @@ const previewText = computed(() => {
         <div class="flex-1 min-w-0 flex flex-col gap-0">
             <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-1 min-w-0">
-                    <h3 class="font-bold text-[14px] truncate tracking-tight">
-                        {{ data.title }}
+                    <h3 class="font-bold text-[14px] truncate tracking-tight flex items-center gap-2">
+                        <span>{{ data.title }}</span>
+                        <span v-if="data.type === 'PRIVATE' && data.otherUserAccountType === 'BOT'"
+                            class="badge badge-outline badge-xs">机器人</span>
                     </h3>
                     <Icon v-if="data.mySettings?.muted" name="mingcute:notification-off-line" size="12"
                         class="opacity-40 shrink-0" />

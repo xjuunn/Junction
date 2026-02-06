@@ -17,6 +17,7 @@ model User {
   emailVerified Boolean   @default(false)
   image         String?
   role          String    @default("user")
+  accountType   UserAccountType @default(USER)
   banned        Boolean   @default(false)
   banReason     String?
   banExpires    DateTime?
@@ -38,6 +39,8 @@ model User {
   ownedConversations Conversation[]       @relation("ConversationOwner")
   conversations      ConversationMember[]
   messages           Message[]
+  botProfile         AiBot? @relation("BotProfile")
+  createdBots        AiBot[] @relation("BotCreator")
 
   @@unique([email])
   @@map("user")
@@ -215,6 +218,75 @@ enum ConversationMemberRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+// --- 机器人模块 ---
+
+model AiBot {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation("BotProfile", fields: [userId], references: [id], onDelete: Cascade)
+  creatorId     String
+  creator       User     @relation("BotCreator", fields: [creatorId], references: [id])
+  name          String
+  description   String?
+  avatar        String?
+
+  visibility    BotVisibility   @default(PRIVATE)
+  status        BotStatus       @default(ACTIVE)
+  triggerMode   BotTriggerMode  @default(MENTION)
+  autoReplyInGroup Boolean @default(false)
+  responseMode  BotResponseMode @default(INSTANT)
+
+  systemPrompt  String?
+  temperature  Float  @default(0.7)
+  maxTokens    Int    @default(1024)
+  memoryLength Int    @default(20)
+
+  tools              Json?
+  knowledgeBase      Json?
+  summaryEnabled     Boolean @default(false)
+  translationEnabled Boolean @default(false)
+
+  apiKeyEncrypted String?
+  apiKeyHint      String?
+  apiBaseUrl      String?
+  model           String?
+  orgDomain       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creatorId, visibility])
+  @@index([status])
+  @@map("ai_bot")
+}
+
+enum BotVisibility {
+  PRIVATE
+  PUBLIC
+  ORG
+}
+
+enum BotStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum BotTriggerMode {
+  MENTION
+  AUTO
+}
+
+enum BotResponseMode {
+  INSTANT
+  STREAM
+}
+
+enum UserAccountType {
+  USER
+  ADMIN
+  BOT
 }
 
 // --- 通知模块 ---

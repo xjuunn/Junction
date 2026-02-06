@@ -8,7 +8,7 @@ import RichTextRenderer from './RichTextRenderer.vue';
 
 const props = defineProps<{
     message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId'> & {
-        sender?: { name: string; avatar?: string | null; image?: string | null } | null;
+        sender?: { name: string; avatar?: string | null; image?: string | null; accountType?: string | null } | null;
     };
     isMe: boolean;
     isRead?: boolean;
@@ -37,6 +37,7 @@ const displayRead = computed(() => props.isRead ?? props.readInfo?.isRead ?? fal
 const totalReceivers = computed(() => (props.readInfo ? props.readInfo.readCount + props.readInfo.unreadCount : 0));
 const isGroup = computed(() => props.isGroup);
 const readInfo = computed(() => props.readInfo);
+const isBotSender = computed(() => props.message.sender?.accountType === 'BOT');
 const imagePayload = computed<{ imageUrl: string } | null>(() => {
     const payload = props.message.payload;
     if (!payload || typeof payload !== 'object') return null;
@@ -164,7 +165,10 @@ const handleDownload = async () => {
         </div>
 
         <div class="chat-header opacity-50 text-[11px] mb-1 flex items-center gap-2 px-1">
-            <div v-if="!isMe" class="font-bold max-w-40 truncate">{{ message.sender?.name }}</div>
+            <div v-if="!isMe" class="font-bold max-w-40 truncate flex items-center gap-2">
+                <span>{{ message.sender?.name }}</span>
+                <span v-if="isBotSender" class="badge badge-outline badge-xs">机器人</span>
+            </div>
             <time class="tabular-nums">{{ formatTimeAgo(message.createdAt) }}</time>
         </div>
 

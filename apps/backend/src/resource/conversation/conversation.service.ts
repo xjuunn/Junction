@@ -15,8 +15,14 @@ export class ConversationService {
    * 创建或获取会话
    */
   async create(userId: string, data: { type: 'PRIVATE' | 'GROUP'; targetId?: string; title?: string; avatar?: string; memberIds?: string[] }) {
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, accountType: true, email: true }
+    })
     if (data.type === 'PRIVATE') {
       if (!data.targetId) throw new BadRequestException('私聊必须指定目标用户');
+
+      await this.assertBotVisibility(currentUser, data.targetId);
 
       const existing = await this.prisma.conversation.findFirst({
         where: {
@@ -54,6 +60,7 @@ export class ConversationService {
 
       // 去重并过滤无效用户ID
       const uniqueMemberIds = [...new Set(data.memberIds || [])].filter(id => id && id !== userId);
+      await this.assertBotVisibility(currentUser, uniqueMemberIds);
 
       const members: PrismaTypes.Prisma.ConversationMemberCreateManyInput[] = [
         { conversationId: conv.id, userId, role: PrismaValues.ConversationMemberRole.OWNER },
@@ -179,11 +186,12 @@ export class ConversationService {
     let { title, avatar } = conv;
     let online = 0;
     let otherUserId: string | null = null;
+    let otherUserAccountType: string | null = null;
 
     if (conv.type === 'PRIVATE') {
       const otherMember = await this.prisma.conversationMember.findFirst({
         where: { conversationId: conv.id, userId: { not: currentUserId } },
-        select: { userId: true, user: { select: { name: true, image: true } } }
+        select: { userId: true, user: { select: { name: true, image: true, accountType: true } } }
       });
       if (otherMember) {
         const friendship = await this.prisma.friendship.findFirst({
@@ -202,6 +210,7 @@ export class ConversationService {
         avatar = otherMember.user.image;
         online = onlineMap[otherMember.userId] ? 1 : 0;
         otherUserId = otherMember.userId;
+        otherUserAccountType = otherMember.user.accountType;
       }
     } else {
       online = conv.members.reduce((acc: number, m: any) => acc + (onlineMap[m.userId] ? 1 : 0), 0);
@@ -219,6 +228,7 @@ export class ConversationService {
       memberCount: conv._count?.members || 0,
       mySettings,
       otherUserId,
+      otherUserAccountType,
       unreadCount: unreadCountMap[conv.id] ?? 0,
       updatedAt: conv.updatedAt,
       createdAt: conv.createdAt
@@ -285,7 +295,7 @@ export class ConversationService {
           select: {
             userId: true,
             user: {
-              select: { id: true, name: true, image: true, role: true }
+              select: { id: true, name: true, image: true, role: true, accountType: true }
             }
           }
         }
@@ -324,7 +334,7 @@ export class ConversationService {
             isActive: true,
             joinedAt: true,
             user: {
-              select: { id: true, name: true, image: true, email: true, role: true }
+              select: { id: true, name: true, image: true, email: true, role: true, accountType: true }
             }
           },
           orderBy: { joinedAt: 'asc' }
@@ -387,6 +397,13 @@ export class ConversationService {
     if (newMemberIds.length === 0) {
       throw new BadRequestException('所有用户都已经是群成员');
     }
+
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, accountType: true, email: true }
+    });
+
+    await this.assertBotVisibility(currentUser, newMemberIds);
 
     // 添加新成员
     const newMembers = newMemberIds.map(userId => ({
@@ -546,5 +563,51 @@ export class ConversationService {
     });
 
     return conversation;
+  }
+
+  /**
+   * 验证机器人可见性
+   */
+  private async assertBotVisibility(
+    currentUser: { id: string; role?: string | null; accountType?: string | null; email?: string | null } | null,
+    targetIds: string | string[]
+  ) {
+    if (!currentUser) throw new ForbiddenException('无权限访问');
+    const ids = Array.isArray(targetIds) ? targetIds : [targetIds];
+    if (!ids.length) return;
+
+    const targets = await this.prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        accountType: true,
+        botProfile: {
+          select: { status: true, creatorId: true, visibility: true, orgDomain: true }
+        }
+      }
+    });
+
+    const domain = this.getEmailDomain(currentUser.email || '');
+    const isAdmin = this.isAdmin(currentUser);
+    for (const target of targets) {
+      if (target.accountType !== 'BOT') continue;
+      if (!target.botProfile || target.botProfile.status !== 'ACTIVE') {
+        throw new ForbiddenException('机器人不可用');
+      }
+      if (isAdmin) continue;
+      if (target.botProfile.creatorId === currentUser.id) continue;
+      if (target.botProfile.visibility === 'PUBLIC') continue;
+      if (target.botProfile.visibility === 'ORG' && domain && target.botProfile.orgDomain === domain) continue;
+      throw new ForbiddenException('机器人不可见或无权限');
+    }
+  }
+
+  private isAdmin(user: { role?: string | null; accountType?: string | null }) {
+    return user.role?.toLowerCase() === 'admin' || user.accountType === 'ADMIN';
+  }
+
+  private getEmailDomain(email: string) {
+    const parts = email.split('@');
+    return parts.length === 2 ? parts[1].toLowerCase() : '';
   }
 }

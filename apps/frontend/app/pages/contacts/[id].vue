@@ -22,6 +22,7 @@ interface UserDetail {
     email: string;
     image?: string;
     role: string;
+    accountType?: string;
     createdAt: string;
 }
 
@@ -211,7 +212,10 @@ onMounted(() => {
                     <BaseAvatar :text="userInfo.name" :height="100" :width="100" :radius="20" :src="userInfo.image || undefined"
                         :alt="userInfo.name" :placeholder-length="2" class="ring-2 ring-base-200" />
 
-                    <h2 class="mt-4 text-2xl font-black tracking-tight">{{ userInfo.name }}</h2>
+                    <h2 class="mt-4 text-2xl font-black tracking-tight flex items-center gap-2">
+                        <span>{{ userInfo.name }}</span>
+                        <span v-if="userInfo.accountType === 'BOT'" class="badge badge-outline badge-xs">???</span>
+                    </h2>
 
                     <div class="mt-2 flex items-center gap-2 text-sm opacity-50">
                         <Icon name="mingcute:mail-line" size="14" />
@@ -224,6 +228,15 @@ onMounted(() => {
                 </div>
 
                 <div class="px-6 py-4 space-y-2">
+                    <div class="flex items-center justify-between px-4 py-3 bg-base-200/50 rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <Icon name="mingcute:ai-line" size="18" class="opacity-50" />
+                            <span class="text-sm font-medium">????</span>
+                        </div>
+                        <span class="badge badge-ghost badge-sm">{{ userInfo.accountType || 'USER' }}</span>
+                    </div>
+
+
                     <div class="flex items-center justify-between px-4 py-3 bg-base-200/50 rounded-xl">
                         <div class="flex items-center gap-3">
                             <Icon name="mingcute:calendar-line" size="18" class="opacity-50" />
