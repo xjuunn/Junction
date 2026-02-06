@@ -26,7 +26,7 @@ export const getDefaultEditorConfig = (
   options: EditorConfigOptions = {},
   imageUploadHandler?: ImageUploadHandler
 ) => {
-  const { placeholder, editable, content, ...restOptions } = options
+  const { placeholder, editable, content, customExtensions, ...restOptions } = options as EditorConfigOptions & { customExtensions?: any[] }
   
   // 从restOptions中提取enableImageUpload，因为它不是EditorOptions的一部分
   const enableImageUpload = (options as any).enableImageUpload
@@ -35,6 +35,7 @@ export const getDefaultEditorConfig = (
   const extensions = mode === 'readonly' 
     ? createReadonlyExtensions()
     : createEditableExtensions(placeholder)
+  const finalExtensions = customExtensions?.length ? [...extensions, ...customExtensions] : extensions
 
   // 如果有图片上传处理函数，添加图片上传插件
   const plugins: any[] = []
@@ -44,7 +45,7 @@ export const getDefaultEditorConfig = (
   }
 
   const defaultConfig: EditorConfigOptions = {
-    extensions,
+    extensions: finalExtensions,
     content: content ?? null,
     editable: editable ?? (mode !== 'readonly'),
     editorProps: {

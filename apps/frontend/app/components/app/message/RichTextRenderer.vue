@@ -11,6 +11,7 @@ const props = defineProps<{
 const editor = createReadonlyEditor(props.node)
 const dialog = useDialog()
 const toast = useToast()
+const router = useRouter()
 
 watch(
     () => props.node,
@@ -83,6 +84,16 @@ const handleFileDownload = async (url: string, fileName: string) => {
  */
 const handleClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement | null
+    const mention = target?.closest('a.mention[data-mention-id]') as HTMLAnchorElement | null
+    if (mention) {
+        event.preventDefault()
+        event.stopPropagation()
+        const userId = mention.getAttribute('data-mention-id')
+        if (userId) {
+            router.push(`/search/user/${userId}`)
+        }
+        return
+    }
     const link = target?.closest('a.file-link, a[data-file], a[href*="/uploads/"]') as HTMLAnchorElement | null
     if (!link) return
     event.preventDefault()
@@ -155,5 +166,14 @@ const handleClick = (event: MouseEvent) => {
 .tiptap-content :deep(.ProseMirror a.file-link:hover) {
     background: linear-gradient(135deg, hsl(var(--b3)) 0%, hsl(var(--b2)) 100%);
     border-color: hsl(var(--bc) / 0.2);
+}
+
+.tiptap-content :deep(.ProseMirror .mention) {
+    color: hsl(var(--p));
+    background: hsl(var(--p) / 0.12);
+    padding: 0 6px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-decoration: none;
 }
 </style>

@@ -60,6 +60,12 @@ export const useEditorWithApiUpload = (
     options.content,
     uploadHandler
   )
+  if ((options as any).customExtensions?.length) {
+    config.extensions = [
+      ...(config.extensions || []),
+      ...(options as any).customExtensions
+    ]
+  }
   
   const mergedConfig = {
     ...config,
@@ -82,6 +88,12 @@ export const useEditorWithImageUpload = (
     options.content,
     imageUploadHandler
   )
+  if ((options as any).customExtensions?.length) {
+    config.extensions = [
+      ...(config.extensions || []),
+      ...(options as any).customExtensions
+    ]
+  }
   
   const mergedConfig = {
     ...config,

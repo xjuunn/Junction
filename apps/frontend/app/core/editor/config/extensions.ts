@@ -20,6 +20,7 @@ import { Mathematics } from '@tiptap/extension-mathematics'
 import { Emoji } from '@tiptap/extension-emoji'
 import { Audio } from '@tiptap/extension-audio'
 import { Mention } from '@tiptap/extension-mention'
+import { mergeAttributes } from '@tiptap/core'
 
 // 依赖库
 import * as lowlight from 'lowlight'
@@ -354,6 +355,26 @@ export class ExtensionFactory {
         class: 'mention bg-blue-100 text-blue-800 rounded px-1',
         ...config.config?.HTMLAttributes,
       },
+      renderText({ options, node }: any) {
+        const char = options?.suggestion?.char ?? '@'
+        return `${char}${node.attrs.label ?? node.attrs.id}`
+      },
+      renderHTML({ options, node }: any) {
+        const char = options?.suggestion?.char ?? '@'
+        return [
+          'a',
+          mergeAttributes(
+            {
+              href: `/search/user/${node.attrs.id}`,
+              'data-mention-id': node.attrs.id,
+              'data-mention-label': node.attrs.label ?? node.attrs.id,
+              class: 'mention',
+            },
+            options.HTMLAttributes
+          ),
+          `${char}${node.attrs.label ?? node.attrs.id}`,
+        ]
+      },
     }
 
     return Mention.configure(mentionConfig)
@@ -414,7 +435,7 @@ export class ExtensionFactory {
 
     // 只读模式下禁用提及（如果启用）
     if (readonlyConfigs.mention) {
-      readonlyConfigs.mention.enabled = false
+      readonlyConfigs.mention.enabled = true
     }
 
     const factory = new ExtensionFactory(readonlyConfigs, this.imageUploadHandler)

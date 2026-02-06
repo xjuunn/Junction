@@ -1,20 +1,184 @@
 <script setup lang="ts">
 import { EditorContent } from '@tiptap/vue-3'
+import { Mention } from '@tiptap/extension-mention'
+import { mergeAttributes } from '@tiptap/core'
 import { useEditorWithImageUpload } from '../../core/editor'
 import { uploadFiles } from '../../api/upload'
 import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download'
 import { isTauri } from '~/utils/check'
+
+type MentionItem = { id: string; name: string; image?: string | null; accountType?: string | null }
 
 const props = defineProps<{
     modelValue: any;
     placeholder?: string;
     disabled?: boolean;
     enableImageUpload?: boolean;
+    enableMention?: boolean;
+    mentionItems?: MentionItem[];
+    mentionTitle?: string;
 }>();
 
 const emit = defineEmits(['update:modelValue', 'send', 'textChange']);
 const dialog = useDialog();
 const toast = useToast();
+
+const mentionItems = computed(() => props.mentionItems ?? []);
+const mentionTitle = computed(() => props.mentionTitle || '选择成员');
+
+const buildMentionSuggestion = () => {
+    let container: HTMLDivElement | null = null;
+    let listEl: HTMLDivElement | null = null;
+    let headerEl: HTMLDivElement | null = null;
+    let selectedIndex = 0;
+
+    const getItemLabel = (item: MentionItem) => item?.name || item?.id || '未知用户';
+
+    const clear = () => {
+        container?.remove();
+        container = null;
+        listEl = null;
+        headerEl = null;
+        selectedIndex = 0;
+    };
+
+    const position = (clientRect?: DOMRect | null) => {
+        if (!container || !clientRect) return;
+        const rect = clientRect;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const scrollY = window.scrollY;
+        const scrollX = window.scrollX;
+        const padding = 12;
+        const desiredWidth = Math.max(rect.width, 220);
+        container.style.minWidth = `${desiredWidth}px`;
+        const box = container.getBoundingClientRect();
+        const estimatedHeight = Math.max(box.height, 120);
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const shouldFlip = spaceBelow < estimatedHeight + padding && spaceAbove > spaceBelow;
+        const top = shouldFlip
+            ? rect.top - estimatedHeight - 8 + scrollY
+            : rect.bottom + 8 + scrollY;
+        const maxLeft = viewportWidth - desiredWidth - padding;
+        const left = Math.min(Math.max(rect.left + scrollX, padding + scrollX), maxLeft + scrollX);
+        container.style.top = `${Math.max(top, padding + scrollY)}px`;
+        container.style.left = `${left}px`;
+    };
+
+    const renderItems = (items: MentionItem[], command: (item: { id: string; label: string }) => void) => {
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        items.forEach((item, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'mention-suggest-item';
+            if (index === selectedIndex) {
+                button.classList.add('is-active');
+            }
+            button.innerHTML = `
+                <span class="mention-suggest-avatar"></span>
+                <span class="mention-suggest-name">${getItemLabel(item)}</span>
+                ${item.accountType === 'BOT' ? '<span class="mention-suggest-tag">BOT</span>' : ''}
+            `;
+            button.onclick = () => command({ id: item.id, label: getItemLabel(item) });
+            listEl?.appendChild(button);
+        });
+    };
+
+    return {
+        char: '@',
+        allowSpaces: false,
+        items: ({ query }: { query: string }) => {
+            const keyword = query.trim().toLowerCase();
+            const source = mentionItems.value;
+            if (!keyword) return source.slice(0, 8);
+            return source.filter(item => getItemLabel(item).toLowerCase().includes(keyword)).slice(0, 8);
+        },
+        render: () => ({
+            onStart: (props: any) => {
+                selectedIndex = 0;
+                container = document.createElement('div');
+                container.className = 'mention-suggest';
+                container.style.backgroundColor = 'hsl(var(--b3))';
+                container.style.opacity = '1';
+                headerEl = document.createElement('div');
+                headerEl.className = 'mention-suggest-header';
+                headerEl.textContent = mentionTitle.value;
+                listEl = document.createElement('div');
+                listEl.className = 'mention-suggest-list';
+                container.appendChild(headerEl);
+                container.appendChild(listEl);
+                document.body.appendChild(container);
+                position(props.clientRect?.());
+                renderItems(props.items, props.command);
+            },
+            onUpdate: (props: any) => {
+                if (!container) return;
+                position(props.clientRect?.());
+                const items = props.items || [];
+                if (selectedIndex >= items.length) {
+                    selectedIndex = 0;
+                }
+                renderItems(items, props.command);
+            },
+            onKeyDown: (props: any) => {
+                const items = props.items || [];
+                if (!items.length) return false;
+                if (props.event.key === 'ArrowDown') {
+                    selectedIndex = (selectedIndex + 1) % items.length;
+                    renderItems(items, props.command);
+                    return true;
+                }
+                if (props.event.key === 'ArrowUp') {
+                    selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                    renderItems(items, props.command);
+                    return true;
+                }
+                if (props.event.key === 'Enter') {
+                    const item = items[selectedIndex];
+                    if (item) {
+                        props.command({ id: item.id, label: getItemLabel(item) });
+                        return true;
+                    }
+                }
+                if (props.event.key === 'Escape') {
+                    return true;
+                }
+                return false;
+            },
+            onExit: () => {
+                clear();
+            }
+        })
+    };
+};
+
+const mentionExtension = props.enableMention ? Mention.configure({
+    HTMLAttributes: {
+        class: 'mention',
+        'data-mention': 'user'
+    },
+    renderText({ options, node }) {
+        return `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`;
+    },
+    renderHTML({ options, node }) {
+        return [
+            'a',
+            mergeAttributes(
+                {
+                    href: `/search/user/${node.attrs.id}`,
+                    'data-mention-id': node.attrs.id,
+                    'data-mention-label': node.attrs.label ?? node.attrs.id,
+                    class: 'mention'
+                },
+                options.HTMLAttributes
+            ),
+            `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`
+        ];
+    },
+    suggestion: buildMentionSuggestion()
+}) : null;
 
 // --- 状态管理 ---
 const isDragOver = ref(false);
@@ -194,6 +358,7 @@ const editor = useEditorWithImageUpload({
     content: props.modelValue,
     placeholder: props.placeholder,
     editable: !props.disabled,
+    customExtensions: mentionExtension ? [mentionExtension] : [],
     editorProps: {
         attributes: {
             class: 'prose prose-sm focus:outline-none max-w-none min-h-[44px] max-h-48 overflow-y-auto px-1',
@@ -360,6 +525,15 @@ onBeforeUnmount(() => {
     border-color: hsl(var(--bc) / 0.2);
 }
 
+:deep(.ProseMirror .mention) {
+    color: hsl(var(--p));
+    background: hsl(var(--p) / 0.12);
+    padding: 0 6px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
 :deep(.ProseMirror p.is-editor-empty:first-child::before) {
     content: attr(data-placeholder);
     float: left;
@@ -380,5 +554,84 @@ onBeforeUnmount(() => {
 
 .editor-container :deep(.ProseMirror) {
     pointer-events: auto;
+}
+
+:global(.mention-suggest) {
+    position: absolute;
+    z-index: 60;
+    background-color: hsl(var(--b3) / 1);
+    border: 1px solid hsl(var(--b3));
+    border-radius: 16px;
+    box-shadow: 0 16px 32px hsl(var(--bc) / 0.18), 0 2px 6px hsl(var(--bc) / 0.1);
+    padding: 12px;
+    max-height: 280px;
+    overflow: hidden;
+    opacity: 1;
+    background-clip: padding-box;
+}
+
+:global(.mention-suggest-header) {
+    font-size: 11px;
+    font-weight: 700;
+    color: hsl(var(--bc));
+    opacity: 0.7;
+    padding: 4px 6px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+:global(.mention-suggest-list) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+:global(.mention-suggest-item) {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:global(.mention-suggest-item:hover),
+:global(.mention-suggest-item.is-active) {
+    background: hsl(var(--b2));
+    border-color: hsl(var(--b3));
+}
+
+:global(.mention-suggest-avatar) {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: hsl(var(--b2));
+    display: inline-block;
+}
+
+:global(.mention-suggest-name) {
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:global(.mention-suggest-tag) {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: hsl(var(--p));
+    color: hsl(var(--pc));
 }
 </style>

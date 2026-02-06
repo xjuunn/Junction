@@ -2,7 +2,6 @@
 import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
 import * as friendshipApi from '~/api/friendship';
-import * as userApi from '~/api/user';
 import { uploadFiles } from '~/api/upload';
 import { isTauri } from '~/utils/check';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
@@ -33,9 +32,7 @@ const lastReportedReadId = ref<string | null>(null);
 const lastReportedReadSeq = ref<number>(0);
 const messageElementMap = new Map<string, Element>();
 const messageObserver = ref<IntersectionObserver | null>(null);
-const botMembers = ref<Array<{ id: string; name: string; image?: string | null }>>([]);
-const mentionActive = ref(false);
-const mentionQuery = ref('');
+const mentionMembers = ref<Array<{ id: string; name: string; image?: string | null; accountType?: string | null }>>([]);
 const autoScrollEnabled = ref(true);
 let streamScrollRaf: number | null = null;
 let streamSyncTimer: ReturnType<typeof setTimeout> | null = null;
@@ -346,31 +343,38 @@ const fetchConversation = async () => {
     const res = await conversationApi.findOne(conversationId.value);
     if (res.data) {
         currentConversation.value = res.data;
-        await fetchBotMembers();
+        await fetchMentionMembers();
     }
 };
 
-const fetchBotMembers = async () => {
+const fetchMentionMembers = async () => {
     const conv = currentConversation.value;
     if (!conv) return;
     if (conv.type === 'GROUP') {
         const res = await conversationApi.getMembers(conv.id);
         if (res.data) {
-            botMembers.value = res.data
+            mentionMembers.value = res.data
                 .map(item => item.user)
-                .filter((user: any) => user.accountType === 'BOT')
-                .map((user: any) => ({ id: user.id, name: user.name, image: user.image || null }));
+                .filter((user: any) => user && user.id && user.id !== currentUserId.value)
+                .map((user: any) => ({
+                    id: user.id,
+                    name: user.name || user.email || '用户',
+                    image: user.image || null,
+                    accountType: user.accountType || null
+                }));
         }
         return;
     }
-    if (conv.type === 'PRIVATE' && conv.otherUserId) {
-        const res = await userApi.findOne(conv.otherUserId);
-        if (res.data && res.data.accountType === 'BOT') {
-            botMembers.value = [{ id: res.data.id, name: res.data.name, image: res.data.image || null }];
-        } else {
-            botMembers.value = [];
-        }
+    mentionMembers.value = [];
+};
+
+const hasMentionNode = (node: any): boolean => {
+    if (!node) return false;
+    if (node.type === 'mention') return true;
+    if (Array.isArray(node.content)) {
+        return node.content.some(hasMentionNode);
     }
+    return false;
 };
 
 // 发送消息
@@ -382,7 +386,10 @@ const handleSend = async () => {
 
     sending.value = true;
     try {
-        const isRichText = messageJson.value?.content?.some((n: any) => n.type === 'image' || n.type === 'codeBlock');
+        const isRichText = !!messageJson.value && (
+            messageJson.value?.content?.some((n: any) => n.type === 'image' || n.type === 'codeBlock') ||
+            hasMentionNode(messageJson.value)
+        );
 
         let messageType = isRichText ? messageApi.MessageType.RICH_TEXT : messageApi.MessageType.TEXT;
         let content = text || '[富文本消息]';
@@ -402,8 +409,6 @@ const handleSend = async () => {
             editorRef.value?.clear();
             messagePlainText.value = '';
             messageJson.value = null;
-            mentionActive.value = false;
-            mentionQuery.value = '';
             scrollToBottom('smooth');
             busEmit('chat:message-sync', patched);
         }
@@ -584,41 +589,6 @@ const handleNewMessage = async (msg: MessageItem) => {
     }
 };
 
-const updateMentionState = (text: string) => {
-    if (!botMembers.value.length) {
-        mentionActive.value = false;
-        mentionQuery.value = '';
-        return;
-    }
-    const idx = text.lastIndexOf('@');
-    if (idx < 0) {
-        mentionActive.value = false;
-        mentionQuery.value = '';
-        return;
-    }
-    const tail = text.slice(idx + 1);
-    if (tail.includes(' ') || tail.includes('\n')) {
-        mentionActive.value = false;
-        mentionQuery.value = '';
-        return;
-    }
-    mentionActive.value = true;
-    mentionQuery.value = tail.trim();
-};
-
-const filteredBots = computed(() => {
-    if (!mentionActive.value) return [];
-    const query = mentionQuery.value.toLowerCase();
-    if (!query) return botMembers.value;
-    return botMembers.value.filter(bot => bot.name.toLowerCase().includes(query));
-});
-
-const handleSelectBot = (bot: { id: string; name: string }) => {
-    editorRef.value?.insertContent(`@${bot.name} `);
-    mentionActive.value = false;
-    mentionQuery.value = '';
-};
-
 const handleMessageUpdated = async (msg: MessageItem) => {
     if (msg.conversationId !== conversationId.value) return;
     await ensureRemarks([msg]);
@@ -702,8 +672,6 @@ onMounted(async () => {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             showExtensionsMenu.value = false;
-            mentionActive.value = false;
-            mentionQuery.value = '';
         }
     });
     messageObserver.value = new IntersectionObserver(handleMessageVisibility, {
@@ -839,8 +807,8 @@ onUnmounted(() => {
                     class="relative bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg focus-within:bg-base-100/80 transition-all">
 
                     <BaseEditor ref="editorRef" v-model="messageJson" :disabled="sending" @send="handleSend"
-                        @textChange="val => { messagePlainText = val; updateMentionState(val); }"
-                        class="px-4 py-2 min-h-[44px]" />
+                        :enable-mention="true" :mention-items="mentionMembers" mention-title="选择成员"
+                        @textChange="val => { messagePlainText = val; }" class="px-4 py-2 min-h-[44px]" />
 
                     <div v-show="isTauriDragOver"
                         class="absolute inset-2 bg-primary/10 backdrop-blur-sm flex items-center justify-center rounded-[24px] border-2 border-dashed border-primary z-50 pointer-events-none">
@@ -850,18 +818,7 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <div v-if="mentionActive && filteredBots.length"
-                        class="absolute left-2 right-2 bottom-full mb-3 bg-base-100 border border-base-200 rounded-2xl shadow-2xl p-3 space-y-2 z-40 max-h-64 overflow-y-auto">
-                        <div class="text-xs font-bold opacity-50">选择要 @ 的机器人</div>
-                        <button v-for="bot in filteredBots" :key="bot.id"
-                            class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-base-200 text-left"
-                            @click="handleSelectBot(bot)">
-                            <BaseAvatar :text="bot.name" :src="bot.image" :height="32" :width="32" />
-                            <span class="text-sm font-medium truncate">{{ bot.name }}</span>
-                            <span class="badge badge-outline badge-xs ml-auto">机器人</span>
-                        </button>
-                    </div>
-
+                                            
                     <div class="flex items-center justify-between px-2 pt-2.5 border-t border-base-content/5">
                         <div class="flex gap-0.5 relative">
                             <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100"
