@@ -41,6 +41,7 @@ let streamScrollRaf: number | null = null;
 let streamSyncTimer: ReturnType<typeof setTimeout> | null = null;
 const pendingStreamIds = new Set<string>();
 const pendingStreamContent = new Map<string, string>();
+let socketDisposers: Array<() => void> = [];
 
 const remarkMap = ref<Record<string, string>>({});
 
@@ -658,14 +659,12 @@ const handleMessageRead = (payload: { conversationId: string; userId: string; se
 };
 
 const setupSocketListeners = () => {
-    appSocket.off('new-message');
-    appSocket.off('message-updated');
-    appSocket.off('message-stream');
-    appSocket.off('message-read');
-    appSocket.on('new-message', handleNewMessage);
-    appSocket.on('message-updated', handleMessageUpdated);
-    appSocket.on('message-stream', handleMessageStream);
-    appSocket.on('message-read', handleMessageRead);
+    socketDisposers.forEach(dispose => dispose());
+    socketDisposers = [];
+    socketDisposers.push(appSocket.on('new-message', handleNewMessage));
+    socketDisposers.push(appSocket.on('message-updated', handleMessageUpdated));
+    socketDisposers.push(appSocket.on('message-stream', handleMessageStream));
+    socketDisposers.push(appSocket.on('message-read', handleMessageRead));
 };
 
 watch(() => conversationId.value, () => {
@@ -674,6 +673,7 @@ watch(() => conversationId.value, () => {
     showChatSettings.value = false;
     lastReportedReadId.value = null;
     lastReportedReadSeq.value = 0;
+    busEmit('chat:active-conversation', conversationId.value);
     autoScrollEnabled.value = true;
     pendingStreamIds.clear();
     pendingStreamContent.clear();
@@ -698,6 +698,7 @@ watch(() => conversationId.value, () => {
 onMounted(async () => {
     setupSocketListeners();
     busOn('chat:conversation-updated', handleConversationUpdated);
+    busEmit('chat:active-conversation', conversationId.value);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             showExtensionsMenu.value = false;
@@ -741,10 +742,9 @@ onMounted(async () => {
 
 onUnmounted(() => {
     busOff('chat:conversation-updated', handleConversationUpdated);
-    appSocket.off('new-message');
-    appSocket.off('message-updated');
-    appSocket.off('message-stream');
-    appSocket.off('message-read');
+    busEmit('chat:active-conversation', null);
+    socketDisposers.forEach(dispose => dispose());
+    socketDisposers = [];
     pendingStreamIds.clear();
     pendingStreamContent.clear();
     if (streamSyncTimer) {

@@ -211,9 +211,17 @@ export class SocketClient<N extends NSKeys> {
         } else {
             this.pendingListeners.push({ event: event as string, listener: wrap });
         }
+        return () => {
+            this.socket.off(event as string, wrap);
+            this.pendingListeners = this.pendingListeners.filter(item => !(item.event === (event as string) && item.listener === wrap));
+        };
     }
 
-    off<E extends EventKeys<N>>(event: E) {
+    off<E extends EventKeys<N>>(event: E, listener?: (...args: any[]) => void) {
+        if (listener) {
+            this.socket.off(event as string, listener);
+            return;
+        }
         this.socket.off(event as string);
     }
 }

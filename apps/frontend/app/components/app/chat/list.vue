@@ -16,6 +16,9 @@ const conversations = ref<ConversationItem[]>([]);
 const appSocket = useSocket('app');
 const { on: busOn, off: busOff } = useEmitt();
 const showCreateGroupDialog = ref(false);
+const pendingStreamPreview = new Map<string, string>();
+let socketDisposers: Array<() => void> = [];
+const activeConversationId = ref<string | null>(null);
 
 /**
  * 加载会话列表数据
@@ -99,16 +102,18 @@ const handleNewMessage = (msg: any) => {
     if (index !== -1) {
         const target = conversations.value[index];
         if (target === undefined) return;
+        const pending = pendingStreamPreview.get(msg.conversationId);
         target.lastMessage = {
-            content: msg.content,
+            content: pending ?? msg.content,
             type: msg.type,
             createdAt: msg.createdAt,
             sender: msg.sender
         };
+        if (pending !== undefined) {
+            pendingStreamPreview.delete(msg.conversationId);
+        }
         target.updatedAt = msg.createdAt;
-        target.unreadCount = 0;
-        target.unreadCount = 0;
-        if (route.params.id !== msg.conversationId && msg.senderId !== currentUserId.value) {
+        if (activeConversationId.value !== msg.conversationId && msg.senderId !== currentUserId.value) {
             target.unreadCount = (target.unreadCount || 0) + 1;
         } else {
             target.unreadCount = 0;
@@ -116,6 +121,41 @@ const handleNewMessage = (msg: any) => {
 
         // 将会话移到正确的排序位置
         moveToCorrectPosition(target);
+    }
+};
+
+/**
+ * 流式消息实时更新会话预览
+ */
+const handleMessageStream = (payload: { conversationId: string; messageId: string; delta?: string; fullContent?: string }) => {
+    const target = conversations.value.find(c => c.id === payload.conversationId);
+    if (!target || !target.lastMessage) {
+        const cached = payload.fullContent ?? payload.delta ?? '';
+        if (cached) pendingStreamPreview.set(payload.conversationId, cached);
+        return;
+    }
+    const base = pendingStreamPreview.get(payload.conversationId) ?? target.lastMessage.content ?? '';
+    const content = payload.fullContent ?? `${base}${payload.delta || ''}`;
+    pendingStreamPreview.set(payload.conversationId, content);
+    target.lastMessage = {
+        ...target.lastMessage,
+        content
+    };
+};
+
+/**
+ * 处理消息更新（包含流式最终内容）
+ */
+const handleMessageUpdated = (msg: any) => {
+    const target = conversations.value.find(c => c.id === msg.conversationId);
+    if (!target) return;
+    if (target.lastMessage) {
+        target.lastMessage = {
+            content: msg.content,
+            type: msg.type,
+            createdAt: msg.createdAt,
+            sender: msg.sender
+        };
     }
 };
 
@@ -192,12 +232,17 @@ const handleConversationUpdated = (payload: { id: string; title: string }) => {
 
 onMounted(() => {
     fetchConversations();
-    appSocket.on('conversation-status', handleStatusUpdate);
-    appSocket.on('new-message', handleNewMessage);
-    appSocket.on('message-read', handleMessageRead);
+    socketDisposers.push(appSocket.on('conversation-status', handleStatusUpdate));
+    socketDisposers.push(appSocket.on('new-message', handleNewMessage));
+    socketDisposers.push(appSocket.on('message-stream', handleMessageStream));
+    socketDisposers.push(appSocket.on('message-updated', handleMessageUpdated));
+    socketDisposers.push(appSocket.on('message-read', handleMessageRead));
     busOn('chat:message-sync', handleMessageSync);
     busOn('chat:conversation-read', handleConversationRead);
     busOn('chat:conversation-updated', handleConversationUpdated);
+    busOn('chat:active-conversation', (id: string | null) => {
+        activeConversationId.value = id;
+    });
 
     // 监听置顶状态变化
     watch(conversations, (newVal, oldVal) => {
@@ -216,12 +261,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    appSocket.off('conversation-status');
-    appSocket.off('new-message');
-    appSocket.off('message-read');
+    socketDisposers.forEach(dispose => dispose());
+    socketDisposers = [];
     busOff('chat:message-sync', handleMessageSync);
     busOff('chat:conversation-read', handleConversationRead);
     busOff('chat:conversation-updated', handleConversationUpdated);
+    busOff('chat:active-conversation');
+    pendingStreamPreview.clear();
 });
 </script>
 
