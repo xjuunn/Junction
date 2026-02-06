@@ -53,7 +53,21 @@ export class MessageService {
 
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId },
-      select: { userId: true, isActive: true, id: true, user: { select: { id: true, name: true, image: true, accountType: true } } }
+      select: {
+        userId: true,
+        isActive: true,
+        id: true,
+        lastReadMessageId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            accountType: true,
+            botProfile: { select: { status: true } }
+          }
+        }
+      }
     });
 
     const isMember = members.find(m => m.userId === userId);
@@ -112,7 +126,26 @@ export class MessageService {
       return newMessage;
     });
 
-    const enrichedForSender = await this.buildMessageForUser(message, members, userId, conversation?.type);
+    if (conversation?.type === 'PRIVATE') {
+      const otherMember = members.find(m => m.userId !== userId);
+      const botStatus = otherMember?.user?.botProfile?.status;
+      if (otherMember && otherMember.user?.accountType === 'BOT' && botStatus === PrismaValues.BotStatus.ACTIVE) {
+        await this.prisma.conversationMember.update({
+          where: { conversationId_userId: { conversationId, userId: otherMember.userId } },
+          data: { lastReadMessageId: message.id }
+        });
+        otherMember.lastReadMessageId = message.id;
+        this.messageGateway.broadcastToUsers(members.map(m => m.userId), 'message-read', {
+          conversationId,
+          messageId: message.id,
+          userId: otherMember.userId,
+          sequence: message.sequence,
+          readAt: new Date().toISOString()
+        });
+      }
+    }
+
+    const enrichedForSender = await this.buildMessageForUser(message, members as any, userId, conversation?.type);
 
     await Promise.all(
       members.map(async member => {

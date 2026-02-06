@@ -2,6 +2,7 @@
 import * as botApi from '~/api/ai-bot'
 
 const toast = useToast()
+const dialog = useDialog()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -64,7 +65,7 @@ const activeBots = computed(() => bots.value.filter(bot => bot.status === 'ACTIV
 const loadBots = async () => {
   loading.value = true
   try {
-    const res = await botApi.listBots({ mine: true, limit: 50 })
+  const res = await botApi.listBots({ mine: true, limit: 50, includeDisabled: true })
     if (res.success && res.data) {
       bots.value = res.data.items || []
       if (selectedId.value) {
@@ -222,53 +223,80 @@ const handleToggleStatus = async (bot: any) => {
   }
 }
 
+const handleDelete = async () => {
+  if (!form.id) return
+  const confirmed = await dialog.confirm({
+    title: '删除机器人',
+    content: '删除后将无法恢复，且机器人会退出所有会话。',
+    type: 'warning',
+    confirmText: '确认删除',
+    cancelText: '取消',
+    persistent: true,
+    hideCloseButton: true
+  })
+  if (!confirmed) return
+  const res = await botApi.removeBot(form.id)
+  if (res.success) {
+    toast.success('机器人已删除')
+    showForm.value = false
+    selectedId.value = ''
+    await loadBots()
+  }
+}
+
 onMounted(loadBots)
 </script>
 
 <template>
   <div class="card bg-base-100 shadow-sm border border-base-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
     <div class="card-body p-6 md:p-8">
-      <div class="flex items-center justify-between border-b border-base-200 pb-4 mb-6">
-        <h2 class="card-title text-lg flex items-center gap-2">
-          <Icon name="mingcute:ai-line" class="text-primary" />
-          机器人管理
-        </h2>
-        <div class="flex gap-2">
-          <button class="btn btn-ghost" @click="loadBots" :disabled="loading">
-            <span v-if="loading" class="loading loading-spinner loading-xs"></span>
-            刷新
-          </button>
-          <button class="btn btn-primary" @click="resetForm">
-            创建机器人
-          </button>
-        </div>
-      </div>
+          <div class="flex items-center justify-between border-b border-base-200 pb-4 mb-6">
+            <h2 class="card-title text-lg flex items-center gap-2">
+              <Icon name="mingcute:ai-line" class="text-primary" />
+              机器人管理
+            </h2>
+            <div class="flex gap-2">
+              <button class="btn btn-ghost" @click="loadBots" :disabled="loading">
+                <span v-if="loading" class="loading loading-spinner loading-xs"></span>
+                刷新
+              </button>
+              <button class="btn btn-primary" @click="resetForm">
+                创建机器人
+              </button>
+            </div>
+          </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-1 space-y-4">
-          <div class="text-sm font-bold text-base-content/70">我的机器人（{{ activeBots.length }}）</div>
+            <div class="text-sm font-bold text-base-content/70">我的机器人（{{ bots.length }}）</div>
           <div v-if="loading" class="space-y-3">
             <div v-for="i in 4" :key="i" class="h-20 rounded-xl bg-base-200/50 animate-pulse"></div>
           </div>
           <div v-else class="space-y-3">
-            <button
-              v-for="bot in bots"
-              :key="bot.id"
-              class="w-full text-left p-4 rounded-2xl border border-base-200 hover:border-primary/40 transition-all"
-              :class="{ 'bg-primary/5 border-primary/40': bot.id === selectedId }"
-              @click="fillForm(bot)"
-            >
-              <div class="flex items-center gap-3">
-                <BaseAvatar :text="bot.name" :src="bot.avatar" :height="40" :width="40" />
-                <div class="flex-1 min-w-0">
-                  <div class="font-bold truncate">{{ bot.name }}</div>
-                  <div class="text-xs opacity-60 truncate">{{ bot.description || '暂无描述' }}</div>
+              <button
+                v-for="bot in bots"
+                :key="bot.id"
+                class="w-full text-left p-4 rounded-2xl border border-base-200 hover:border-primary/40 transition-all"
+                :class="{ 'bg-primary/5 border-primary/40': bot.id === selectedId }"
+                @click="fillForm(bot)"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="relative">
+                    <BaseAvatar :text="bot.name" :src="bot.avatar" :height="40" :width="40" />
+                    <span
+                      class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-base-100"
+                      :class="bot.status === 'ACTIVE' ? 'bg-success' : 'bg-base-300'"
+                    ></span>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-bold truncate">{{ bot.name }}</div>
+                    <div class="text-xs opacity-60 truncate">{{ bot.description || '暂无描述' }}</div>
+                  </div>
+                  <span class="badge badge-sm" :class="bot.status === 'ACTIVE' ? 'badge-success' : 'badge-ghost'">
+                    {{ bot.status === 'ACTIVE' ? '在线' : '离线' }}
+                  </span>
                 </div>
-                <span class="badge badge-sm" :class="bot.status === 'ACTIVE' ? 'badge-success' : 'badge-ghost'">
-                  {{ bot.status === 'ACTIVE' ? '启用' : '停用' }}
-                </span>
-              </div>
-            </button>
+              </button>
             <div v-if="bots.length === 0" class="text-sm text-base-content/50">暂无机器人</div>
           </div>
         </div>
@@ -278,7 +306,7 @@ onMounted(loadBots)
             请选择或创建一个机器人
           </div>
           <div v-else class="space-y-6">
-            <div class="text-sm font-bold text-base-content/70">????</div>
+            <div class="text-sm font-bold text-base-content/70">基础信息</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="form-control">
                 <label class="label"><span class="label-text font-bold">机器人名称</span></label>
@@ -453,9 +481,14 @@ onMounted(loadBots)
             </div>
 
             <div class="flex items-center justify-between border-t border-base-200 pt-6">
-              <button v-if="form.id" class="btn btn-ghost" @click="handleToggleStatus(form)">
-                {{ form.status === 'ACTIVE' ? '停用机器人' : '启用机器人' }}
-              </button>
+              <div class="flex items-center gap-2">
+                <button v-if="form.id" class="btn btn-ghost" @click="handleToggleStatus(form)">
+                  {{ form.status === 'ACTIVE' ? '停用机器人' : '启用机器人' }}
+                </button>
+                <button v-if="form.id" class="btn btn-ghost text-error" @click="handleDelete">
+                  删除机器人
+                </button>
+              </div>
               <div class="ml-auto flex items-center gap-3">
                 <button class="btn btn-ghost" @click="showForm = false">取消</button>
                 <button class="btn btn-primary min-w-[120px]" :disabled="saving" @click="handleSave">

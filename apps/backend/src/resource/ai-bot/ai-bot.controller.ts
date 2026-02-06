@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Session, UserSession } from '@thallesp/nestjs-better-auth'
 import { ApiPagination, Pagination, PaginationOptions } from '~/decorators/pagination.decorator'
@@ -45,5 +45,11 @@ export class AiBotController {
   @ApiOperation({ summary: '更新机器人' })
   update(@Session() session: UserSession, @Param('id') id: string, @Body() body: UpdateBotInput) {
     return this.aiBotService.updateBot(session.user.id, id, body)
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: '删除机器人' })
+  remove(@Session() session: UserSession, @Param('id') id: string) {
+    return this.aiBotService.deleteBot(session.user.id, id)
   }
 }

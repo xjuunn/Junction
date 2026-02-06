@@ -24,3 +24,7 @@ export function listBots(params?: {
 export function findBot(id: string) {
   return api.get<AwaitedReturnType<AiBotService['findOne']>>(`${base}/${id}`)
 }
+
+export function removeBot(id: string) {
+  return api.delete<AwaitedReturnType<AiBotService['deleteBot']>>(`${base}/${id}`)
+}

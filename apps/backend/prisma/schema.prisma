@@ -256,6 +256,7 @@ model AiBot {
   humanizeCharMaxMs  Int     @default(800)
   humanizeOverLimitThreshold Int @default(10)
   humanizeOverLimitDelayMs Int @default(5000)
+  deletedAt DateTime?
 
   apiKeyEncrypted String?
   apiKeyHint      String?

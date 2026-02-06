@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { PaginationOptions } from '~/decorators/pagination.decorator'
 import { PrismaService } from '../prisma/prisma.service'
 import { MessageService } from '../message/message.service'
+import { StatusService } from '../status/status.service'
 import { MessageGateway } from '../message/message.gateway'
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types'
 import { decryptSecret, encryptSecret, maskSecret } from '~/utils/crypto'
@@ -49,7 +50,8 @@ export class AiBotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly messageService: MessageService,
-    private readonly messageGateway: MessageGateway
+    private readonly messageGateway: MessageGateway,
+    private readonly statusService: StatusService
   ) { }
 
   async createBot(creatorId: string, input: CreateBotInput) {
@@ -115,6 +117,7 @@ export class AiBotService {
           humanizeCharMaxMs: normalized.humanizeCharMaxMs ?? 800,
           humanizeOverLimitThreshold: normalized.humanizeOverLimitThreshold ?? 10,
           humanizeOverLimitDelayMs: normalized.humanizeOverLimitDelayMs ?? 5000,
+          deletedAt: null,
           tools: normalized.tools,
           knowledgeBase: normalized.knowledgeBase,
           summaryEnabled: normalized.summaryEnabled,
@@ -142,6 +145,10 @@ export class AiBotService {
       return { user, bot }
     })
 
+    if (result.bot.status === PrismaValues.BotStatus.ACTIVE) {
+      await this.statusService.setOnline(result.bot.userId)
+    }
+
     return this.formatBot(result.bot)
   }
 
@@ -157,7 +164,7 @@ export class AiBotService {
       })
     ])
 
-    if (!bot) throw new BadRequestException('机器人不存在')
+    if (!bot || bot.deletedAt) throw new BadRequestException('机器人不存在')
     if (!currentUser) throw new ForbiddenException('无权限操作')
 
     const isAdmin = this.isAdmin(currentUser)
@@ -223,7 +230,55 @@ export class AiBotService {
       })
     })
 
+    if (updateData.status === PrismaValues.BotStatus.ACTIVE) {
+      await this.statusService.setOnline(bot.userId)
+    } else if (updateData.status === PrismaValues.BotStatus.DISABLED) {
+      await this.statusService.setOffline(bot.userId)
+    }
+
     return this.formatBot(updated)
+  }
+
+  async deleteBot(currentUserId: string, botId: string) {
+    const [currentUser, bot] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { id: true, role: true, accountType: true }
+      }),
+      this.prisma.aiBot.findUnique({
+        where: { id: botId }
+      })
+    ])
+    if (!bot || bot.deletedAt) throw new BadRequestException('机器人不存在')
+    if (!currentUser) throw new ForbiddenException('无权限操作')
+    const isAdmin = this.isAdmin(currentUser)
+    if (!isAdmin && bot.creatorId !== currentUserId) {
+      throw new ForbiddenException('仅创建者可删除机器人')
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.aiBot.update({
+        where: { id: botId },
+        data: {
+          status: PrismaValues.BotStatus.DISABLED,
+          visibility: PrismaValues.BotVisibility.PRIVATE,
+          deletedAt: new Date()
+        }
+      })
+      await tx.conversationMember.deleteMany({
+        where: { userId: bot.userId }
+      })
+      await tx.friendship.deleteMany({
+        where: {
+          OR: [
+            { senderId: bot.userId },
+            { receiverId: bot.userId }
+          ]
+        }
+      })
+    })
+    await this.statusService.setOffline(bot.userId)
+    return { success: true }
   }
 
   async findOne(currentUserId: string, botId: string) {
@@ -236,7 +291,7 @@ export class AiBotService {
         where: { id: botId }
       })
     ])
-    if (!currentUser || !bot) throw new BadRequestException('机器人不存在')
+    if (!currentUser || !bot || bot.deletedAt) throw new BadRequestException('机器人不存在')
 
     if (!this.canViewBot(currentUser, bot)) {
       throw new ForbiddenException('无权限访问该机器人')
@@ -266,6 +321,7 @@ export class AiBotService {
     if (!query.includeDisabled) {
       filters.push({ status: PrismaValues.BotStatus.ACTIVE })
     }
+    filters.push({ deletedAt: null })
     if (keyword) {
       filters.push({
         OR: [

@@ -24,14 +24,26 @@ export class ConversationService {
 
       await this.assertBotVisibility(currentUser, data.targetId);
 
-      const existing = await this.prisma.conversation.findFirst({
-        where: {
-          type: 'PRIVATE',
-          members: { every: { userId: { in: [userId, data.targetId] } } }
-        }
-      });
+        const existing = await this.prisma.conversation.findFirst({
+          where: {
+            type: 'PRIVATE',
+            AND: [
+              { members: { some: { userId } } },
+              { members: { some: { userId: data.targetId } } }
+            ]
+          },
+          include: {
+            members: {
+              select: { userId: true, isActive: true }
+            }
+          }
+        });
 
-      if (existing) return this.findOne(userId, existing.id);
+      if (existing) {
+        const memberIds = existing.members.map(m => m.userId);
+        const hasBoth = memberIds.includes(userId) && memberIds.includes(data.targetId);
+        if (hasBoth) return this.findOne(userId, existing.id);
+      }
 
       return await this.prisma.$transaction(async (tx) => {
         const conv = await tx.conversation.create({
@@ -122,6 +134,7 @@ export class ConversationService {
 
     const allMemberIds = [...new Set(filteredData.flatMap(c => c.members.map(m => m.userId)))];
     const onlineMap = await this.statusService.getStatuses(allMemberIds);
+    await this.ensureBotOnline(allMemberIds, onlineMap);
     const unreadCountMap = await this.getUnreadCountMap(userId, filteredData);
 
     const formatted = await Promise.all(filteredData.map(conv => this.formatConversation(conv, userId, onlineMap, unreadCountMap)));
@@ -148,6 +161,7 @@ export class ConversationService {
 
     const memberIds = conv.members.map(m => m.userId);
     const onlineMap = await this.statusService.getStatuses(memberIds);
+    await this.ensureBotOnline(memberIds, onlineMap);
     const unreadCountMap = await this.getUnreadCountMap(userId, [conv]);
 
     return this.formatConversation(conv, userId, onlineMap, unreadCountMap);
@@ -306,6 +320,7 @@ export class ConversationService {
 
     const memberIds = conversation.members.map(m => m.userId);
     const onlineMap = await this.statusService.getStatuses(memberIds);
+    await this.ensureBotOnline(memberIds, onlineMap);
 
     return conversation.members
       .filter(m => onlineMap[m.userId])
@@ -346,6 +361,7 @@ export class ConversationService {
 
     const memberIds = conversation.members.map(m => m.userId);
     const onlineMap = await this.statusService.getStatuses(memberIds);
+    await this.ensureBotOnline(memberIds, onlineMap);
 
     return conversation.members.map(member => ({
       ...member,
@@ -609,5 +625,22 @@ export class ConversationService {
   private getEmailDomain(email: string) {
     const parts = email.split('@');
     return parts.length === 2 ? parts[1].toLowerCase() : '';
+  }
+
+  private async ensureBotOnline(userIds: string[], onlineMap: Record<string, boolean>) {
+    if (!userIds.length) return;
+    const bots = await this.prisma.aiBot.findMany({
+      where: {
+        userId: { in: userIds },
+        status: PrismaValues.BotStatus.ACTIVE,
+        deletedAt: null
+      },
+      select: { userId: true }
+    });
+    if (!bots.length) return;
+    await Promise.all(bots.map(bot => this.statusService.setOnline(bot.userId)));
+    bots.forEach(bot => {
+      onlineMap[bot.userId] = true;
+    });
   }
 }
