@@ -36,6 +36,11 @@ const messageObserver = ref<IntersectionObserver | null>(null);
 const botMembers = ref<Array<{ id: string; name: string; image?: string | null }>>([]);
 const mentionActive = ref(false);
 const mentionQuery = ref('');
+const autoScrollEnabled = ref(true);
+let streamScrollRaf: number | null = null;
+let streamSyncTimer: ReturnType<typeof setTimeout> | null = null;
+const pendingStreamIds = new Set<string>();
+const pendingStreamContent = new Map<string, string>();
 
 const remarkMap = ref<Record<string, string>>({});
 
@@ -136,6 +141,31 @@ const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
             setTimeout(perform, 64);
         }
     });
+};
+
+const updateAutoScrollState = () => {
+    const el = listRef.value?.$el as HTMLElement | undefined;
+    if (!el) return;
+    const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    autoScrollEnabled.value = distance < 160;
+};
+
+const scheduleStreamScroll = () => {
+    if (!autoScrollEnabled.value) return;
+    if (streamScrollRaf) cancelAnimationFrame(streamScrollRaf);
+    streamScrollRaf = requestAnimationFrame(() => {
+        scrollToBottom('auto');
+        streamScrollRaf = null;
+    });
+};
+
+const scheduleStreamSync = () => {
+    if (streamSyncTimer) return;
+    streamSyncTimer = setTimeout(() => {
+        streamSyncTimer = null;
+        pendingStreamIds.clear();
+        fetchMessages(false);
+    }, 600);
 };
 
 const updateReadInfoForUser = (userId: string, sequence: number) => {
@@ -268,7 +298,11 @@ const fetchMessages = async (isMore = false) => {
         if (res.data) {
             const incoming = res.data.items as MessageItem[];
             await ensureRemarks(incoming);
-            const merged = applyRemarksToReadInfo(applyRemarks(incoming));
+            const merged = applyRemarksToReadInfo(applyRemarks(incoming)).map(item => {
+                const pending = pendingStreamContent.get(item.id);
+                if (pending === undefined) return item;
+                return { ...item, content: pending };
+            });
             if (isMore) {
                 messages.value = [...merged, ...messages.value];
                 nextTick(() => {
@@ -303,6 +337,7 @@ const handleScroll = (e: Event) => {
     if (el.scrollHeight - (el.scrollTop + el.clientHeight) < 200) {
         reportReadIfNeeded();
     }
+    updateAutoScrollState();
 };
 
 const fetchConversation = async () => {
@@ -529,7 +564,20 @@ const handleNewMessage = async (msg: MessageItem) => {
         await ensureRemarks([msg]);
         const patched = applyRemarksToReadInfo(applyRemarks([msg]))[0] || msg;
         upsertMessage(patched);
-        scrollToBottom('smooth');
+        const pending = pendingStreamContent.get(patched.id);
+        if (pending !== undefined) {
+            const idx = messages.value.findIndex(item => item.id === patched.id);
+            if (idx >= 0) {
+                messages.value[idx] = {
+                    ...messages.value[idx],
+                    content: pending
+                };
+            }
+            pendingStreamContent.delete(patched.id);
+        }
+        if (autoScrollEnabled.value || msg.senderId === currentUserId.value) {
+            scrollToBottom('smooth');
+        }
         busEmit('chat:message-sync', patched);
         reportReadIfNeeded();
     }
@@ -575,18 +623,31 @@ const handleMessageUpdated = async (msg: MessageItem) => {
     await ensureRemarks([msg]);
     const patched = applyRemarksToReadInfo(applyRemarks([msg]))[0] || msg;
     upsertMessage(patched);
+    if (autoScrollEnabled.value) {
+        scrollToBottom('auto');
+    }
 };
 
 const handleMessageStream = (payload: { conversationId: string; messageId: string; delta?: string; fullContent?: string }) => {
     if (payload.conversationId !== conversationId.value) return;
     const idx = messages.value.findIndex(item => item.id === payload.messageId);
-    if (idx < 0) return;
+    if (idx < 0) {
+        const previous = pendingStreamContent.get(payload.messageId) || '';
+        const nextContent = payload.fullContent ?? `${previous}${payload.delta || ''}`;
+        pendingStreamContent.set(payload.messageId, nextContent);
+        pendingStreamIds.add(payload.messageId);
+        scheduleStreamSync();
+        return;
+    }
     const message = messages.value[idx];
-    const nextContent = payload.fullContent ?? `${message.content || ''}${payload.delta || ''}`;
+    const base = pendingStreamContent.get(payload.messageId) ?? (message.content || '');
+    const nextContent = payload.fullContent ?? `${base}${payload.delta || ''}`;
     messages.value[idx] = {
         ...message,
         content: nextContent
     };
+    pendingStreamContent.delete(payload.messageId);
+    scheduleStreamScroll();
 };
 
 const handleMessageRead = (payload: { conversationId: string; userId: string; sequence?: number | string }) => {
@@ -613,6 +674,17 @@ watch(() => conversationId.value, () => {
     showChatSettings.value = false;
     lastReportedReadId.value = null;
     lastReportedReadSeq.value = 0;
+    autoScrollEnabled.value = true;
+    pendingStreamIds.clear();
+    pendingStreamContent.clear();
+    if (streamSyncTimer) {
+        clearTimeout(streamSyncTimer);
+        streamSyncTimer = null;
+    }
+    if (streamScrollRaf) {
+        cancelAnimationFrame(streamScrollRaf);
+        streamScrollRaf = null;
+    }
     messageObserver.value?.disconnect();
     messageObserver.value = new IntersectionObserver(handleMessageVisibility, {
         root: listRef.value?.$el ?? null,
@@ -673,6 +745,16 @@ onUnmounted(() => {
     appSocket.off('message-updated');
     appSocket.off('message-stream');
     appSocket.off('message-read');
+    pendingStreamIds.clear();
+    pendingStreamContent.clear();
+    if (streamSyncTimer) {
+        clearTimeout(streamSyncTimer);
+        streamSyncTimer = null;
+    }
+    if (streamScrollRaf) {
+        cancelAnimationFrame(streamScrollRaf);
+        streamScrollRaf = null;
+    }
     messageObserver.value?.disconnect();
     messageObserver.value = null;
     messageElementMap.clear();
