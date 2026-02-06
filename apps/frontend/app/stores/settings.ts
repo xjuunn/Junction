@@ -14,6 +14,10 @@ export interface AppSettings {
   sidebarCollapsed: boolean
   animationsEnabled: boolean
   animationSpeed: string
+  aiProviderId: string
+  aiApiKey: string
+  aiBaseUrl: string
+  aiDefaultModel: string
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -30,6 +34,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const sidebarCollapsed = ref(false)
   const animationsEnabled = ref(true)
   const animationSpeed = ref('normal')
+  const aiProviderId = ref('deepseek')
+  const aiApiKey = ref('')
+  const aiBaseUrl = ref('')
+  const aiDefaultModel = ref('')
 
   watch(downloadPath, (val) => {
     setSavedDownloadDir(val || '')
@@ -49,6 +57,10 @@ export const useSettingsStore = defineStore('settings', () => {
     sidebarCollapsed: sidebarCollapsed.value,
     animationsEnabled: animationsEnabled.value,
     animationSpeed: animationSpeed.value,
+    aiProviderId: aiProviderId.value,
+    aiApiKey: aiApiKey.value,
+    aiBaseUrl: aiBaseUrl.value,
+    aiDefaultModel: aiDefaultModel.value,
   }))
 
   return {
@@ -65,6 +77,10 @@ export const useSettingsStore = defineStore('settings', () => {
     sidebarCollapsed,
     animationsEnabled,
     animationSpeed,
+    aiProviderId,
+    aiApiKey,
+    aiBaseUrl,
+    aiDefaultModel,
     settings,
   }
 }, {

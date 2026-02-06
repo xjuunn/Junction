@@ -1,8 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 definePageMeta({ layout: "main" });
 
 const menuItems = [
     { to: '/settings/general', label: '通用设置', icon: 'mingcute:settings-3-line' },
+    { to: '/settings/ai', label: 'AI 设置', icon: 'mingcute:ai-line' },
     { to: '/settings/notification', label: '通知设置', icon: 'mingcute:notification-line' },
     { to: '/settings/privacy', label: '隐私设置', icon: 'mingcute:shield-line' },
     { to: '/settings/theme', label: '主题设置', icon: 'mingcute:paint-line' },
@@ -48,3 +49,4 @@ const menuItems = [
         </div>
     </div>
 </template>
+

@@ -35,6 +35,16 @@ export default defineNuxtConfig({
       tauriServerHost: process.env.NUXT_PUBLIC_TAURI_SERVER_HOST,
       backendPort: process.env.NUXT_PUBLIC_BACKEND_PORT,
       frontendPort: process.env.NUXT_PUBLIC_FRONTEND_PORT,
+      ai: {
+        defaultProvider: process.env.NUXT_PUBLIC_AI_DEFAULT_PROVIDER || 'deepseek',
+        providers: {
+          deepseek: {
+            apiKey: process.env.DEEPSEEK_API_KEY,
+            baseUrl: process.env.DEEPSEEK_API_BASE_URL,
+            defaultModel: process.env.DEEPSEEK_DEFAULT_MODEL,
+          },
+        },
+      },
     },
     authSecret: process.env.AUTH_SECRET,
   },
