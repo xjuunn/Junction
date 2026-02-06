@@ -44,6 +44,7 @@ export interface UpdateBotInput extends Partial<CreateBotInput> {
 @Injectable()
 export class AiBotService {
   private readonly logger = new Logger(AiBotService.name)
+  private readonly replyGuards = new Map<string, { token: number }>()
 
   constructor(
     private readonly prisma: PrismaService,
@@ -397,6 +398,7 @@ export class AiBotService {
     if (!bots.length) return
 
     for (const bot of bots) {
+      this.bumpReplyGuard(bot.id, conversation.id)
       const triggerText = eventText
       const isMentioned = this.isBotMentioned(triggerText, bot.name, bot.userId)
       const isGroup = conversation.type === 'GROUP'
@@ -416,6 +418,7 @@ export class AiBotService {
   }
 
   private async replyAsBot(bot: PrismaTypes.AiBot, conversationId: string, senderName: string) {
+    const guard = this.getReplyGuard(bot.id, conversationId)
     const memoryLength = this.clampNumber(bot.memoryLength ?? 20, 1, 80)
     const history = await this.prisma.message.findMany({
       where: {
@@ -513,6 +516,7 @@ export class AiBotService {
         temperature,
         maxTokens
       })) {
+        if (!this.isGuardActive(guard)) return
         fullContent += chunk
         this.messageGateway.broadcastToUsers(memberIds, 'message-stream', {
           conversationId,
@@ -522,6 +526,7 @@ export class AiBotService {
         })
       }
 
+      if (!this.isGuardActive(guard)) return
       await this.messageService.updateInternal(created.id, { content: fullContent })
       return
     }
@@ -539,13 +544,14 @@ export class AiBotService {
     if (humanizeEnabled) {
       const parsed = this.parseHumanizeResponse(content)
       if (parsed.messages.length) {
-        await this.sendHumanizedMessages(bot, conversationId, parsed.messages)
+        await this.sendHumanizedMessages(bot, conversationId, parsed.messages, guard)
         return
       }
-      await this.sendHumanizedMessages(bot, conversationId, content)
+      await this.sendHumanizedMessages(bot, conversationId, content, guard)
       return
     }
 
+    if (!this.isGuardActive(guard)) return
     await this.messageService.create(bot.userId, {
       conversationId,
       type: PrismaValues.MessageType.TEXT,
@@ -878,7 +884,8 @@ export class AiBotService {
   private async sendHumanizedMessages(
     bot: PrismaTypes.AiBot,
     conversationId: string,
-    contentOrMessages: string | Array<{ text: string; delayMs?: number; thoughts?: string }>
+    contentOrMessages: string | Array<{ text: string; delayMs?: number; thoughts?: string }>,
+    guard?: { key: string; token: number }
   ) {
     const chunkSize = this.clampNumber(bot.humanizeChunkSize ?? 60, 30, 400)
     const minDelay = this.clampNumber(bot.humanizeMinDelay ?? 300, 0, 10000)
@@ -892,6 +899,7 @@ export class AiBotService {
       : this.splitHumanChunks(contentOrMessages, chunkSize).map(text => ({ text }))
     const finalMessages = plannedMessages.length ? plannedMessages : [{ text: String(contentOrMessages || '').trim() }]
     for (let i = 0; i < finalMessages.length; i += 1) {
+      if (guard && !this.isGuardActive(guard)) return
       const item = finalMessages[i]
       const text = this.stripTrailingPunctuation(String(item.text || '')).trim()
       if (!text) continue
@@ -909,7 +917,8 @@ export class AiBotService {
           minDelay,
           maxDelay
         )
-        await this.sleep(delay)
+        const interrupted = await this.sleepWithGuard(delay, guard)
+        if (interrupted) return
       }
     }
   }
@@ -1019,5 +1028,46 @@ export class AiBotService {
 
   private sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  private sleepWithGuard(ms: number, guard?: { key: string; token: number }) {
+    if (!guard) return this.sleep(ms).then(() => false)
+    return new Promise<boolean>(resolve => {
+      const startToken = guard.token
+      const timeout = setTimeout(() => resolve(false), ms)
+      const interval = setInterval(() => {
+        if (!this.isGuardActive({ key: guard.key, token: startToken })) {
+          clearTimeout(timeout)
+          clearInterval(interval)
+          resolve(true)
+        }
+      }, 50)
+    })
+  }
+
+  private buildGuardKey(botId: string, conversationId: string) {
+    return `${botId}:${conversationId}`
+  }
+
+  private getReplyGuard(botId: string, conversationId: string) {
+    const key = this.buildGuardKey(botId, conversationId)
+    const existing = this.replyGuards.get(key)
+    if (!existing) {
+      const guard = { token: Date.now() }
+      this.replyGuards.set(key, guard)
+      return { key, token: guard.token }
+    }
+    return { key, token: existing.token }
+  }
+
+  private bumpReplyGuard(botId: string, conversationId: string) {
+    const key = this.buildGuardKey(botId, conversationId)
+    this.replyGuards.set(key, { token: Date.now() })
+  }
+
+  private isGuardActive(guard?: { key: string; token: number }) {
+    if (!guard) return true
+    const current = this.replyGuards.get(guard.key)
+    return !!current && current.token === guard.token
   }
 }
