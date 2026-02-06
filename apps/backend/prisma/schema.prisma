@@ -248,6 +248,14 @@ model AiBot {
   knowledgeBase      Json?
   summaryEnabled     Boolean @default(false)
   translationEnabled Boolean @default(false)
+  humanizeEnabled    Boolean @default(false)
+  humanizeMinDelay   Int     @default(300)
+  humanizeMaxDelay   Int     @default(900)
+  humanizeChunkSize  Int     @default(60)
+  humanizeCharMinMs  Int     @default(200)
+  humanizeCharMaxMs  Int     @default(800)
+  humanizeOverLimitThreshold Int @default(10)
+  humanizeOverLimitDelayMs Int @default(5000)
 
   apiKeyEncrypted String?
   apiKeyHint      String?

@@ -56,6 +56,14 @@ const filePayload = computed<{ fileUrl: string; fileName?: string; size?: number
     const size = (payload as { size?: number }).size;
     return { fileUrl, fileName, size };
 });
+const hasRichPayload = computed(() => {
+    const payload = props.message.payload as any;
+    if (!payload || typeof payload !== 'object') return false;
+    if (imagePayload.value || filePayload.value) return true;
+    if (Array.isArray(payload.content)) return true;
+    if (payload.type || payload.attrs) return true;
+    return false;
+});
 
 /**
  * 获取完整的图片URL
@@ -86,7 +94,7 @@ const renderMode = computed(() => {
     if (isRevoked.value) return 'REVOKED';
     if (props.message.type === 'IMAGE') return 'IMAGE';
     if (props.message.type === 'FILE') return 'FILE';
-    if (props.message.type === 'RICH_TEXT' || (props.message.payload && typeof props.message.payload === 'object')) return 'RICH_TEXT';
+    if (props.message.type === 'RICH_TEXT' || hasRichPayload.value) return 'RICH_TEXT';
     return 'PLAIN_TEXT';
 });
 

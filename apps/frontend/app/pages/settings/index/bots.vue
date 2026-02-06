@@ -24,6 +24,14 @@ const form = reactive({
   temperature: 0.7,
   maxTokens: 1024,
   memoryLength: 20,
+  humanizeEnabled: false,
+  humanizeMinDelay: 300,
+  humanizeMaxDelay: 900,
+  humanizeChunkSize: 60,
+  humanizeCharMinMs: 200,
+  humanizeCharMaxMs: 800,
+  humanizeOverLimitThreshold: 10,
+  humanizeOverLimitDelayMs: 5000,
   summaryEnabled: false,
   translationEnabled: false,
   apiBaseUrl: '',
@@ -83,6 +91,14 @@ const fillForm = (bot: any) => {
   form.temperature = bot.temperature ?? 0.7
   form.maxTokens = bot.maxTokens ?? 1024
   form.memoryLength = bot.memoryLength ?? 20
+  form.humanizeEnabled = !!bot.humanizeEnabled
+  form.humanizeMinDelay = bot.humanizeMinDelay ?? 300
+  form.humanizeMaxDelay = bot.humanizeMaxDelay ?? 900
+  form.humanizeChunkSize = bot.humanizeChunkSize ?? 60
+  form.humanizeCharMinMs = bot.humanizeCharMinMs ?? 200
+  form.humanizeCharMaxMs = bot.humanizeCharMaxMs ?? 800
+  form.humanizeOverLimitThreshold = bot.humanizeOverLimitThreshold ?? 10
+  form.humanizeOverLimitDelayMs = bot.humanizeOverLimitDelayMs ?? 5000
   form.summaryEnabled = !!bot.summaryEnabled
   form.translationEnabled = !!bot.translationEnabled
   form.apiBaseUrl = bot.apiBaseUrl || ''
@@ -112,6 +128,14 @@ const resetForm = () => {
     temperature: 0.7,
     maxTokens: 1024,
     memoryLength: 20,
+    humanizeEnabled: false,
+    humanizeMinDelay: 300,
+    humanizeMaxDelay: 900,
+    humanizeChunkSize: 60,
+    humanizeCharMinMs: 200,
+    humanizeCharMaxMs: 800,
+    humanizeOverLimitThreshold: 10,
+    humanizeOverLimitDelayMs: 5000,
     summaryEnabled: false,
     translationEnabled: false,
     apiBaseUrl: '',
@@ -153,6 +177,14 @@ const handleSave = async () => {
       temperature: Number(form.temperature),
       maxTokens: Number(form.maxTokens),
       memoryLength: Number(form.memoryLength),
+      humanizeEnabled: form.humanizeEnabled,
+      humanizeMinDelay: Number(form.humanizeMinDelay),
+      humanizeMaxDelay: Number(form.humanizeMaxDelay),
+      humanizeChunkSize: Number(form.humanizeChunkSize),
+      humanizeCharMinMs: Number(form.humanizeCharMinMs),
+      humanizeCharMaxMs: Number(form.humanizeCharMaxMs),
+      humanizeOverLimitThreshold: Number(form.humanizeOverLimitThreshold),
+      humanizeOverLimitDelayMs: Number(form.humanizeOverLimitDelayMs),
       summaryEnabled: form.summaryEnabled,
       translationEnabled: form.translationEnabled,
       apiBaseUrl: form.apiBaseUrl.trim() || undefined,
@@ -355,6 +387,58 @@ onMounted(loadBots)
                   <input v-model="form.translationEnabled" type="checkbox" class="checkbox checkbox-sm" />
                   <span class="label-text">启用翻译</span>
                 </label>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-base-200 bg-base-100/70 p-4 space-y-4">
+              <div class="text-sm font-bold text-base-content/70">人类输入模拟</div>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input v-model="form.humanizeEnabled" type="checkbox" class="checkbox checkbox-sm" />
+                <span class="label-text">启用分段发送与输入延迟</span>
+              </label>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-bold">最小延迟(ms)</span></label>
+                  <input v-model.number="form.humanizeMinDelay" type="number" min="0" max="10000" step="50"
+                    class="input input-bordered" :disabled="!form.humanizeEnabled" />
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-bold">最大延迟(ms)</span></label>
+                  <input v-model.number="form.humanizeMaxDelay" type="number" min="0" max="15000" step="50"
+                    class="input input-bordered" :disabled="!form.humanizeEnabled" />
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-bold">单段长度</span></label>
+                  <input v-model.number="form.humanizeChunkSize" type="number" min="30" max="400" step="10"
+                    class="input input-bordered" :disabled="!form.humanizeEnabled" />
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-bold">每字最小时间(ms)</span></label>
+                  <input v-model.number="form.humanizeCharMinMs" type="number" min="50" max="2000" step="50"
+                    class="input input-bordered" :disabled="!form.humanizeEnabled" />
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-bold">每字最大时间(ms)</span></label>
+                  <input v-model.number="form.humanizeCharMaxMs" type="number" min="50" max="5000" step="50"
+                    class="input input-bordered" :disabled="!form.humanizeEnabled" />
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-bold">超过字数阈值</span></label>
+                  <input v-model.number="form.humanizeOverLimitThreshold" type="number" min="1" max="200" step="1"
+                    class="input input-bordered" :disabled="!form.humanizeEnabled" />
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text font-bold">超过阈值延迟(ms)</span></label>
+                  <input v-model.number="form.humanizeOverLimitDelayMs" type="number" min="0" max="60000" step="100"
+                    class="input input-bordered" :disabled="!form.humanizeEnabled" />
+                </div>
+              </div>
+              <div class="text-xs text-base-content/50">
+                启用后机器人会把回复拆成多条消息并随机延迟发送，不强制句末标点。
               </div>
             </div>
 

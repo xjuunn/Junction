@@ -20,6 +20,14 @@ export interface CreateBotInput {
   temperature?: number
   maxTokens?: number
   memoryLength?: number
+  humanizeEnabled?: boolean
+  humanizeMinDelay?: number
+  humanizeMaxDelay?: number
+  humanizeChunkSize?: number
+  humanizeCharMinMs?: number
+  humanizeCharMaxMs?: number
+  humanizeOverLimitThreshold?: number
+  humanizeOverLimitDelayMs?: number
   tools?: any
   knowledgeBase?: any
   summaryEnabled?: boolean
@@ -98,6 +106,14 @@ export class AiBotService {
           temperature: normalized.temperature,
           maxTokens: normalized.maxTokens,
           memoryLength: normalized.memoryLength,
+          humanizeEnabled: normalized.humanizeEnabled ?? false,
+          humanizeMinDelay: normalized.humanizeMinDelay ?? 300,
+          humanizeMaxDelay: normalized.humanizeMaxDelay ?? 900,
+          humanizeChunkSize: normalized.humanizeChunkSize ?? 60,
+          humanizeCharMinMs: normalized.humanizeCharMinMs ?? 200,
+          humanizeCharMaxMs: normalized.humanizeCharMaxMs ?? 800,
+          humanizeOverLimitThreshold: normalized.humanizeOverLimitThreshold ?? 10,
+          humanizeOverLimitDelayMs: normalized.humanizeOverLimitDelayMs ?? 5000,
           tools: normalized.tools,
           knowledgeBase: normalized.knowledgeBase,
           summaryEnabled: normalized.summaryEnabled,
@@ -161,6 +177,14 @@ export class AiBotService {
       ...(normalized.temperature !== undefined ? { temperature: normalized.temperature } : {}),
       ...(normalized.maxTokens !== undefined ? { maxTokens: normalized.maxTokens } : {}),
       ...(normalized.memoryLength !== undefined ? { memoryLength: normalized.memoryLength } : {}),
+      ...(normalized.humanizeEnabled !== undefined ? { humanizeEnabled: normalized.humanizeEnabled } : {}),
+      ...(normalized.humanizeMinDelay !== undefined ? { humanizeMinDelay: normalized.humanizeMinDelay } : {}),
+      ...(normalized.humanizeMaxDelay !== undefined ? { humanizeMaxDelay: normalized.humanizeMaxDelay } : {}),
+      ...(normalized.humanizeChunkSize !== undefined ? { humanizeChunkSize: normalized.humanizeChunkSize } : {}),
+      ...(normalized.humanizeCharMinMs !== undefined ? { humanizeCharMinMs: normalized.humanizeCharMinMs } : {}),
+      ...(normalized.humanizeCharMaxMs !== undefined ? { humanizeCharMaxMs: normalized.humanizeCharMaxMs } : {}),
+      ...(normalized.humanizeOverLimitThreshold !== undefined ? { humanizeOverLimitThreshold: normalized.humanizeOverLimitThreshold } : {}),
+      ...(normalized.humanizeOverLimitDelayMs !== undefined ? { humanizeOverLimitDelayMs: normalized.humanizeOverLimitDelayMs } : {}),
       ...(normalized.tools !== undefined ? { tools: normalized.tools } : {}),
       ...(normalized.knowledgeBase !== undefined ? { knowledgeBase: normalized.knowledgeBase } : {}),
       ...(normalized.summaryEnabled !== undefined ? { summaryEnabled: normalized.summaryEnabled } : {}),
@@ -319,6 +343,14 @@ export class AiBotService {
                     temperature: true,
                     maxTokens: true,
                     memoryLength: true,
+                    humanizeEnabled: true,
+                    humanizeMinDelay: true,
+                    humanizeMaxDelay: true,
+                    humanizeChunkSize: true,
+                    humanizeCharMinMs: true,
+                    humanizeCharMaxMs: true,
+                    humanizeOverLimitThreshold: true,
+                    humanizeOverLimitDelayMs: true,
                     tools: true,
                     knowledgeBase: true,
                     summaryEnabled: true,
@@ -464,7 +496,8 @@ export class AiBotService {
     const temperature = this.clampNumber(bot.temperature ?? 0.7, 0, 2)
     const maxTokens = this.clampNumber(bot.maxTokens ?? 1024, 1, 4096)
 
-    if (responseMode === PrismaValues.BotResponseMode.STREAM) {
+    const humanizeEnabled = !!bot.humanizeEnabled
+    if (responseMode === PrismaValues.BotResponseMode.STREAM && !humanizeEnabled) {
       const created = await this.messageService.create(bot.userId, {
         conversationId,
         type: PrismaValues.MessageType.TEXT,
@@ -493,12 +526,25 @@ export class AiBotService {
       return
     }
 
+    const humanizeInstruction = humanizeEnabled ? this.buildHumanizeInstruction(bot) : ''
     const content = await this.createChatCompletion({
       ...provider,
-      messages,
+      messages: humanizeInstruction
+        ? [{ role: 'system', content: humanizeInstruction }, ...messages]
+        : messages,
       temperature,
       maxTokens
     })
+
+    if (humanizeEnabled) {
+      const parsed = this.parseHumanizeResponse(content)
+      if (parsed.messages.length) {
+        await this.sendHumanizedMessages(bot, conversationId, parsed.messages)
+        return
+      }
+      await this.sendHumanizedMessages(bot, conversationId, content)
+      return
+    }
 
     await this.messageService.create(bot.userId, {
       conversationId,
@@ -636,6 +682,14 @@ export class AiBotService {
       temperature: bot.temperature,
       maxTokens: bot.maxTokens,
       memoryLength: bot.memoryLength,
+      humanizeEnabled: bot.humanizeEnabled,
+      humanizeMinDelay: bot.humanizeMinDelay,
+      humanizeMaxDelay: bot.humanizeMaxDelay,
+      humanizeChunkSize: bot.humanizeChunkSize,
+      humanizeCharMinMs: bot.humanizeCharMinMs,
+      humanizeCharMaxMs: bot.humanizeCharMaxMs,
+      humanizeOverLimitThreshold: bot.humanizeOverLimitThreshold,
+      humanizeOverLimitDelayMs: bot.humanizeOverLimitDelayMs,
       tools: bot.tools,
       knowledgeBase: bot.knowledgeBase,
       summaryEnabled: bot.summaryEnabled,
@@ -666,6 +720,14 @@ export class AiBotService {
       temperature: input.temperature,
       maxTokens: input.maxTokens,
       memoryLength: input.memoryLength,
+      humanizeEnabled: input.humanizeEnabled,
+      humanizeMinDelay: input.humanizeMinDelay,
+      humanizeMaxDelay: input.humanizeMaxDelay,
+      humanizeChunkSize: input.humanizeChunkSize,
+      humanizeCharMinMs: input.humanizeCharMinMs,
+      humanizeCharMaxMs: input.humanizeCharMaxMs,
+      humanizeOverLimitThreshold: input.humanizeOverLimitThreshold,
+      humanizeOverLimitDelayMs: input.humanizeOverLimitDelayMs,
       tools: this.normalizeJson(input.tools),
       knowledgeBase: this.normalizeJson(input.knowledgeBase),
       summaryEnabled: input.summaryEnabled,
@@ -811,5 +873,151 @@ export class AiBotService {
   private clampNumber(value: number, min: number, max: number) {
     if (Number.isNaN(value)) return min
     return Math.min(Math.max(value, min), max)
+  }
+
+  private async sendHumanizedMessages(
+    bot: PrismaTypes.AiBot,
+    conversationId: string,
+    contentOrMessages: string | Array<{ text: string; delayMs?: number; thoughts?: string }>
+  ) {
+    const chunkSize = this.clampNumber(bot.humanizeChunkSize ?? 60, 30, 400)
+    const minDelay = this.clampNumber(bot.humanizeMinDelay ?? 300, 0, 10000)
+    const maxDelay = this.clampNumber(bot.humanizeMaxDelay ?? 900, minDelay, 15000)
+    const charMinMs = this.clampNumber(bot.humanizeCharMinMs ?? 200, 50, 2000)
+    const charMaxMs = this.clampNumber(bot.humanizeCharMaxMs ?? 800, charMinMs, 5000)
+    const overLimitThreshold = this.clampNumber(bot.humanizeOverLimitThreshold ?? 10, 1, 200)
+    const overLimitDelayMs = this.clampNumber(bot.humanizeOverLimitDelayMs ?? 5000, minDelay, 60000)
+    const plannedMessages: Array<{ text: string; delayMs?: number; thoughts?: string }> = Array.isArray(contentOrMessages)
+      ? contentOrMessages
+      : this.splitHumanChunks(contentOrMessages, chunkSize).map(text => ({ text }))
+    const finalMessages = plannedMessages.length ? plannedMessages : [{ text: String(contentOrMessages || '').trim() }]
+    for (let i = 0; i < finalMessages.length; i += 1) {
+      const item = finalMessages[i]
+      const text = this.stripTrailingPunctuation(String(item.text || '')).trim()
+      if (!text) continue
+      const payload = item.thoughts ? { internal: { thoughts: item.thoughts } } : undefined
+      await this.messageService.create(bot.userId, {
+        conversationId,
+        type: PrismaValues.MessageType.TEXT,
+        content: text,
+        payload,
+        clientMessageId: `bot_${bot.userId}_${Date.now()}_${i}`
+      })
+      if (i < finalMessages.length - 1) {
+        const delay = this.clampNumber(
+          this.calculateTypingDelay(text, minDelay, maxDelay, charMinMs, charMaxMs, overLimitThreshold, overLimitDelayMs),
+          minDelay,
+          maxDelay
+        )
+        await this.sleep(delay)
+      }
+    }
+  }
+
+  private splitHumanChunks(content: string, maxLen: number) {
+    const normalized = (content || '').replace(/\r\n/g, '\n').trim()
+    if (!normalized) return []
+    const lines = normalized.split('\n').map(line => line.trim()).filter(Boolean)
+    const separators = /([。！？!?；;，,、]+)\s*/g
+    const chunks: string[] = []
+    lines.forEach(line => {
+      const parts = line.split(separators).filter(Boolean)
+      let buffer = ''
+      for (const part of parts) {
+        const next = `${buffer}${part}`
+        if (next.length >= maxLen && buffer) {
+          chunks.push(buffer)
+          buffer = part
+        } else {
+          buffer = next
+        }
+        if (buffer.length >= maxLen) {
+          chunks.push(buffer)
+          buffer = ''
+        }
+      }
+      if (buffer) chunks.push(buffer)
+    })
+    return chunks.flatMap(chunk => this.splitByLength(chunk, maxLen))
+  }
+
+  private splitByLength(text: string, maxLen: number) {
+    if (text.length <= maxLen) return [text]
+    const result: string[] = []
+    let cursor = 0
+    while (cursor < text.length) {
+      result.push(text.slice(cursor, cursor + maxLen))
+      cursor += maxLen
+    }
+    return result
+  }
+
+  private stripTrailingPunctuation(text: string) {
+    return text.replace(/[。！？!?；;，,、\s]+$/g, '')
+  }
+
+  private calculateTypingDelay(
+    text: string,
+    minDelay: number,
+    maxDelay: number,
+    charMinMs: number,
+    charMaxMs: number,
+    overLimitThreshold: number,
+    overLimitDelayMs: number
+  ) {
+    const length = Math.max(1, text.trim().length)
+    if (length > overLimitThreshold) return overLimitDelayMs
+    const perChar = this.randomDelay(charMinMs, charMaxMs)
+    const total = length * perChar
+    return Math.max(minDelay, Math.min(maxDelay, total))
+  }
+
+  private buildHumanizeInstruction(bot: PrismaTypes.AiBot) {
+    const minDelay = this.clampNumber(bot.humanizeMinDelay ?? 300, 0, 10000)
+    const maxDelay = this.clampNumber(bot.humanizeMaxDelay ?? 900, minDelay, 15000)
+    const chunkSize = this.clampNumber(bot.humanizeChunkSize ?? 60, 30, 400)
+    return [
+      '你需要输出严格 JSON（不要 markdown，不要解释）。',
+      '格式如下：',
+      '{"messages":[{"text":"...","delayMs":500,"thoughts":"..."}]}',
+      '规则：',
+      '1) messages 为数组，按发送顺序排列。',
+      `2) text 为每条要发送的内容，尽量短句，单条长度控制在 ${chunkSize} 字以内。`,
+      `3) delayMs 为下一条消息发送前的等待时间（毫秒），范围 ${minDelay}~${maxDelay}。`,
+      '4) thoughts 为“内心独白”，仅用于记录，客户端不可显示，可为空。',
+      '5) 不要在句末强制加标点，尽量像人类分段发送。',
+      '只输出 JSON。'
+    ].join('\n')
+  }
+
+  private parseHumanizeResponse(content: string) {
+    const clean = content
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim()
+    try {
+      const data = JSON.parse(clean)
+      const messages = Array.isArray(data?.messages) ? data.messages : []
+      return {
+        messages: messages
+          .map((item: any) => ({
+            text: String(item?.text ?? '').trim(),
+            delayMs: typeof item?.delayMs === 'number' ? item.delayMs : undefined,
+            thoughts: item?.thoughts ? String(item.thoughts) : undefined
+          }))
+          .filter((item: any) => item.text)
+      }
+    } catch {
+      return { messages: [] as Array<{ text: string; delayMs?: number; thoughts?: string }> }
+    }
+  }
+
+  private randomDelay(min: number, max: number) {
+    if (max <= min) return min
+    return Math.floor(min + Math.random() * (max - min))
+  }
+
+  private sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms))
   }
 }
