@@ -114,3 +114,79 @@ await downloadFile({
 ---
 
 *Last updated: February 2026*
+
+## 编码与乱码防护（新增）
+
+### 为什么会出现乱码
+- 文件使用了非 UTF-8 编码（如 GBK），但被工具或脚本以 UTF-8 读取/写入。
+- 使用脚本替换时引入了转义字符（如反斜线 `\`）或错误的正则替换，导致行内容被破坏。
+- 不同编辑器/终端对编码自动识别不一致，导致保存时发生隐式转码。
+
+### 统一规范
+- **所有文本文件统一使用 UTF-8（无 BOM）**，包括 `.ts`、`.vue`、`.prisma`、`.md`、`.json`。
+- 禁止用不明确编码的脚本重写文件；如必须脚本处理，**必须显式指定 UTF-8 读写**。
+- 优先使用 `apply_patch` 做小范围修改，避免全量重写文件。
+- 修改前后检查是否出现 `�` 或异常反斜线内容。
+
+### 推荐做法
+- IDE 中将默认编码设为 UTF-8，并开启「保存时按 UTF-8 写入」。
+- 脚本处理范例（只示例原则，按需执行）：
+  ```python
+  from pathlib import Path
+  path = Path('path/to/file')
+  text = path.read_text(encoding='utf-8')
+  # ... 修改 text ...
+  path.write_text(text, encoding='utf-8')
+  ```
+- 对 `.prisma` 等核心文件，避免批量替换；尽量手工或小范围 Patch 修改。
+
+## AI 工具封装与使用（新增）
+
+### 前端封装位置
+- 运行时配置读取与提供方工厂：`apps/frontend/app/utils/ai.ts`
+- 调用入口（非流式/流式）：`apps/frontend/app/api/ai.ts`
+
+### 运行时配置
+- 在 `apps/frontend/nuxt.config.ts` 中配置 `runtimeConfig.public.ai`
+- `.env` / `.env.example` 相关字段：
+  - `NUXT_PUBLIC_AI_DEFAULT_PROVIDER`
+  - `DEEPSEEK_API_KEY`
+  - `DEEPSEEK_API_BASE_URL`
+  - `DEEPSEEK_DEFAULT_MODEL`
+
+### 客户端可配置（Pinia 持久化）
+- Store：`apps/frontend/app/stores/settings.ts`
+- 字段：
+  - `aiProviderId`
+  - `aiApiKey`
+  - `aiBaseUrl`
+  - `aiDefaultModel`
+- 规则：**客户端配置优先**，未配置时回退到运行时默认值。
+
+### 使用方式（前端）
+```ts
+import { generateAiText, streamAiText } from '~/api/ai'
+
+const result = await generateAiText({
+  prompt: '请用一句话总结这个项目',
+  system: '你是企业级助手',
+})
+
+const stream = await streamAiText({
+  messages: [
+    { role: 'user', content: '请帮我生成一段欢迎语' },
+  ],
+})
+for await (const chunk of stream.textStream) {
+  console.log(chunk)
+}
+```
+
+### 扩展新提供方
+- 在 `apps/frontend/app/utils/ai.ts` 使用 `registerAiProviderFactory` 注册提供方
+- 提供方工厂必须返回 `LanguageModel`
+- Deepseek 默认走 `openai.chat(modelId)` 端点，避免 `responses` 端点 404
+
+### 注意事项
+- 前端禁止直接使用 `fetch`/`axios` 调用 AI；必须使用上述封装
+- API Key 若保存在后端，必须加密存储并只在服务端解密使用
