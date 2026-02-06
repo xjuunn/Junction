@@ -72,9 +72,10 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const form = useTemplateRef('form')
+const userStore = useUserStore()
 const email = ref('')
 const password = ref('')
-const rememberMe = ref(false)
+const rememberMe = ref(userStore.rememberMe.value)
 const loading = ref(false)
 const errorMsg = ref('')
 
@@ -89,6 +90,7 @@ async function signIn() {
     errorMsg.value = ''
     try {
         const client = useAuthClient()
+        userStore.setRememberMe(rememberMe.value)
         const result = await client.signIn.email({
             email: email.value,
             password: password.value,
