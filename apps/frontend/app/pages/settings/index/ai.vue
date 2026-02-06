@@ -31,7 +31,7 @@ const fallbackProviderConfig = computed<AiProviderRuntimeConfig>(() => {
 async function handleSave() {
   isSaving.value = true
   await new Promise(resolve => setTimeout(resolve, 300))
-  toast.success('AI 配置已保存')
+  toast.success('当前为后端托管模式，前端不保存 API Key')
   isSaving.value = false
 }
 
@@ -43,7 +43,7 @@ function handleClear() {
   settings.aiApiKey = ''
   settings.aiBaseUrl = ''
   settings.aiDefaultModel = ''
-  toast.success('已清空客户端配置')
+  toast.success('已清空本地配置')
 }
 
 /**

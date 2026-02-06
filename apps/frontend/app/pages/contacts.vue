@@ -31,6 +31,7 @@ interface GroupItem {
     avatar?: string | null;
     memberCount: number;
     updatedAt: string | Date;
+    isBlocked?: boolean;
 }
 
 type FriendContact = FriendItem & { type: 'friend' };
@@ -40,7 +41,7 @@ type ContactItem = FriendContact | GroupContact;
 const loading = ref(true);
 const friends = ref<FriendItem[]>([]);
 const groups = ref<GroupItem[]>([]);
-const blockedFriends = ref<Array<FriendItem & { isBlocked: true }>>([]);
+const blockedFriends = ref<FriendItem[]>([]);
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'friend' | 'group' | 'bot' | 'blocked'>('all');
 
@@ -147,10 +148,10 @@ const fetchData = async (reset = false): Promise<void> => {
             });
 
             if (blockedRes.success && blockedRes.data) {
-                const normalized = blockedRes.data.items.map(normalizeFriend);
-                const newBlocked: Array<FriendItem & { isBlocked: true }> = normalized.filter(
-                    item => !blockedFriends.value.some(existing => existing.id === item.id)
-                ).map(item => ({ ...item, isBlocked: true as const }));
+            const normalized = blockedRes.data.items.map(normalizeFriend);
+            const newBlocked = normalized.filter(
+                item => !blockedFriends.value.some(existing => existing.id === item.id)
+            ).map(item => ({ ...item, isBlocked: true as const }));
                 blockedFriends.value = reset ? newBlocked : [...blockedFriends.value, ...newBlocked];
                 pagination.total = blockedRes.data.meta.total;
                 pagination.hasMore = blockedRes.data.items.length === pagination.limit;

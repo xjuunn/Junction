@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -27,6 +26,7 @@ import { RedisModule } from './resource/redis/redis.module';
 import { StatusModule } from './resource/status/status.module';
 import { AiBotModule } from './resource/ai-bot/ai-bot.module';
 import { AdminModule } from './resource/admin/admin.module';
+import { AiModule } from './resource/ai/ai.module';
 
 @Module({
   imports: [
@@ -60,15 +60,6 @@ import { AdminModule } from './resource/admin/admin.module';
         disableTrustedOriginsCors: false,
       })
     }),
-    EventEmitterModule.forRoot({
-      wildcard: false,
-      delimiter: '.',
-      newListener: false,
-      removeListener: false,
-      maxListeners: 50,
-      verboseMemoryLeak: false,
-      ignoreErrors: false
-    }),
     UserModule,
     FriendshipModule,
     NotificationModule,
@@ -77,6 +68,7 @@ import { AdminModule } from './resource/admin/admin.module';
     MessageModule,
     AiBotModule,
     AdminModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

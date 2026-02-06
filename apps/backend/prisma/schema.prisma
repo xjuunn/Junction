@@ -41,6 +41,7 @@ model User {
   messages           Message[]
   botProfile         AiBot? @relation("BotProfile")
   createdBots        AiBot[] @relation("BotCreator")
+  aiLogs             AiLog[]
 
   @@unique([email])
   @@map("user")
@@ -287,6 +288,22 @@ enum UserAccountType {
   USER
   ADMIN
   BOT
+}
+
+// --- AI 日志 ---
+
+model AiLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  String
+  model     String
+  request   Json
+  response  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("ai_log")
 }
 
 // --- 通知模块 ---

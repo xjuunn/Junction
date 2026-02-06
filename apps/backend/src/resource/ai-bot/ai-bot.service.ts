@@ -345,6 +345,9 @@ export class AiBotService {
     const senderMember = conversation.members.find(m => m.userId === senderId)
     const senderName = senderMember?.user?.name || '用户'
 
+    const payloadText = this.extractPlainTextFromPayload(event.payload)
+    const eventText = `${event.content || ''}\n${payloadText}`.trim()
+
     const bots = conversation.members
       .map(m => m.user.botProfile)
       .filter((bot): bot is NonNullable<typeof bot> => !!bot)
@@ -354,14 +357,15 @@ export class AiBotService {
     if (!bots.length) return
 
     for (const bot of bots) {
-      const triggerText = event.content || ''
+      const triggerText = eventText
       const isMentioned = this.isBotMentioned(triggerText, bot.name, bot.userId)
-      if (conversation.type === 'GROUP') {
-        if (bot.triggerMode === PrismaValues.BotTriggerMode.MENTION && !isMentioned) continue
-        if (bot.triggerMode === PrismaValues.BotTriggerMode.AUTO && !bot.autoReplyInGroup && !isMentioned) continue
-      } else if (bot.triggerMode === PrismaValues.BotTriggerMode.MENTION && !isMentioned) {
-        continue
-      }
+      const isGroup = conversation.type === 'GROUP'
+      const shouldTrigger = isGroup
+        ? (bot.triggerMode === PrismaValues.BotTriggerMode.MENTION
+          ? isMentioned
+          : (bot.autoReplyInGroup || isMentioned))
+        : true
+      if (!shouldTrigger) continue
 
       try {
         await this.replyAsBot(bot, conversation.id, senderName)
@@ -698,8 +702,12 @@ export class AiBotService {
   private extractPlainText(message: PrismaTypes.Message) {
     if (message.content && message.content !== '[富文本消息]') return message.content
     if (!message.payload || typeof message.payload !== 'object') return message.content || ''
-    const payload: any = message.payload
-    if (!payload?.content || !Array.isArray(payload.content)) return message.content || ''
+    return this.extractPlainTextFromPayload(message.payload) || message.content || ''
+  }
+
+  private extractPlainTextFromPayload(payload: any) {
+    if (!payload || typeof payload !== 'object') return ''
+    if (!payload?.content || !Array.isArray(payload.content)) return ''
     const texts: string[] = []
     const walk = (node: any) => {
       if (!node) return
