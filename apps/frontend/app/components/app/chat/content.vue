@@ -40,8 +40,8 @@ const remarkMap = ref<Record<string, string>>({});
  */
 const ensureRemarks = async (items: MessageItem[]) => {
     const memberIds = items.flatMap(item => {
-        const read = item.readInfo?.readMembers?.map(m => m.id) || [];
-        const unread = item.readInfo?.unreadMembers?.map(m => m.id) || [];
+        const read = item.readInfo?.readMembers?.map((m: ReadMember) => m.id) || [];
+        const unread = item.readInfo?.unreadMembers?.map((m: ReadMember) => m.id) || [];
         return [...read, ...unread];
     });
     const ids = Array.from(new Set([

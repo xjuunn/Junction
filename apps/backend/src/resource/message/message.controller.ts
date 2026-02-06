@@ -24,6 +24,30 @@ export class MessageController {
   }
 
   /**
+   * 导出消息记录归档
+   */
+  @Post('export')
+  @ApiOperation({ summary: "导出消息记录归档" })
+  exportArchive(
+    @Session() session: UserSession,
+    @Body() body: { conversationIds?: string[] }
+  ) {
+    return this.messageService.exportArchive(session.user.id, body?.conversationIds);
+  }
+
+  /**
+   * 导入消息记录归档
+   */
+  @Post('import')
+  @ApiOperation({ summary: "导入消息记录归档" })
+  importArchive(
+    @Session() session: UserSession,
+    @Body() body: any
+  ) {
+    return this.messageService.importArchive(session.user.id, body);
+  }
+
+  /**
    * 发送新消息
    */
   @Post()

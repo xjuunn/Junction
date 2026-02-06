@@ -383,4 +383,227 @@ export class MessageService {
     const remarkMessages = await this.attachRemarkToMessages([message], currentUserId);
     return { ...remarkMessages[0], readInfo: readInfoMap[message.id] };
   }
+
+  /**
+   * 导出消息记录归档
+   */
+  async exportArchive(userId: string, conversationIds?: string[]) {
+    const ids = (conversationIds || []).map(id => id?.trim()).filter((id): id is string => !!id);
+    const conversations = await this.prisma.conversation.findMany({
+      where: {
+        ...(ids.length ? { id: { in: ids } } : {}),
+        members: { some: { userId, isActive: true } }
+      },
+      include: {
+        members: { select: { userId: true, role: true } },
+        _count: { select: { members: true } }
+      }
+    });
+
+    const conversationIdList = conversations.map(conv => conv.id);
+    const messages = conversationIdList.length
+      ? await this.prisma.message.findMany({
+        where: {
+          conversationId: { in: conversationIdList },
+          status: { not: PrismaValues.MessageStatus.BLOCKED }
+        },
+        orderBy: { sequence: 'asc' },
+        select: {
+          id: true,
+          conversationId: true,
+          type: true,
+          content: true,
+          payload: true,
+          status: true,
+          createdAt: true,
+          senderId: true,
+          clientMessageId: true,
+          sequence: true,
+          replyToId: true,
+          moduleId: true,
+          expiresAt: true,
+          sender: { select: { id: true, name: true, image: true } }
+        }
+      })
+      : [];
+
+    const messageMap = new Map<string, any[]>();
+    messages.forEach(message => {
+      const list = messageMap.get(message.conversationId) || [];
+      list.push(message);
+      messageMap.set(message.conversationId, list);
+    });
+
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      exportedBy: userId,
+      conversations: conversations.map(conv => ({
+        id: conv.id,
+        type: conv.type,
+        title: conv.title,
+        avatar: conv.avatar,
+        ownerId: conv.ownerId,
+        memberCount: conv._count?.members || 0,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+        members: conv.members.map(member => ({
+          userId: member.userId,
+          role: member.role
+        })),
+        messages: (messageMap.get(conv.id) || []).map(message => ({
+          id: message.id,
+          type: message.type,
+          content: message.content,
+          payload: message.payload,
+          status: message.status,
+          createdAt: message.createdAt,
+          senderId: message.senderId,
+          clientMessageId: message.clientMessageId,
+          sequence: message.sequence,
+          replyToId: message.replyToId,
+          moduleId: message.moduleId,
+          expiresAt: message.expiresAt,
+          sender: message.sender
+        }))
+      }))
+    };
+  }
+
+  /**
+   * 导入消息记录归档
+   */
+  async importArchive(userId: string, payload: any) {
+    const archive = this.normalizeArchivePayload(payload);
+    const conversations = Array.isArray(archive?.conversations) ? archive.conversations : [];
+    if (!conversations.length) {
+      return { importedConversations: 0, skippedConversations: 0, importedMessages: 0, skippedMessages: 0 };
+    }
+
+    const requestedIds = conversations.map(item => item?.id).filter((id): id is string => !!id);
+    const allowed = await this.prisma.conversation.findMany({
+      where: { id: { in: requestedIds }, members: { some: { userId } } },
+      select: { id: true }
+    });
+    const allowedSet = new Set(allowed.map(item => item.id));
+
+    let importedConversations = 0;
+    let skippedConversations = 0;
+    let importedMessages = 0;
+    let skippedMessages = 0;
+
+    for (const conversation of conversations) {
+      const conversationId = conversation?.id;
+      if (!conversationId || !allowedSet.has(conversationId)) {
+        skippedConversations += 1;
+        skippedMessages += Array.isArray(conversation?.messages) ? conversation.messages.length : 0;
+        continue;
+      }
+
+      const members = await this.prisma.conversationMember.findMany({
+        where: { conversationId },
+        select: { userId: true }
+      });
+      const memberSet = new Set(members.map(member => member.userId));
+      const rawMessages = Array.isArray(conversation.messages) ? conversation.messages : [];
+      const sorted = rawMessages.slice().sort((a: any, b: any) => {
+        const seqA = Number(a?.sequence ?? 0);
+        const seqB = Number(b?.sequence ?? 0);
+        if (seqA && seqB) return seqA - seqB;
+        const timeA = this.parseDateValue(a?.createdAt)?.getTime() || 0;
+        const timeB = this.parseDateValue(b?.createdAt)?.getTime() || 0;
+        return timeA - timeB;
+      });
+
+      const last = await this.prisma.message.findFirst({
+        where: { conversationId },
+        orderBy: { sequence: 'desc' },
+        select: { sequence: true }
+      });
+      let nextSequence = last?.sequence ?? 0;
+      const batchId = `import_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const data: PrismaTypes.Prisma.MessageCreateManyInput[] = [];
+
+      sorted.forEach((message: any, index: number) => {
+        const senderId = message?.senderId ?? null;
+        if (senderId && !memberSet.has(senderId)) {
+          skippedMessages += 1;
+          return;
+        }
+        nextSequence += 1;
+        data.push({
+          conversationId,
+          senderId,
+          type: this.resolveMessageType(message?.type),
+          content: message?.content ?? null,
+          payload: message?.payload ?? null,
+          status: this.resolveMessageStatus(message?.status),
+          createdAt: this.parseDateValue(message?.createdAt) || new Date(),
+          clientMessageId: `${batchId}_${index}`,
+          sequence: nextSequence,
+          moduleId: message?.moduleId ?? null,
+          expiresAt: this.parseDateValue(message?.expiresAt) || null
+        });
+      });
+
+      if (data.length) {
+        await this.prisma.message.createMany({ data });
+        importedMessages += data.length;
+      }
+      importedConversations += 1;
+
+      const latest = await this.prisma.message.findFirst({
+        where: { conversationId },
+        orderBy: { sequence: 'desc' },
+        select: { id: true }
+      });
+      if (latest) {
+        await this.prisma.conversation.update({
+          where: { id: conversationId },
+          data: { lastMessageId: latest.id, updatedAt: new Date() }
+        });
+      }
+    }
+
+    return { importedConversations, skippedConversations, importedMessages, skippedMessages };
+  }
+
+  /**
+   * 规范化归档结构
+   */
+  private normalizeArchivePayload(payload: any) {
+    if (!payload) return null;
+    if (payload.archive) return payload.archive;
+    if (payload.success !== undefined && payload.data) return payload.data;
+    return payload;
+  }
+
+  /**
+   * 解析时间字段
+   */
+  private parseDateValue(value?: string | Date | null) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  }
+
+  /**
+   * 解析消息类型
+   */
+  private resolveMessageType(value?: string) {
+    if (!value) return PrismaValues.MessageType.TEXT;
+    const upper = String(value).toUpperCase();
+    return (PrismaValues.MessageType as any)[upper] || PrismaValues.MessageType.TEXT;
+  }
+
+  /**
+   * 解析消息状态
+   */
+  private resolveMessageStatus(value?: string) {
+    if (!value) return PrismaValues.MessageStatus.NORMAL;
+    const upper = String(value).toUpperCase();
+    return (PrismaValues.MessageStatus as any)[upper] || PrismaValues.MessageStatus.NORMAL;
+  }
 }
