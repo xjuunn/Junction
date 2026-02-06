@@ -420,11 +420,13 @@ export class AiBotService {
   private async replyAsBot(bot: PrismaTypes.AiBot, conversationId: string, senderName: string) {
     const guard = this.getReplyGuard(bot.id, conversationId)
     const memoryLength = this.clampNumber(bot.memoryLength ?? 20, 1, 80)
+    const memoryCutoff = bot.updatedAt
     const history = await this.prisma.message.findMany({
       where: {
         conversationId,
         status: PrismaValues.MessageStatus.NORMAL,
-        type: { in: [PrismaValues.MessageType.TEXT, PrismaValues.MessageType.RICH_TEXT] }
+        type: { in: [PrismaValues.MessageType.TEXT, PrismaValues.MessageType.RICH_TEXT] },
+        createdAt: { gte: memoryCutoff }
       },
       orderBy: { sequence: 'desc' },
       take: memoryLength,
