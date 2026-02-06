@@ -1,9 +1,14 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import * as conversationApi from '~/api/conversation'
-import type { PrismaTypes } from '@junction/types'
+import type { ExtractDataType } from '~/utils/types'
+
+type ConversationView = ExtractDataType<Awaited<ReturnType<typeof conversationApi.findOne>>> & {
+  members?: Array<{ userId: string; role: string }>
+  mySettings?: { muted?: boolean; pinned?: boolean }
+}
 
 interface Props {
-  conversation: PrismaTypes.Conversation | null
+  conversation: ConversationView | null
 }
 
 const props = defineProps<Props>()
@@ -159,11 +164,12 @@ const handleTransferOwner = async () => {
     confirmText: '确定转让',
   })
   if (!confirmed) return
-  const res = await conversationApi.updateMemberRole(props.conversation.id, selectedTransferMember.value.userId, 'OWNER')
+  const res = await conversationApi.transferOwner(props.conversation.id, selectedTransferMember.value.userId)
   if (res.success) {
     toast.success('群主已转让')
     showTransferDialog.value = false
     selectedTransferMember.value = null
+    await fetchMembers()
     emit('conversation-deleted')
   }
 }
@@ -222,7 +228,7 @@ onMounted(async () => {
         </div>
         <div class="mt-4">
           <input v-model="keyword" type="text" class="input input-bordered w-full bg-base-100"
-            placeholder="搜索成员昵称或ID" />
+            placeholder="搜索成员名称或ID" />
         </div>
       </div>
 

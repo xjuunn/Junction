@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+﻿import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
@@ -54,7 +54,7 @@ export class ConversationService {
 
       // 去重并过滤无效用户ID
       const uniqueMemberIds = [...new Set(data.memberIds || [])].filter(id => id && id !== userId);
-      
+
       const members: PrismaTypes.Prisma.ConversationMemberCreateManyInput[] = [
         { conversationId: conv.id, userId, role: PrismaValues.ConversationMemberRole.OWNER },
         ...uniqueMemberIds.map(id => ({
@@ -77,7 +77,7 @@ export class ConversationService {
     if (type) {
       where.type = type;
     }
-    
+
     const [data, total, blockedFriends] = await Promise.all([
       this.prisma.conversation.findMany({
         where,
@@ -226,7 +226,7 @@ export class ConversationService {
   }
 
   /**
-   * ?????????
+   * 计算未读数映射
    */
   private async getUnreadCountMap(
     userId: string,
@@ -272,7 +272,7 @@ export class ConversationService {
   }
 
   /**
-   * ?????????????
+   * 获取在线成员
    */
   async getOnlineMembers(userId: string, conversationId: string) {
     const conversation = await this.prisma.conversation.findFirst({
@@ -292,7 +292,7 @@ export class ConversationService {
       }
     });
 
-    if (!conversation) throw new BadRequestException('会话不存在或无权访问');
+    if (!conversation) throw new BadRequestException('会话不存在或无权限访问');
 
     const memberIds = conversation.members.map(m => m.userId);
     const onlineMap = await this.statusService.getStatuses(memberIds);
@@ -332,7 +332,7 @@ export class ConversationService {
       }
     });
 
-    if (!conversation) throw new BadRequestException('群聊不存在或无权访问');
+    if (!conversation) throw new BadRequestException('群聊不存在或无权限访问');
 
     const memberIds = conversation.members.map(m => m.userId);
     const onlineMap = await this.statusService.getStatuses(memberIds);
@@ -421,7 +421,7 @@ export class ConversationService {
     }
 
     // 群主可以移除任何成员（除了自己），管理员可以移除普通成员
-    const canRemove = 
+    const canRemove =
       myMember.role === 'OWNER' ||
       (myMember.role === 'ADMIN' && targetMember.role === 'MEMBER');
 
@@ -478,6 +478,42 @@ export class ConversationService {
     });
 
     return { success: true, message: '角色已更新' };
+  }
+
+  /**
+   * 转让群主
+   */
+  async transferOwner(userId: string, conversationId: string, targetUserId: string) {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId, type: 'GROUP' },
+      select: { id: true, ownerId: true }
+    });
+    if (!conversation) throw new BadRequestException('群聊不存在');
+    if (conversation.ownerId !== userId) throw new ForbiddenException('只有群主可以转让群主');
+    if (userId === targetUserId) throw new BadRequestException('不能将群主转让给自己');
+
+    const targetMember = await this.prisma.conversationMember.findFirst({
+      where: { conversationId, userId: targetUserId },
+      select: { id: true }
+    });
+    if (!targetMember) throw new BadRequestException('目标成员不在群聊中');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: { ownerId: targetUserId }
+      });
+      await tx.conversationMember.update({
+        where: { conversationId_userId: { conversationId, userId } },
+        data: { role: PrismaValues.ConversationMemberRole.MEMBER }
+      });
+      await tx.conversationMember.update({
+        where: { conversationId_userId: { conversationId, userId: targetUserId } },
+        data: { role: PrismaValues.ConversationMemberRole.OWNER }
+      });
+    });
+
+    return { success: true, message: '群主已转让' };
   }
 
   /**
