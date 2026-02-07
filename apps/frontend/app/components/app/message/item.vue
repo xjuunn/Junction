@@ -141,13 +141,6 @@ const messageMenu = defineContextMenu<{ id: string; content?: string | null; typ
     },
     { type: 'separator' },
     {
-        id: 'delete',
-        label: '删除',
-        icon: 'lucide:trash-2',
-        danger: true,
-        handler: () => handleDelete(),
-    },
-    {
         id: 'revoke',
         label: '撤回',
         icon: 'lucide:undo-2',
@@ -197,24 +190,6 @@ const handleQuote = async () => {
 /**
  * 删除消息
  */
-const handleDelete = async () => {
-    const confirmed = await dialog.confirm({
-        title: '删除消息',
-        content: '确认删除这条消息吗？',
-        type: 'warning',
-        confirmText: '删除',
-        cancelText: '取消',
-        persistent: true
-    });
-    if (!confirmed) return;
-    const res = await MessageApi.bulkDelete([props.message.id]);
-    if (!res.success) {
-        toast.error(res.message || '删除失败');
-        return;
-    }
-    toast.success('已删除');
-};
-
 /**
  * 撤回消息
  */
