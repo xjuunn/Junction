@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, useAttrs } from 'vue';
 import MarkdownIt from 'markdown-it';
+import * as hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import json from 'highlight.js/lib/languages/json';
+import bash from 'highlight.js/lib/languages/bash';
+import python from 'highlight.js/lib/languages/python';
+import xml from 'highlight.js/lib/languages/xml';
+import css from 'highlight.js/lib/languages/css';
+import mdLang from 'highlight.js/lib/languages/markdown';
 import { useClipboard } from '@vueuse/core';
 import { defineContextMenu } from '~/composables/useContextMenu';
 import type { PrismaTypes } from '@junction/types';
@@ -139,7 +148,38 @@ const isMarkdownContent = (text: string) => {
         || /_([^_]+)_/.test(text);
 };
 
-const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
+const hljsCore = (hljs as any).default ?? hljs;
+hljsCore.registerLanguage('javascript', javascript);
+hljsCore.registerLanguage('js', javascript);
+hljsCore.registerLanguage('typescript', typescript);
+hljsCore.registerLanguage('ts', typescript);
+hljsCore.registerLanguage('json', json);
+hljsCore.registerLanguage('bash', bash);
+hljsCore.registerLanguage('sh', bash);
+hljsCore.registerLanguage('python', python);
+hljsCore.registerLanguage('py', python);
+hljsCore.registerLanguage('html', xml);
+hljsCore.registerLanguage('xml', xml);
+hljsCore.registerLanguage('css', css);
+hljsCore.registerLanguage('markdown', mdLang);
+hljsCore.registerLanguage('md', mdLang);
+
+const markdown = new MarkdownIt({
+    html: false,
+    linkify: true,
+    breaks: true,
+    highlight(code, lang) {
+        if (lang) {
+            try {
+                return `<pre class="hljs"><code>${hljsCore.highlight(code, { language: lang }).value}</code></pre>`;
+            } catch {
+                // fallback below
+            }
+        }
+        const auto = hljsCore.highlightAuto(code);
+        return `<pre class="hljs"><code>${auto.value}</code></pre>`;
+    },
+});
 const markdownHtml = computed(() => markdown.render(props.message.content || ''));
 const shouldRenderMarkdown = computed(() => isBotSender.value && renderMode.value === 'PLAIN_TEXT' && isMarkdownContent(props.message.content || ''));
 
@@ -236,7 +276,7 @@ const handleRevoke = async () => {
     if (!confirmed) return;
     const res = await MessageApi.revoke(props.message.id);
     if (!res.success) {
-        toast.error(res.message || '撤回失败');
+        toast.error(res.error || '撤回失败');
         return;
     }
     emit('revoke', props.message.id);
@@ -536,6 +576,41 @@ const handleDownload = async () => {
     border-radius: 0.4rem;
     background: rgba(0, 0, 0, 0.08);
     font-size: 0.85em;
+}
+.markdown-content :deep(pre.hljs) {
+    background: rgba(15, 23, 42, 0.9);
+    color: #e2e8f0;
+}
+.markdown-content :deep(pre.hljs code) {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+.markdown-content :deep(.hljs-comment),
+.markdown-content :deep(.hljs-quote) {
+    color: #94a3b8;
+}
+.markdown-content :deep(.hljs-keyword),
+.markdown-content :deep(.hljs-selector-tag),
+.markdown-content :deep(.hljs-literal),
+.markdown-content :deep(.hljs-section),
+.markdown-content :deep(.hljs-title) {
+    color: #60a5fa;
+}
+.markdown-content :deep(.hljs-string),
+.markdown-content :deep(.hljs-title.class_),
+.markdown-content :deep(.hljs-doctag) {
+    color: #34d399;
+}
+.markdown-content :deep(.hljs-number),
+.markdown-content :deep(.hljs-regexp),
+.markdown-content :deep(.hljs-variable),
+.markdown-content :deep(.hljs-template-variable) {
+    color: #fbbf24;
+}
+.markdown-content :deep(.hljs-attr),
+.markdown-content :deep(.hljs-attribute) {
+    color: #f472b6;
 }
 .markdown-content :deep(blockquote) {
     border-left: 3px solid rgba(0, 0, 0, 0.15);

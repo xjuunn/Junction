@@ -92,7 +92,7 @@ const handleRemoveConversation = async (conversation: ConversationItem) => {
     if (!confirmed) return;
     const res = await conversationApi.remove(conversation.id);
     if (!res.success) {
-        toast.error(res.message || '删除会话失败');
+        toast.error(res.error || '删除会话失败');
         return;
     }
     if (route.params.id === conversation.id) {
