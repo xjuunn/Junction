@@ -191,3 +191,13 @@ for await (const chunk of stream.textStream) {
 ### 注意事项
 - 前端禁止直接使用 `fetch`/`axios` 调用 AI；必须使用上述封装
 - API Key 若保存在后端，必须加密存储并只在服务端解密使用
+
+## 管理后台注意事项（新增）
+- 管理后台使用独立布局 `apps/frontend/app/layouts/admin.vue`，左侧菜单统一在布局内维护。
+- 管理页面统一放在 `apps/frontend/app/pages/admin/index/**` 下，确保与左侧菜单同屏展示。
+- 表管理页面路由规范：`/admin/tables/:table`（文件路径：`apps/frontend/app/pages/admin/index/tables/[table].vue`）。
+- 外键字段必须支持弹窗检索并回填，保证管理员操作效率。
+- **每新增一个 Prisma 表，都必须在管理后台补充一个表管理入口**：
+  - 更新左侧菜单（`apps/frontend/app/layouts/admin.vue`）。
+  - 更新数据治理入口卡片（`apps/frontend/app/pages/admin/index/database.vue`）。
+  - 如需字段级展示优化，补充表字段顺序与展示策略（`apps/frontend/app/pages/admin/index/tables/[table].vue`）。
