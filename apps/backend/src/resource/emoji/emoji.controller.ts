@@ -57,7 +57,7 @@ export class EmojiController {
     @Query('categoryId') categoryId?: string,
     @Query('status') status?: PrismaValues.EmojiStatus | 'ALL'
   ) {
-    return this.emojiService.listEmojis(pagination, { keyword, categoryId, status });
+    return this.emojiService.listEmojis(session.user.id, pagination, { keyword, categoryId, status });
   }
 
   @Post('from-message')
@@ -95,6 +95,34 @@ export class EmojiController {
     }
   ) {
     return this.emojiService.updateEmoji(session.user.id, id, body);
+  }
+
+  @Patch(':id/pin')
+  @ApiOperation({ summary: '置顶表情' })
+  pinEmoji(
+    @Session() session: UserSession,
+    @Param('id') id: string
+  ) {
+    return this.emojiService.bumpEmojiToTop(session.user.id, id);
+  }
+
+  @Patch(':id/hide')
+  @ApiOperation({ summary: '隐藏表情' })
+  hideEmoji(
+    @Session() session: UserSession,
+    @Param('id') id: string
+  ) {
+    return this.emojiService.hideEmojiForUser(session.user.id, id);
+  }
+
+  @Patch(':id/order')
+  @ApiOperation({ summary: '更新表情排序' })
+  updateEmojiOrder(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() body: { sortOrder: number }
+  ) {
+    return this.emojiService.updateEmojiOrderForUser(session.user.id, id, body.sortOrder);
   }
 
   @Delete(':id')

@@ -43,6 +43,7 @@ model User {
   createdBots        AiBot[] @relation("BotCreator")
   aiLogs             AiLog[]
   createdEmojis      Emoji[]              @relation("EmojiCreator")
+  emojiPreferences   EmojiUserPreference[]
 
   @@unique([email])
   @@map("user")
@@ -258,9 +259,27 @@ model Emoji {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  preferences EmojiUserPreference[]
+
   @@index([categoryId, status])
   @@index([status, sortOrder])
   @@map("emoji")
+}
+
+model EmojiUserPreference {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emojiId   String
+  emoji     Emoji   @relation(fields: [emojiId], references: [id], onDelete: Cascade)
+  hidden    Boolean @default(false)
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, emojiId])
+  @@index([userId, hidden, sortOrder])
+  @@map("emoji_user_preference")
 }
 
 enum EmojiStatus {

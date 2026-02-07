@@ -35,6 +35,7 @@ export class EmojiService {
   }
 
   async listEmojis(
+    userId: string,
     pagination: PaginationOptions,
     query: { keyword?: string; categoryId?: string; status?: PrismaValues.EmojiStatus | 'ALL' }
   ) {
@@ -42,7 +43,18 @@ export class EmojiService {
     const categoryId = query.categoryId?.trim();
     const status = query.status && query.status !== 'ALL' ? query.status : undefined;
 
+    const prefList = await this.prisma.emojiUserPreference.findMany({
+      where: { userId, hidden: false },
+      orderBy: [{ sortOrder: 'desc' }, { createdAt: 'desc' }],
+      select: { emojiId: true, sortOrder: true }
+    });
+    if (!prefList.length) {
+      return new PaginationData([], { total: 0, limit: pagination.limit, page: pagination.page });
+    }
+
+    const prefOrder = new Map(prefList.map((item, index) => [item.emojiId, index]));
     const where: PrismaTypes.Prisma.EmojiWhereInput = {
+      id: { in: prefList.map(item => item.emojiId) },
       ...(status ? { status } : {}),
       ...(categoryId ? { categoryId } : {}),
       ...(keyword
@@ -56,17 +68,26 @@ export class EmojiService {
         : {})
     };
 
-    const [items, total] = await Promise.all([
-      this.prisma.emoji.findMany({
-        where,
-        take: pagination.take,
-        skip: pagination.skip,
-        orderBy: [{ sortOrder: 'desc' }, { createdAt: 'desc' }]
-      }),
-      this.prisma.emoji.count({ where })
-    ]);
+    const matched = await this.prisma.emoji.findMany({ where });
+    const orderedIds = prefList
+      .map(item => item.emojiId)
+      .filter(id => matched.some(m => m.id === id));
+    const total = orderedIds.length;
 
-    return new PaginationData(items, { total, limit: pagination.limit, page: pagination.page });
+    const start = (pagination.page - 1) * pagination.limit;
+    const end = start + pagination.limit;
+    const pageIds = orderedIds.slice(start, end);
+    if (!pageIds.length) {
+      return new PaginationData([], { total, limit: pagination.limit, page: pagination.page });
+    }
+    const pageItems = await this.prisma.emoji.findMany({
+      where: { id: { in: pageIds } }
+    });
+    const sorted = pageItems.slice().sort((a, b) => {
+      return (prefOrder.get(a.id) ?? 0) - (prefOrder.get(b.id) ?? 0);
+    });
+
+    return new PaginationData(sorted, { total, limit: pagination.limit, page: pagination.page });
   }
 
   async createCategory(userId: string, data: { name: string; description?: string; sortOrder?: number }) {
@@ -110,7 +131,7 @@ export class EmojiService {
     if (!name) throw new BadRequestException('表情名称不能为空');
     if (!imageUrl) throw new BadRequestException('图片地址不能为空');
 
-    return this.prisma.emoji.create({
+    const created = await this.prisma.emoji.create({
       data: {
         name,
         imageUrl,
@@ -120,6 +141,8 @@ export class EmojiService {
         createdById: userId
       }
     });
+    await this.bumpEmojiToTop(userId, created.id);
+    return created;
   }
 
   async createFromMessage(
@@ -152,10 +175,11 @@ export class EmojiService {
       if (existing.status === PrismaValues.EmojiStatus.DISABLED) {
         throw new BadRequestException('表情已被停用');
       }
+      await this.bumpEmojiToTop(userId, existing.id);
       return existing;
     }
 
-    return this.prisma.emoji.create({
+    const created = await this.prisma.emoji.create({
       data: {
         name,
         imageUrl,
@@ -165,6 +189,38 @@ export class EmojiService {
         createdById: userId,
         sourceMessageId: messageId
       }
+    });
+    await this.bumpEmojiToTop(userId, created.id);
+    return created;
+  }
+
+  async bumpEmojiToTop(userId: string, id: string) {
+    const max = await this.prisma.emojiUserPreference.findFirst({
+      where: { userId },
+      orderBy: { sortOrder: 'desc' },
+      select: { sortOrder: true }
+    });
+    const nextOrder = (max?.sortOrder ?? 0) + 1;
+    return this.prisma.emojiUserPreference.upsert({
+      where: { userId_emojiId: { userId, emojiId: id } },
+      create: { userId, emojiId: id, sortOrder: nextOrder, hidden: false },
+      update: { sortOrder: nextOrder, hidden: false }
+    });
+  }
+
+  async hideEmojiForUser(userId: string, id: string) {
+    return this.prisma.emojiUserPreference.upsert({
+      where: { userId_emojiId: { userId, emojiId: id } },
+      create: { userId, emojiId: id, hidden: true, sortOrder: 0 },
+      update: { hidden: true }
+    });
+  }
+
+  async updateEmojiOrderForUser(userId: string, id: string, sortOrder: number) {
+    return this.prisma.emojiUserPreference.upsert({
+      where: { userId_emojiId: { userId, emojiId: id } },
+      create: { userId, emojiId: id, sortOrder, hidden: false },
+      update: { sortOrder, hidden: false }
     });
   }
 

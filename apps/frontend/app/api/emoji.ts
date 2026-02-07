@@ -92,6 +92,27 @@ export function updateEmoji(id: string, data: {
 }
 
 /**
+ * 置顶表情
+ */
+export function pinEmoji(id: string) {
+  return api.patch<AwaitedReturnType<EmojiController['pinEmoji']>>(`${base}/${id}/pin`)
+}
+
+/**
+ * 隐藏表情
+ */
+export function hideEmoji(id: string) {
+  return api.patch<AwaitedReturnType<EmojiController['hideEmoji']>>(`${base}/${id}/hide`)
+}
+
+/**
+ * 更新表情排序
+ */
+export function updateEmojiOrder(id: string, sortOrder: number) {
+  return api.patch<AwaitedReturnType<EmojiController['updateEmojiOrder']>>(`${base}/${id}/order`, { sortOrder })
+}
+
+/**
  * 删除表情
  */
 export function removeEmoji(id: string) {

@@ -345,6 +345,12 @@ const handleAddEmoji = () => {
         toast.info('未找到可用图片');
         return;
     }
+    if (emojiPayload.value?.emojiId) {
+        busEmit('emoji:pin-existing', {
+            emojiId: emojiPayload.value.emojiId
+        });
+        return;
+    }
     busEmit('emoji:add-from-message', {
         messageId: props.message.id,
         imageUrl: payload.imageUrl,
@@ -453,7 +459,7 @@ const handleDownload = async () => {
             'chat-bubble min-h-0 text-[14px] leading-relaxed shadow-sm relative group/bubble',
             isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200 text-base-content border-none',
             isRevokedLike ? 'italic opacity-50' : '',
-            renderMode === 'EMOJI' ? 'bg-transparent shadow-none px-2' : ''
+            renderMode === 'EMOJI' ? 'bg-transparent shadow-none p-0' : ''
         ]">
             <div class="break-words max-w-[70vw] sm:max-w-md">
                 <button
@@ -494,16 +500,13 @@ const handleDownload = async () => {
 
                 <!-- 场景 2.5: 表情消息渲染 -->
                 <template v-else-if="renderMode === 'EMOJI'">
-                    <div v-if="emojiPayload" class="flex flex-col items-start gap-2">
-                        <div class="relative w-28 h-28 rounded-2xl bg-base-100/70 border border-base-content/10 p-2 shadow-sm">
+                    <div v-if="emojiPayload" class="w-full">
+                        <div class="relative w-[32vw] max-w-[180px] aspect-square">
                             <img
                                 :src="getImageUrl(emojiPayload.imageUrl)"
                                 alt="表情"
                                 class="w-full h-full object-contain"
                                 loading="lazy" />
-                        </div>
-                        <div v-if="emojiPayload.name" class="text-xs opacity-60">
-                            {{ emojiPayload.name }}
                         </div>
                     </div>
                     <div v-else class="whitespace-pre-wrap">

@@ -7,6 +7,7 @@ import * as emojiApi from '~/api/emoji';
 import { isTauri } from '~/utils/check';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
 import type { PrismaTypes } from '@junction/types';
+import gsap from 'gsap';
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -53,12 +54,14 @@ const quotedMessage = ref<{ messageId: string; senderName: string; content: stri
 const isJumpingToMessage = ref(false);
 const suppressScrollFetchUntil = ref(0);
 const showEmojiPanel = ref(false);
-const emojiPanelTab = ref<'library' | 'manage'>('library');
+const emojiManageMode = ref(false);
 const emojiKeyword = ref('');
 const emojiCategories = ref<EmojiCategoryItem[]>([]);
 const emojiItems = ref<EmojiItem[]>([]);
 const emojiLoading = ref(false);
 const emojiActiveCategoryId = ref<string | null>(null);
+const emojiGridRef = ref<HTMLElement | null>(null);
+const emojiDraggingId = ref<string | null>(null);
 const emojiAddDialogVisible = ref(false);
 const emojiAddSource = reactive({ messageId: '', imageUrl: '' });
 const emojiUploadLoading = ref(false);
@@ -548,7 +551,7 @@ watch(showEmojiPanel, (visible) => {
     if (visible) ensureEmojiPanelData();
 });
 
-watch([emojiKeyword, emojiActiveCategoryId, emojiPanelTab], () => {
+watch([emojiKeyword, emojiActiveCategoryId], () => {
     if (!showEmojiPanel.value) return;
     scheduleEmojiSearch();
 });
@@ -559,6 +562,10 @@ watch(emojiAddDialogVisible, (visible) => {
         emojiAddSource.messageId = '';
         emojiAddSource.imageUrl = '';
     }
+});
+
+watch(emojiManageMode, () => {
+    nextTick(() => animateEmojiGrid());
 });
 
 const hasMentionNode = (node: any): boolean => {
@@ -642,17 +649,17 @@ const loadEmojiList = async () => {
     if (!showEmojiPanel.value) return;
     emojiLoading.value = true;
     try {
-        const status = emojiPanelTab.value === 'manage' ? 'ALL' : 'ACTIVE';
         const res = await emojiApi.findAll({
             page: 1,
-            limit: emojiPanelTab.value === 'manage' ? 200 : 60,
+            limit: 200,
             keyword: emojiKeyword.value.trim() || undefined,
             categoryId: emojiActiveCategoryId.value || undefined,
-            status
+            status: 'ACTIVE'
         });
         if (res.data) emojiItems.value = res.data.items;
     } finally {
         emojiLoading.value = false;
+        nextTick(() => animateEmojiGrid());
     }
 };
 
@@ -770,30 +777,48 @@ const handleEmojiUpload = () => {
     input.click();
 };
 
-const handleEmojiStatusToggle = async (emoji: EmojiItem) => {
-    const nextStatus = emoji.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
-    await emojiApi.updateEmoji(emoji.id, { status: nextStatus as any });
-    await loadEmojiList();
-};
 
 const handleEmojiSortUpdate = async (emoji: EmojiItem, sortOrder: number) => {
-    await emojiApi.updateEmoji(emoji.id, { sortOrder });
+    await emojiApi.updateEmojiOrder(emoji.id, sortOrder);
     await loadEmojiList();
 };
 
 const handleEmojiRemove = async (emoji: EmojiItem) => {
-    const confirmed = await dialog.confirm({
-        title: '删除表情',
-        content: `确认删除表情「${emoji.name}」吗？`,
-        type: 'warning',
-        confirmText: '删除',
-        cancelText: '取消',
-        persistent: true
-    });
-    if (!confirmed) return;
-    await emojiApi.removeEmoji(emoji.id);
-    toast.success('已删除');
+    await emojiApi.hideEmoji(emoji.id);
     await loadEmojiList();
+};
+
+const handleEmojiDragStart = (emoji: EmojiItem) => {
+    if (!emojiManageMode.value) return;
+    emojiDraggingId.value = emoji.id;
+};
+
+const handleEmojiDrop = async (target: EmojiItem) => {
+    const sourceId = emojiDraggingId.value;
+    if (!emojiManageMode.value || !sourceId || sourceId === target.id) {
+        emojiDraggingId.value = null;
+        return;
+    }
+    const list = emojiItems.value.slice();
+    const fromIndex = list.findIndex(item => item.id === sourceId);
+    const toIndex = list.findIndex(item => item.id === target.id);
+    if (fromIndex === -1 || toIndex === -1) {
+        emojiDraggingId.value = null;
+        return;
+    }
+    const [moved] = list.splice(fromIndex, 1);
+    list.splice(toIndex, 0, moved);
+    emojiItems.value = list;
+    emojiDraggingId.value = null;
+    const sortBase = list.length + 1;
+    await Promise.all(list.map((item, index) => emojiApi.updateEmojiOrder(item.id, sortBase - index)));
+};
+
+const animateEmojiGrid = () => {
+    const el = emojiGridRef.value;
+    if (!el) return;
+    const items = Array.from(el.querySelectorAll('[data-emoji-item]'));
+    gsap.fromTo(items, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.25, stagger: 0.02, ease: 'power2.out' });
 };
 
 // 发送消息
@@ -1123,6 +1148,17 @@ onMounted(async () => {
     busOn('chat:scroll-to-message', scrollToMessageById);
     busOn('chat:message-revoked-local', handleMessageRevoked);
     busOn('emoji:add-from-message', openEmojiAddDialog);
+    busOn('emoji:pin-existing', async (payload: { emojiId: string }) => {
+        if (!payload?.emojiId) return;
+        try {
+            await emojiApi.pinEmoji(payload.emojiId);
+            if (showEmojiPanel.value) {
+                await loadEmojiList();
+            }
+        } catch (e: any) {
+            toast.error(e?.message || '置顶失败');
+        }
+    });
     busEmit('chat:active-conversation', conversationId.value);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -1170,6 +1206,7 @@ onUnmounted(() => {
     busOff('chat:scroll-to-message', scrollToMessageById);
     busOff('chat:message-revoked-local', handleMessageRevoked);
     busOff('emoji:add-from-message', openEmojiAddDialog);
+    busOff('emoji:pin-existing');
     busEmit('chat:active-conversation', null);
     socketDisposers.forEach(dispose => dispose());
     socketDisposers = [];
@@ -1326,19 +1363,13 @@ onUnmounted(() => {
                             <div v-if="showEmojiPanel"
                                 class="absolute bottom-full left-0 mb-4 w-[360px] max-w-[85vw] bg-base-100 border border-base-200 rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-bottom-2">
                                 <div class="flex items-center justify-between gap-2 mb-3">
-                                    <div class="flex items-center gap-1">
-                                        <button class="btn btn-ghost btn-xs"
-                                            :class="{ 'text-primary': emojiPanelTab === 'library' }"
-                                            @click="emojiPanelTab = 'library'">
-                                            表情
+                                    <div class="text-xs font-semibold opacity-70">表情</div>
+                                    <div class="flex items-center gap-2">
+                                        <button class="btn btn-ghost btn-xs" @click="emojiManageMode = !emojiManageMode">
+                                            {{ emojiManageMode ? '完成' : '管理' }}
                                         </button>
-                                        <button class="btn btn-ghost btn-xs"
-                                            :class="{ 'text-primary': emojiPanelTab === 'manage' }"
-                                            @click="emojiPanelTab = 'manage'">
-                                            管理
-                                        </button>
+                                        <button class="btn btn-ghost btn-xs" @click="showEmojiPanel = false">关闭</button>
                                     </div>
-                                    <button class="btn btn-ghost btn-xs" @click="showEmojiPanel = false">关闭</button>
                                 </div>
 
                                 <div class="flex items-center gap-2 mb-3">
@@ -1346,67 +1377,52 @@ onUnmounted(() => {
                                         class="input input-sm input-bordered w-full rounded-xl" />
                                 </div>
 
-                                <div v-if="emojiPanelTab === 'library'" class="space-y-3">
-                                    <div class="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                                        <button v-for="tab in emojiCategoryTabs" :key="tab.id || 'all'"
-                                            class="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-                                            :class="emojiActiveCategoryId === tab.id
-                                                ? 'bg-base-content text-base-100'
-                                                : 'bg-base-200/70 text-base-content/60 hover:bg-base-200'"
-                                            @click="emojiActiveCategoryId = tab.id">
-                                            {{ tab.name }}
-                                        </button>
-                                    </div>
-
-                                    <div v-if="emojiLoading" class="py-6 flex items-center justify-center">
-                                        <span class="loading loading-dots loading-sm"></span>
-                                    </div>
-                                    <div v-else-if="emojiItems.length" class="grid grid-cols-6 gap-2">
-                                        <button v-for="item in emojiItems" :key="item.id"
-                                            class="p-2 rounded-xl bg-base-200/60 hover:bg-base-200 transition-colors"
-                                            @click="handleSendEmoji(item)">
-                                            <img :src="getEmojiImageUrl(item.imageUrl)" :alt="item.name"
-                                                class="w-10 h-10 object-contain mx-auto" />
-                                        </button>
-                                    </div>
-                                    <div v-else class="py-8 text-center text-xs opacity-50">
-                                        暂无表情
-                                    </div>
-                                </div>
-
-                                <div v-else class="space-y-3">
+                                <div class="space-y-3">
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xs font-semibold opacity-70">表情管理</span>
+                                        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                                            <button v-for="tab in emojiCategoryTabs" :key="tab.id || 'all'"
+                                                class="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                                                :class="emojiActiveCategoryId === tab.id
+                                                    ? 'bg-base-content text-base-100'
+                                                    : 'bg-base-200/70 text-base-content/60 hover:bg-base-200'"
+                                                @click="emojiActiveCategoryId = tab.id">
+                                                {{ tab.name }}
+                                            </button>
+                                        </div>
                                         <button class="btn btn-ghost btn-xs" @click="handleEmojiUpload" :disabled="emojiUploadLoading">
                                             <span v-if="emojiUploadLoading" class="loading loading-spinner loading-xs"></span>
-                                            <span v-else>添加表情</span>
+                                            <span v-else>添加</span>
                                         </button>
                                     </div>
+
                                     <div v-if="emojiLoading" class="py-6 flex items-center justify-center">
                                         <span class="loading loading-dots loading-sm"></span>
                                     </div>
-                                    <div v-else-if="emojiItems.length" class="space-y-2 max-h-72 overflow-y-auto">
-                                        <div v-for="item in emojiItems" :key="item.id"
-                                            class="flex items-center gap-3 rounded-xl bg-base-200/60 p-2">
-                                            <img :src="getEmojiImageUrl(item.imageUrl)" :alt="item.name"
-                                                class="w-10 h-10 object-contain rounded-lg bg-base-100/80" />
-                                            <div class="flex-1 min-w-0">
-                                                <div class="text-xs font-semibold truncate">{{ item.name }}</div>
-                                                <div class="text-[10px] opacity-50 truncate">
-                                                    {{ emojiCategoryMap[item.categoryId || '']?.name || '未分类' }}
+                                    <div v-else-if="emojiItems.length" ref="emojiGridRef" class="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-2 max-h-72 overflow-y-auto">
+                                        <div v-for="item in emojiItems" :key="item.id" data-emoji-item
+                                            class="group relative rounded-2xl bg-base-200/60 hover:bg-base-200 transition-all duration-200 hover:-translate-y-0.5"
+                                            :draggable="emojiManageMode"
+                                            @dragstart="handleEmojiDragStart(item)"
+                                            @dragover.prevent
+                                            @drop="handleEmojiDrop(item)">
+                                            <button v-if="!emojiManageMode" class="w-full h-full p-2"
+                                                @click="handleSendEmoji(item)">
+                                                <img :src="getEmojiImageUrl(item.imageUrl)" :alt="item.name"
+                                                    class="w-14 h-14 object-contain mx-auto" />
+                                            </button>
+                                            <div v-else class="p-2 space-y-2">
+                                                <div class="flex items-center justify-center">
+                                                    <img :src="getEmojiImageUrl(item.imageUrl)" :alt="item.name"
+                                                        class="w-14 h-14 object-contain" />
+                                                </div>
+                                                <div class="flex items-center justify-between text-[10px] opacity-60">
+                                                    <span class="truncate">拖动排序</span>
+                                                    <button class="btn btn-ghost btn-xs text-error"
+                                                        @click="handleEmojiRemove(item)">
+                                                        删除
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <input type="number" class="input input-xs w-16"
-                                                :value="item.sortOrder"
-                                                @change="handleEmojiSortUpdate(item, Number(($event.target as HTMLInputElement).value))" />
-                                            <button class="btn btn-ghost btn-xs"
-                                                @click="handleEmojiStatusToggle(item)">
-                                                {{ item.status === 'ACTIVE' ? '停用' : '启用' }}
-                                            </button>
-                                            <button class="btn btn-ghost btn-xs text-error"
-                                                @click="handleEmojiRemove(item)">
-                                                删除
-                                            </button>
                                         </div>
                                     </div>
                                     <div v-else class="py-8 text-center text-xs opacity-50">
