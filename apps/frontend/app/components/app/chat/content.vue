@@ -14,7 +14,7 @@ const { emit: busEmit, on: busOn, off: busOff } = useEmitt();
 
 const conversationId = computed(() => route.params.id as string);
 const currentUserId = computed(() => unref(userStore.user)?.id);
-type ReadMember = { id: string; name: string; image?: string | null };
+type ReadMember = { id: string; name: string; image?: string | null; accountType?: string | null };
 type ReadInfo = { isRead: boolean; readCount: number; unreadCount: number; readMembers?: ReadMember[]; unreadMembers?: ReadMember[] };
 type MessageItem = NonNullable<NonNullable<Awaited<ReturnType<typeof messageApi.findAll>>['data']>['items']>[number] & {
     readInfo?: ReadInfo;
@@ -33,6 +33,7 @@ const lastReportedReadSeq = ref<number>(0);
 const messageElementMap = new Map<string, Element>();
 const messageObserver = ref<IntersectionObserver | null>(null);
 const mentionMembers = ref<Array<{ id: string; name: string; image?: string | null; accountType?: string | null }>>([]);
+const memberTypeMap = ref<Record<string, string>>({});
 const autoScrollEnabled = ref(true);
 let streamScrollRaf: number | null = null;
 let streamSyncTimer: ReturnType<typeof setTimeout> | null = null;
@@ -82,8 +83,9 @@ const applyRemarksToReadInfo = (items: MessageItem[]) => items.map(item => {
     const mapMember = (member: ReadMember) => {
         if (!member?.id) return member;
         const note = remarkMap.value[member.id];
-        if (!note) return member;
-        return { ...member, name: note };
+        const accountType = memberTypeMap.value[member.id] || member.accountType;
+        if (!note) return { ...member, accountType };
+        return { ...member, name: note, accountType };
     };
     const readMembers = item.readInfo.readMembers?.map(mapMember);
     const unreadMembers = item.readInfo.unreadMembers?.map(mapMember);
@@ -353,20 +355,32 @@ const fetchMentionMembers = async () => {
     if (conv.type === 'GROUP') {
         const res = await conversationApi.getMembers(conv.id);
         if (res.data) {
+            const typeMap: Record<string, string> = {};
             mentionMembers.value = res.data
                 .map(item => item.user)
                 .filter((user: any) => user && user.id && user.id !== currentUserId.value)
-                .map((user: any) => ({
+                .map((user: any) => {
+                    if (user?.id && user?.accountType) {
+                        typeMap[user.id] = user.accountType;
+                    }
+                    return ({
                     id: user.id,
                     name: user.name || user.email || '用户',
                     image: user.image || null,
                     accountType: user.accountType || null
-                }));
+                })});
+            memberTypeMap.value = typeMap;
         }
         return;
     }
     mentionMembers.value = [];
+    memberTypeMap.value = {};
 };
+
+watch(memberTypeMap, () => {
+    if (!messages.value.length) return;
+    messages.value = applyRemarksToReadInfo(messages.value);
+}, { deep: true });
 
 const hasMentionNode = (node: any): boolean => {
     if (!node) return false;

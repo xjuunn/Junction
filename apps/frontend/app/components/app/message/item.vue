@@ -17,8 +17,8 @@ const props = defineProps<{
         isRead: boolean;
         readCount: number;
         unreadCount: number;
-        readMembers?: Array<{ id: string; name: string; image?: string | null }>;
-        unreadMembers?: Array<{ id: string; name: string; image?: string | null }>;
+        readMembers?: Array<{ id: string; name: string; image?: string | null; accountType?: string | null }>;
+        unreadMembers?: Array<{ id: string; name: string; image?: string | null; accountType?: string | null }>;
     };
 }>();
 
@@ -33,10 +33,17 @@ const dialog = useDialog();
  * 获取撤回状态
  */
 const isRevoked = computed(() => props.message.status === MessageApi.MessageStatus.REVOKED);
-const displayRead = computed(() => props.isRead ?? props.readInfo?.isRead ?? false);
-const totalReceivers = computed(() => (props.readInfo ? props.readInfo.readCount + props.readInfo.unreadCount : 0));
 const isGroup = computed(() => props.isGroup);
 const readInfo = computed(() => props.readInfo);
+const humanReadMembers = computed(() => readInfo.value?.readMembers?.filter(member => member.accountType !== 'BOT') ?? []);
+const humanUnreadMembers = computed(() => readInfo.value?.unreadMembers?.filter(member => member.accountType !== 'BOT') ?? []);
+const totalReceivers = computed(() => humanReadMembers.value.length + humanUnreadMembers.value.length);
+const displayRead = computed(() => {
+    if (readInfo.value) {
+        return totalReceivers.value > 0 && humanUnreadMembers.value.length === 0;
+    }
+    return props.isRead ?? false;
+});
 const isBotSender = computed(() => props.message.sender?.accountType === 'BOT');
 const imagePayload = computed<{ imageUrl: string } | null>(() => {
     const payload = props.message.payload;
@@ -250,21 +257,21 @@ const handleDownload = async () => {
                     :class="displayRead ? 'text-primary' : ''" size="12" />
                 <div v-if="isGroup && readInfo && totalReceivers" class="relative">
                     <button class="btn btn-ghost btn-xs h-5 px-2 rounded-full" @click="toggleReadDetail">
-                        已读 {{ readInfo.readCount }}/{{ totalReceivers }}
+                        已读 {{ humanReadMembers.length }}/{{ totalReceivers }}
                     </button>
                     <div v-if="showReadDetail"
                         class="absolute bottom-full right-0 mb-2 w-48 bg-base-100 border border-base-200 rounded-xl shadow-xl p-3 space-y-2 text-[11px] opacity-100">
                         <div class="font-bold opacity-70">已读</div>
-                        <div v-if="readInfo.readMembers?.length" class="flex flex-wrap gap-1">
-                            <span v-for="member in readInfo.readMembers" :key="member.id"
+                        <div v-if="humanReadMembers.length" class="flex flex-wrap gap-1">
+                            <span v-for="member in humanReadMembers" :key="member.id"
                                 class="badge badge-ghost badge-sm">
                                 {{ member.name }}
                             </span>
                         </div>
                         <div v-else class="opacity-50">暂无</div>
                         <div class="font-bold opacity-70 pt-1">未读</div>
-                        <div v-if="readInfo.unreadMembers?.length" class="flex flex-wrap gap-1">
-                            <span v-for="member in readInfo.unreadMembers" :key="member.id"
+                        <div v-if="humanUnreadMembers.length" class="flex flex-wrap gap-1">
+                            <span v-for="member in humanUnreadMembers" :key="member.id"
                                 class="badge badge-outline badge-sm">
                                 {{ member.name }}
                             </span>
