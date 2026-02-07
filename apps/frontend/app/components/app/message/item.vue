@@ -259,27 +259,42 @@ const handleDownload = async () => {
                     <button class="btn btn-ghost btn-xs h-5 px-2 rounded-full" @click="toggleReadDetail">
                         已读 {{ humanReadMembers.length }}/{{ totalReceivers }}
                     </button>
-                    <div v-if="showReadDetail"
-                        class="absolute bottom-full right-0 mb-2 w-48 bg-base-100 border border-base-200 rounded-xl shadow-xl p-3 space-y-2 text-[11px] opacity-100">
-                        <div class="font-bold opacity-70">已读</div>
-                        <div v-if="humanReadMembers.length" class="flex flex-wrap gap-1">
-                            <span v-for="member in humanReadMembers" :key="member.id"
-                                class="badge badge-ghost badge-sm">
-                                {{ member.name }}
-                            </span>
-                        </div>
-                        <div v-else class="opacity-50">暂无</div>
-                        <div class="font-bold opacity-70 pt-1">未读</div>
-                        <div v-if="humanUnreadMembers.length" class="flex flex-wrap gap-1">
-                            <span v-for="member in humanUnreadMembers" :key="member.id"
-                                class="badge badge-outline badge-sm">
-                                {{ member.name }}
-                            </span>
-                        </div>
-                        <div v-else class="opacity-50">暂无</div>
-                    </div>
                 </div>
             </template>
         </div>
     </div>
+
+    <BaseModal v-model="showReadDetail" title="消息已读状态" box-class="max-w-lg w-full">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="rounded-2xl border border-base-200 bg-base-100 p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase opacity-60">已读</span>
+                    <span class="badge badge-ghost badge-sm bg-base-200 text-base-content border-none">{{ humanReadMembers.length }}</span>
+                </div>
+                <div v-if="humanReadMembers.length" class="space-y-2 max-h-56 overflow-y-auto">
+                    <div v-for="member in humanReadMembers" :key="member.id"
+                        class="flex items-center gap-2 p-2 rounded-xl bg-base-200/60">
+                        <BaseAvatar :text="member.name" :src="member.image" :height="28" :width="28" />
+                        <span class="text-sm font-medium truncate">{{ member.name }}</span>
+                    </div>
+                </div>
+                <div v-else class="text-xs opacity-40">暂无已读成员</div>
+            </div>
+
+            <div class="rounded-2xl border border-base-200 bg-base-100 p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase opacity-60">未读</span>
+                    <span class="badge badge-ghost badge-sm bg-base-200 text-base-content border-none">{{ humanUnreadMembers.length }}</span>
+                </div>
+                <div v-if="humanUnreadMembers.length" class="space-y-2 max-h-56 overflow-y-auto">
+                    <div v-for="member in humanUnreadMembers" :key="member.id"
+                        class="flex items-center gap-2 p-2 rounded-xl bg-base-200/60">
+                        <BaseAvatar :text="member.name" :src="member.image" :height="28" :width="28" />
+                        <span class="text-sm font-medium truncate">{{ member.name }}</span>
+                    </div>
+                </div>
+                <div v-else class="text-xs opacity-40">暂无未读成员</div>
+            </div>
+        </div>
+    </BaseModal>
 </template>

@@ -104,6 +104,7 @@ await downloadFile({
 - 2 空格缩进、单引号、末尾逗号
 - 无 Prettier 配置，遵循现有风格
 - 尽量使用 Nuxt 自动导入
+- UI 组件样式：**减少 `outline` 风格，优先使用 `soft/ghost` 风格**（例如 `badge-ghost`、`btn-ghost`、`bg-base-200`），以提升舒适度并适配主题
 
 ## 后端风格规范（摘要）
 
