@@ -6,6 +6,8 @@ export type AdminTableName =
   | 'friendship'
   | 'notification'
   | 'aiLog'
+  | 'emoji'
+  | 'emojiCategory'
 
 export type AdminFieldType = 'string' | 'number' | 'boolean' | 'enum' | 'datetime' | 'json'
 

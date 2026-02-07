@@ -135,6 +135,46 @@ export class AdminService {
         { name: 'updatedAt', label: '更新时间', type: 'datetime', readOnly: true }
       ]
     },
+    emojiCategory: {
+      name: 'emojiCategory',
+      label: '表情分类',
+      primaryKey: 'id',
+      allowCreate: true,
+      allowUpdate: true,
+      allowDelete: true,
+      fields: [
+        { name: 'id', label: 'ID', type: 'string', readOnly: true },
+        { name: 'name', label: '名称', type: 'string', editable: true },
+        { name: 'description', label: '描述', type: 'string', editable: true },
+        { name: 'status', label: '状态', type: 'enum', editable: true, enumValues: Object.values(PrismaValues.EmojiCategoryStatus) },
+        { name: 'sortOrder', label: '排序', type: 'number', editable: true },
+        { name: 'createdAt', label: '创建时间', type: 'datetime', readOnly: true },
+        { name: 'updatedAt', label: '更新时间', type: 'datetime', readOnly: true }
+      ]
+    },
+    emoji: {
+      name: 'emoji',
+      label: '表情',
+      primaryKey: 'id',
+      allowCreate: true,
+      allowUpdate: true,
+      allowDelete: true,
+      fields: [
+        { name: 'id', label: 'ID', type: 'string', readOnly: true },
+        { name: 'name', label: '名称', type: 'string', editable: true },
+        { name: 'description', label: '描述', type: 'string', editable: true },
+        { name: 'keywords', label: '关键词', type: 'string', editable: true },
+        { name: 'imageUrl', label: '图片地址', type: 'string', editable: true },
+        { name: 'categoryId', label: '分类ID', type: 'string', editable: true, relation: { table: 'emojiCategory', valueField: 'id', labelField: 'name' } },
+        { name: 'status', label: '状态', type: 'enum', editable: true, enumValues: Object.values(PrismaValues.EmojiStatus) },
+        { name: 'sortOrder', label: '排序', type: 'number', editable: true },
+        { name: 'usageCount', label: '使用次数', type: 'number', editable: true },
+        { name: 'createdById', label: '创建者ID', type: 'string', editable: true, relation: { table: 'user', valueField: 'id', labelField: 'name' } },
+        { name: 'sourceMessageId', label: '来源消息ID', type: 'string', editable: true, relation: { table: 'message', valueField: 'id', labelField: 'id' } },
+        { name: 'createdAt', label: '创建时间', type: 'datetime', readOnly: true },
+        { name: 'updatedAt', label: '更新时间', type: 'datetime', readOnly: true }
+      ]
+    },
     aiLog: {
       name: 'aiLog',
       label: 'AI 日志',
@@ -161,7 +201,9 @@ export class AdminService {
     message: 'message',
     friendship: 'friendship',
     notification: 'notification',
-    aiLog: 'aiLog'
+    aiLog: 'aiLog',
+    emoji: 'emoji',
+    emojiCategory: 'emojiCategory'
   }
 
   private readonly databaseSearchFields: Record<AdminTableName, string[]> = {
@@ -171,7 +213,9 @@ export class AdminService {
     message: ['id', 'conversationId', 'senderId', 'content'],
     friendship: ['id', 'senderId', 'receiverId', 'note'],
     notification: ['id', 'title', 'userId', 'content'],
-    aiLog: ['id', 'userId', 'provider', 'model']
+    aiLog: ['id', 'userId', 'provider', 'model'],
+    emoji: ['id', 'name', 'keywords', 'imageUrl', 'categoryId'],
+    emojiCategory: ['id', 'name', 'description']
   }
 
   private async assertAdmin(userId: string) {
@@ -349,16 +393,20 @@ export class AdminService {
       conversations,
       messages,
       friendships,
-      notifications
+      notifications,
+      emojis,
+      emojiCategories
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.aiBot.count(),
       this.prisma.conversation.count(),
       this.prisma.message.count(),
       this.prisma.friendship.count(),
-      this.prisma.notification.count()
+      this.prisma.notification.count(),
+      this.prisma.emoji.count(),
+      this.prisma.emojiCategory.count()
     ])
-    return { users, bots, conversations, messages, friendships, notifications }
+    return { users, bots, conversations, messages, friendships, notifications, emojis, emojiCategories }
   }
 
   async getDatabaseTables(userId: string) {

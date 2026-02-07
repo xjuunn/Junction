@@ -78,6 +78,16 @@ const imagePayload = computed<{ imageUrl: string } | null>(() => {
     if (!imageUrl) return null;
     return { imageUrl };
 });
+const emojiPayload = computed<{ emojiId?: string; imageUrl: string; name?: string } | null>(() => {
+    if (props.message.type !== MessageApi.MessageType.EMOJI) return null;
+    const payload = props.message.payload;
+    if (!payload || typeof payload !== 'object') return null;
+    const imageUrl = (payload as { imageUrl?: string }).imageUrl || (payload as { src?: string }).src;
+    if (!imageUrl) return null;
+    const emojiId = (payload as { emojiId?: string }).emojiId;
+    const name = (payload as { name?: string }).name;
+    return { emojiId, imageUrl, name };
+});
 const filePayload = computed<{ fileUrl: string; fileName?: string; size?: number } | null>(() => {
     const payload = props.message.payload;
     if (!payload || typeof payload !== 'object') return null;
@@ -124,6 +134,7 @@ const openImageViewer = (imageUrl: string) => {
  */
 const renderMode = computed(() => {
     if (isRevokedLike.value) return 'REVOKED';
+    if (props.message.type === 'EMOJI') return 'EMOJI';
     if (props.message.type === 'IMAGE') return 'IMAGE';
     if (props.message.type === 'FILE') return 'FILE';
     if (props.message.type === 'RICH_TEXT' || hasRichPayload.value) return 'RICH_TEXT';
@@ -204,6 +215,13 @@ const messageMenu = defineContextMenu<{ id: string; content?: string | null; typ
         handler: () => handleCopy(),
     },
     {
+        id: 'add-emoji',
+        label: '添加表情',
+        icon: 'mingcute:emoji-line',
+        show: () => !!imagePayload.value || !!emojiPayload.value,
+        handler: () => handleAddEmoji(),
+    },
+    {
         id: 'quote',
         label: '引用',
         icon: 'lucide:quote',
@@ -226,6 +244,7 @@ const messageMenu = defineContextMenu<{ id: string; content?: string | null; typ
  */
 const getCopyText = () => {
     if (imagePayload.value?.imageUrl) return getImageUrl(imagePayload.value.imageUrl);
+    if (emojiPayload.value?.imageUrl) return getImageUrl(emojiPayload.value.imageUrl);
     if (filePayload.value?.fileUrl) return filePayload.value.fileUrl;
     return props.message.content || '';
 };
@@ -312,9 +331,26 @@ function extractQuotedMessage(payload: unknown) {
  */
 function getQuotePreview() {
     if (imagePayload.value?.imageUrl) return '[图片]';
+    if (emojiPayload.value?.imageUrl) return '[表情]';
     if (filePayload.value?.fileUrl) return '[文件]';
     return props.message.content || '';
 }
+
+/**
+ * 添加为表情
+ */
+const handleAddEmoji = () => {
+    const payload = emojiPayload.value || imagePayload.value;
+    if (!payload?.imageUrl) {
+        toast.info('未找到可用图片');
+        return;
+    }
+    busEmit('emoji:add-from-message', {
+        messageId: props.message.id,
+        imageUrl: payload.imageUrl,
+        name: emojiPayload.value?.name || props.message.content || ''
+    });
+};
 
 /**
  * 跳转到被引用的消息
@@ -413,10 +449,11 @@ const handleDownload = async () => {
 
         <div
             v-context-menu="{ items: messageMenu, context: { id: message.id, content: message.content, type: message.type, isMe } }"
-            :class="[
+        :class="[
             'chat-bubble min-h-0 text-[14px] leading-relaxed shadow-sm relative group/bubble',
             isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200 text-base-content border-none',
-            isRevokedLike ? 'italic opacity-50' : ''
+            isRevokedLike ? 'italic opacity-50' : '',
+            renderMode === 'EMOJI' ? 'bg-transparent shadow-none px-2' : ''
         ]">
             <div class="break-words max-w-[70vw] sm:max-w-md">
                 <button
@@ -452,6 +489,25 @@ const handleDownload = async () => {
                     <!-- 容错：如果没有图片URL，显示文本 -->
                     <div v-else class="whitespace-pre-wrap">
                         {{ message.content || '[图片消息]' }}
+                    </div>
+                </template>
+
+                <!-- 场景 2.5: 表情消息渲染 -->
+                <template v-else-if="renderMode === 'EMOJI'">
+                    <div v-if="emojiPayload" class="flex flex-col items-start gap-2">
+                        <div class="relative w-28 h-28 rounded-2xl bg-base-100/70 border border-base-content/10 p-2 shadow-sm">
+                            <img
+                                :src="getImageUrl(emojiPayload.imageUrl)"
+                                alt="表情"
+                                class="w-full h-full object-contain"
+                                loading="lazy" />
+                        </div>
+                        <div v-if="emojiPayload.name" class="text-xs opacity-60">
+                            {{ emojiPayload.name }}
+                        </div>
+                    </div>
+                    <div v-else class="whitespace-pre-wrap">
+                        {{ message.content || '[表情]' }}
                     </div>
                 </template>
 

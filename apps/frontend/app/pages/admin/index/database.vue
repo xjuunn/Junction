@@ -18,6 +18,8 @@ const tableMeta = {
   message: { label: '消息', icon: 'mingcute:message-4-line', tone: 'bg-secondary/10 text-secondary', path: '/admin/tables/message' },
   friendship: { label: '好友关系', icon: 'mingcute:link-line', tone: 'bg-success/10 text-success', path: '/admin/tables/friendship' },
   notification: { label: '通知', icon: 'mingcute:notification-line', tone: 'bg-accent/10 text-accent', path: '/admin/tables/notification' },
+  emojiCategory: { label: '表情分类', icon: 'mingcute:folder-line', tone: 'bg-info/10 text-info', path: '/admin/tables/emojiCategory' },
+  emoji: { label: '表情', icon: 'mingcute:emoji-line', tone: 'bg-primary/10 text-primary', path: '/admin/tables/emoji' },
   aiLog: { label: 'AI 日志', icon: 'mingcute:document-line', tone: 'bg-base-200 text-base-content', path: '/admin/tables/aiLog' }
 } as const
 
@@ -30,7 +32,9 @@ const tableCards = computed(() => {
       conversation: stats.value?.conversations,
       message: stats.value?.messages,
       friendship: stats.value?.friendships,
-      notification: stats.value?.notifications
+      notification: stats.value?.notifications,
+      emoji: stats.value?.emojis,
+      emojiCategory: stats.value?.emojiCategories
     }
     const count = countMap[table.name] ?? null
     return {

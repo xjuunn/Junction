@@ -78,6 +78,17 @@ export class MessageService {
       select: { type: true, ownerId: true }
     });
 
+    let emojiRecord: { id: string } | null = null;
+    if (data.type === PrismaValues.MessageType.EMOJI) {
+      const emojiId = (data.payload as any)?.emojiId;
+      if (!emojiId) throw new BadRequestException('表情 ID 不能为空');
+      emojiRecord = await this.prisma.emoji.findFirst({
+        where: { id: String(emojiId), status: PrismaValues.EmojiStatus.ACTIVE },
+        select: { id: true }
+      });
+      if (!emojiRecord) throw new BadRequestException('表情不可用');
+    }
+
     if (conversation?.type === 'PRIVATE') {
       const otherMemberId = members.find(m => m.userId !== userId)?.userId;
       if (otherMemberId) {
@@ -117,6 +128,13 @@ export class MessageService {
         },
         select: this.messageSelect
       });
+
+      if (emojiRecord) {
+        await tx.emoji.update({
+          where: { id: emojiRecord.id },
+          data: { usageCount: { increment: 1 } }
+        });
+      }
 
       await tx.conversation.update({
         where: { id: conversationId },

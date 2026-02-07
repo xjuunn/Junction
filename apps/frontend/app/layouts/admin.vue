@@ -19,6 +19,8 @@ const menuGroups = [
       { to: '/admin/tables/message', label: '消息表', icon: 'mingcute:message-4-line' },
       { to: '/admin/tables/friendship', label: '好友关系表', icon: 'mingcute:link-line' },
       { to: '/admin/tables/notification', label: '通知表', icon: 'mingcute:notification-line' },
+      { to: '/admin/tables/emojiCategory', label: '表情分类表', icon: 'mingcute:folder-line' },
+      { to: '/admin/tables/emoji', label: '表情表', icon: 'mingcute:emoji-line' },
       { to: '/admin/tables/aiLog', label: 'AI 日志表', icon: 'mingcute:document-line' }
     ]
   }

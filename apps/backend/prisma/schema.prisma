@@ -42,6 +42,7 @@ model User {
   botProfile         AiBot? @relation("BotProfile")
   createdBots        AiBot[] @relation("BotCreator")
   aiLogs             AiLog[]
+  createdEmojis      Emoji[]              @relation("EmojiCreator")
 
   @@unique([email])
   @@map("user")
@@ -186,6 +187,7 @@ model Message {
 enum MessageType {
   TEXT /// 普通文本
   IMAGE /// 图片
+  EMOJI /// 表情
   FILE /// 文件
   AUDIO /// 音频
   VIDEO /// 视频
@@ -219,6 +221,56 @@ enum ConversationMemberRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+// --- 表情模块 ---
+
+model EmojiCategory {
+  id          String              @id @default(cuid())
+  name        String
+  description String?
+  sortOrder   Int                 @default(0)
+  status      EmojiCategoryStatus @default(ACTIVE)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  emojis Emoji[]
+
+  @@unique([name])
+  @@index([status, sortOrder])
+  @@map("emoji_category")
+}
+
+model Emoji {
+  id              String        @id @default(cuid())
+  name            String
+  description     String?
+  keywords        String?
+  imageUrl        String
+  categoryId      String?
+  category        EmojiCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  status          EmojiStatus   @default(ACTIVE)
+  sortOrder       Int           @default(0)
+  usageCount      Int           @default(0)
+  createdById     String?
+  createdBy       User?         @relation("EmojiCreator", fields: [createdById], references: [id])
+  sourceMessageId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([categoryId, status])
+  @@index([status, sortOrder])
+  @@map("emoji")
+}
+
+enum EmojiStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum EmojiCategoryStatus {
+  ACTIVE
+  DISABLED
 }
 
 // --- 机器人模块 ---

@@ -27,6 +27,7 @@ import { StatusModule } from './resource/status/status.module';
 import { AiBotModule } from './resource/ai-bot/ai-bot.module';
 import { AdminModule } from './resource/admin/admin.module';
 import { AiModule } from './resource/ai/ai.module';
+import { EmojiModule } from './resource/emoji/emoji.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { AiModule } from './resource/ai/ai.module';
     EventsModule,
     ConversationModule,
     MessageModule,
+    EmojiModule,
     AiBotModule,
     AdminModule,
     AiModule,

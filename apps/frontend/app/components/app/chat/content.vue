@@ -3,12 +3,15 @@ import * as messageApi from '~/api/message';
 import * as conversationApi from '~/api/conversation';
 import * as friendshipApi from '~/api/friendship';
 import { uploadFiles } from '~/api/upload';
+import * as emojiApi from '~/api/emoji';
 import { isTauri } from '~/utils/check';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
+import type { PrismaTypes } from '@junction/types';
 
 const route = useRoute();
 const userStore = useUserStore();
 const toast = useToast();
+const dialog = useDialog();
 const appSocket = useSocket('app');
 const { emit: busEmit, on: busOn, off: busOff } = useEmitt();
 
@@ -19,6 +22,8 @@ type ReadInfo = { isRead: boolean; readCount: number; unreadCount: number; readM
 type MessageItem = NonNullable<NonNullable<Awaited<ReturnType<typeof messageApi.findAll>>['data']>['items']>[number] & {
     readInfo?: ReadInfo;
 };
+type EmojiItem = PrismaTypes.Emoji;
+type EmojiCategoryItem = PrismaTypes.EmojiCategory;
 
 const currentConversation = ref<any>(null);
 const messages = ref<MessageItem[]>([]);
@@ -47,6 +52,24 @@ const remarkMap = ref<Record<string, string>>({});
 const quotedMessage = ref<{ messageId: string; senderName: string; content: string; sequence?: number | null } | null>(null);
 const isJumpingToMessage = ref(false);
 const suppressScrollFetchUntil = ref(0);
+const showEmojiPanel = ref(false);
+const emojiPanelTab = ref<'library' | 'manage'>('library');
+const emojiKeyword = ref('');
+const emojiCategories = ref<EmojiCategoryItem[]>([]);
+const emojiItems = ref<EmojiItem[]>([]);
+const emojiLoading = ref(false);
+const emojiActiveCategoryId = ref<string | null>(null);
+const emojiAddDialogVisible = ref(false);
+const emojiAddSource = reactive({ messageId: '', imageUrl: '' });
+const emojiForm = reactive({
+    name: '',
+    categoryId: '',
+    description: '',
+    keywords: ''
+});
+const emojiNewCategoryName = ref('');
+const emojiNewCategoryDesc = ref('');
+let emojiSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * ????????????
@@ -520,6 +543,23 @@ watch(memberTypeMap, () => {
     messages.value = applyRemarksToReadInfo(messages.value);
 }, { deep: true });
 
+watch(showEmojiPanel, (visible) => {
+    if (visible) ensureEmojiPanelData();
+});
+
+watch([emojiKeyword, emojiActiveCategoryId, emojiPanelTab], () => {
+    if (!showEmojiPanel.value) return;
+    scheduleEmojiSearch();
+});
+
+watch(emojiAddDialogVisible, (visible) => {
+    if (!visible) {
+        resetEmojiForm();
+        emojiAddSource.messageId = '';
+        emojiAddSource.imageUrl = '';
+    }
+});
+
 const hasMentionNode = (node: any): boolean => {
     if (!node) return false;
     if (node.type === 'mention') return true;
@@ -527,6 +567,195 @@ const hasMentionNode = (node: any): boolean => {
         return node.content.some(hasMentionNode);
     }
     return false;
+};
+
+const getEmojiImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${useRuntimeConfig().public.apiUrl}${url}`;
+};
+
+const emojiCategoryMap = computed(() => {
+    return emojiCategories.value.reduce((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+    }, {} as Record<string, EmojiCategoryItem>);
+});
+
+const emojiCategoryTabs = computed(() => ([
+    { id: null, name: '全部' },
+    ...emojiCategories.value
+]));
+
+const resetEmojiForm = () => {
+    emojiForm.name = '';
+    emojiForm.categoryId = '';
+    emojiForm.description = '';
+    emojiForm.keywords = '';
+    emojiNewCategoryName.value = '';
+    emojiNewCategoryDesc.value = '';
+};
+
+const openEmojiAddDialog = (payload: { messageId: string; imageUrl: string; name?: string }) => {
+    emojiAddSource.messageId = payload.messageId;
+    emojiAddSource.imageUrl = payload.imageUrl;
+    resetEmojiForm();
+    emojiForm.name = payload.name?.trim() || '';
+    emojiAddDialogVisible.value = true;
+    if (!emojiCategories.value.length) {
+        loadEmojiCategories();
+    }
+};
+
+const toggleEmojiPanel = () => {
+    showEmojiPanel.value = !showEmojiPanel.value;
+    if (showEmojiPanel.value) {
+        ensureEmojiPanelData();
+    }
+};
+
+const ensureEmojiPanelData = async () => {
+    await Promise.all([
+        loadEmojiCategories(),
+        loadEmojiList()
+    ]);
+};
+
+const loadEmojiCategories = async (force = false) => {
+    if (emojiCategories.value.length && !force) return;
+    const res = await emojiApi.getCategories('ACTIVE');
+    if (res.data) emojiCategories.value = res.data;
+};
+
+const loadEmojiList = async () => {
+    if (!showEmojiPanel.value) return;
+    emojiLoading.value = true;
+    try {
+        const status = emojiPanelTab.value === 'manage' ? 'ALL' : 'ACTIVE';
+        const res = await emojiApi.findAll({
+            page: 1,
+            limit: emojiPanelTab.value === 'manage' ? 200 : 60,
+            keyword: emojiKeyword.value.trim() || undefined,
+            categoryId: emojiActiveCategoryId.value || undefined,
+            status
+        });
+        if (res.data) emojiItems.value = res.data.items;
+    } finally {
+        emojiLoading.value = false;
+    }
+};
+
+const scheduleEmojiSearch = () => {
+    if (emojiSearchTimer) {
+        clearTimeout(emojiSearchTimer);
+    }
+    emojiSearchTimer = setTimeout(() => {
+        loadEmojiList();
+    }, 200);
+};
+
+const handleSendEmoji = async (emoji: EmojiItem) => {
+    if (sending.value || !conversationId.value) return;
+    sending.value = true;
+    try {
+        let payload: any = {
+            emojiId: emoji.id,
+            imageUrl: emoji.imageUrl,
+            name: emoji.name,
+            categoryId: emoji.categoryId || null
+        };
+        if (quotedMessage.value) {
+            payload.quote = {
+                messageId: quotedMessage.value.messageId,
+                senderName: quotedMessage.value.senderName,
+                content: quotedMessage.value.content,
+                sequence: quotedMessage.value.sequence ?? null
+            };
+        }
+        const res = await messageApi.send({
+            conversationId: conversationId.value,
+            content: emoji.name || '[表情]',
+            payload,
+            type: messageApi.MessageType.EMOJI,
+            clientMessageId: `c_${Date.now()}`
+        });
+        if (res.data) {
+            const patched = applyRemarksToReadInfo(applyRemarks([res.data as MessageItem]))[0] || (res.data as MessageItem);
+            upsertMessage(patched);
+            quotedMessage.value = null;
+            showEmojiPanel.value = false;
+            scrollToBottom('smooth');
+            busEmit('chat:message-sync', patched);
+        }
+    } catch (e: any) {
+        toast.error(e.message || '发送失败');
+    } finally {
+        sending.value = false;
+    }
+};
+
+const submitEmojiAdd = async () => {
+    if (!emojiAddSource.messageId) return;
+    if (!emojiForm.name.trim()) {
+        toast.info('请输入表情名称');
+        return;
+    }
+    try {
+        let categoryId = emojiForm.categoryId || undefined;
+        if (emojiForm.categoryId === '__new__') {
+            if (!emojiNewCategoryName.value.trim()) {
+                toast.info('请输入新分类名称');
+                return;
+            }
+            const created = await emojiApi.createCategory({
+                name: emojiNewCategoryName.value.trim(),
+                description: emojiNewCategoryDesc.value.trim() || undefined
+            });
+            categoryId = created.data?.id;
+            await loadEmojiCategories(true);
+        }
+        const res = await emojiApi.createFromMessage({
+            messageId: emojiAddSource.messageId,
+            name: emojiForm.name.trim(),
+            categoryId,
+            description: emojiForm.description.trim() || undefined,
+            keywords: emojiForm.keywords.trim() || undefined
+        });
+        if (res.data) {
+            toast.success('已添加到表情库');
+            emojiAddDialogVisible.value = false;
+            resetEmojiForm();
+            await loadEmojiList();
+        }
+    } catch (e: any) {
+        toast.error(e?.message || '添加表情失败');
+    }
+};
+
+const handleEmojiStatusToggle = async (emoji: EmojiItem) => {
+    const nextStatus = emoji.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
+    await emojiApi.updateEmoji(emoji.id, { status: nextStatus as any });
+    await loadEmojiList();
+};
+
+const handleEmojiSortUpdate = async (emoji: EmojiItem, sortOrder: number) => {
+    await emojiApi.updateEmoji(emoji.id, { sortOrder });
+    await loadEmojiList();
+};
+
+const handleEmojiRemove = async (emoji: EmojiItem) => {
+    const confirmed = await dialog.confirm({
+        title: '删除表情',
+        content: `确认删除表情「${emoji.name}」吗？`,
+        type: 'warning',
+        confirmText: '删除',
+        cancelText: '取消',
+        persistent: true
+    });
+    if (!confirmed) return;
+    await emojiApi.removeEmoji(emoji.id);
+    toast.success('已删除');
+    await loadEmojiList();
 };
 
 // 发送消息
@@ -817,6 +1046,8 @@ watch(() => conversationId.value, () => {
     currentConversation.value = null;
     showChatSettings.value = false;
     quotedMessage.value = null;
+    showEmojiPanel.value = false;
+    emojiAddDialogVisible.value = false;
     lastReportedReadId.value = null;
     lastReportedReadSeq.value = 0;
     hasMoreAfter.value = false;
@@ -832,6 +1063,10 @@ watch(() => conversationId.value, () => {
     if (streamScrollRaf) {
         cancelAnimationFrame(streamScrollRaf);
         streamScrollRaf = null;
+    }
+    if (emojiSearchTimer) {
+        clearTimeout(emojiSearchTimer);
+        emojiSearchTimer = null;
     }
     messageObserver.value?.disconnect();
     messageObserver.value = new IntersectionObserver(handleMessageVisibility, {
@@ -849,10 +1084,12 @@ onMounted(async () => {
     busOn('chat:quote-message', handleQuoteMessage);
     busOn('chat:scroll-to-message', scrollToMessageById);
     busOn('chat:message-revoked-local', handleMessageRevoked);
+    busOn('emoji:add-from-message', openEmojiAddDialog);
     busEmit('chat:active-conversation', conversationId.value);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             showExtensionsMenu.value = false;
+            showEmojiPanel.value = false;
         }
     });
     messageObserver.value = new IntersectionObserver(handleMessageVisibility, {
@@ -894,6 +1131,7 @@ onUnmounted(() => {
     busOff('chat:quote-message', handleQuoteMessage);
     busOff('chat:scroll-to-message', scrollToMessageById);
     busOff('chat:message-revoked-local', handleMessageRevoked);
+    busOff('emoji:add-from-message', openEmojiAddDialog);
     busEmit('chat:active-conversation', null);
     socketDisposers.forEach(dispose => dispose());
     socketDisposers = [];
@@ -1016,7 +1254,8 @@ onUnmounted(() => {
                     <div class="flex items-center justify-between px-2 pt-2.5 border-t border-base-content/5">
                         <div class="flex gap-0.5 relative">
                             <button class="btn btn-ghost btn-circle btn-sm opacity-30 hover:opacity-100"
-                                @click="toast.info('表情功能开发中')">
+                                @click="toggleEmojiPanel"
+                                :class="{ 'text-primary opacity-100': showEmojiPanel }">
                                 <Icon name="mingcute:emoji-line" size="22" />
                             </button>
 
@@ -1045,6 +1284,91 @@ onUnmounted(() => {
                                     <Icon :name="`mingcute:${action.replace('ordered-', '')}-line`" size="18" />
                                 </button>
                             </div>
+
+                            <div v-if="showEmojiPanel"
+                                class="absolute bottom-full left-0 mb-4 w-[360px] max-w-[85vw] bg-base-100 border border-base-200 rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-bottom-2">
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <div class="flex items-center gap-1">
+                                        <button class="btn btn-ghost btn-xs"
+                                            :class="{ 'text-primary': emojiPanelTab === 'library' }"
+                                            @click="emojiPanelTab = 'library'">
+                                            表情
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs"
+                                            :class="{ 'text-primary': emojiPanelTab === 'manage' }"
+                                            @click="emojiPanelTab = 'manage'">
+                                            管理
+                                        </button>
+                                    </div>
+                                    <button class="btn btn-ghost btn-xs" @click="showEmojiPanel = false">关闭</button>
+                                </div>
+
+                                <div class="flex items-center gap-2 mb-3">
+                                    <input v-model="emojiKeyword" type="text" placeholder="搜索表情/关键词"
+                                        class="input input-sm input-bordered w-full rounded-xl" />
+                                </div>
+
+                                <div v-if="emojiPanelTab === 'library'" class="space-y-3">
+                                    <div class="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                                        <button v-for="tab in emojiCategoryTabs" :key="tab.id || 'all'"
+                                            class="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                                            :class="emojiActiveCategoryId === tab.id
+                                                ? 'bg-base-content text-base-100'
+                                                : 'bg-base-200/70 text-base-content/60 hover:bg-base-200'"
+                                            @click="emojiActiveCategoryId = tab.id">
+                                            {{ tab.name }}
+                                        </button>
+                                    </div>
+
+                                    <div v-if="emojiLoading" class="py-6 flex items-center justify-center">
+                                        <span class="loading loading-dots loading-sm"></span>
+                                    </div>
+                                    <div v-else-if="emojiItems.length" class="grid grid-cols-6 gap-2">
+                                        <button v-for="item in emojiItems" :key="item.id"
+                                            class="p-2 rounded-xl bg-base-200/60 hover:bg-base-200 transition-colors"
+                                            @click="handleSendEmoji(item)">
+                                            <img :src="getEmojiImageUrl(item.imageUrl)" :alt="item.name"
+                                                class="w-10 h-10 object-contain mx-auto" />
+                                        </button>
+                                    </div>
+                                    <div v-else class="py-8 text-center text-xs opacity-50">
+                                        暂无表情
+                                    </div>
+                                </div>
+
+                                <div v-else class="space-y-3">
+                                    <div v-if="emojiLoading" class="py-6 flex items-center justify-center">
+                                        <span class="loading loading-dots loading-sm"></span>
+                                    </div>
+                                    <div v-else-if="emojiItems.length" class="space-y-2 max-h-72 overflow-y-auto">
+                                        <div v-for="item in emojiItems" :key="item.id"
+                                            class="flex items-center gap-3 rounded-xl bg-base-200/60 p-2">
+                                            <img :src="getEmojiImageUrl(item.imageUrl)" :alt="item.name"
+                                                class="w-10 h-10 object-contain rounded-lg bg-base-100/80" />
+                                            <div class="flex-1 min-w-0">
+                                                <div class="text-xs font-semibold truncate">{{ item.name }}</div>
+                                                <div class="text-[10px] opacity-50 truncate">
+                                                    {{ emojiCategoryMap[item.categoryId || '']?.name || '未分类' }}
+                                                </div>
+                                            </div>
+                                            <input type="number" class="input input-xs w-16"
+                                                :value="item.sortOrder"
+                                                @change="handleEmojiSortUpdate(item, Number(($event.target as HTMLInputElement).value))" />
+                                            <button class="btn btn-ghost btn-xs"
+                                                @click="handleEmojiStatusToggle(item)">
+                                                {{ item.status === 'ACTIVE' ? '停用' : '启用' }}
+                                            </button>
+                                            <button class="btn btn-ghost btn-xs text-error"
+                                                @click="handleEmojiRemove(item)">
+                                                删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div v-else class="py-8 text-center text-xs opacity-50">
+                                        暂无表情
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="flex items-center gap-2">
@@ -1071,5 +1395,43 @@ onUnmounted(() => {
         <!-- 聊天设置对话框 -->
         <AppChatDialogChatSettings :show="showChatSettings" :conversation="currentConversation"
             @update:show="showChatSettings = $event" @conversation-deleted="fetchConversation" />
+
+        <BaseModal v-model="emojiAddDialogVisible" title="添加表情" box-class="max-w-md w-full">
+            <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-20 h-20 rounded-2xl bg-base-200/60 flex items-center justify-center overflow-hidden">
+                        <img v-if="emojiAddSource.imageUrl" :src="getEmojiImageUrl(emojiAddSource.imageUrl)"
+                            alt="表情预览" class="w-full h-full object-contain" />
+                        <Icon v-else name="mingcute:emoji-line" size="28" class="opacity-30" />
+                    </div>
+                    <div class="flex-1 space-y-2">
+                        <input v-model="emojiForm.name" type="text" placeholder="表情名称"
+                            class="input input-sm input-bordered w-full rounded-xl" />
+                        <select v-model="emojiForm.categoryId" class="select select-sm select-bordered w-full rounded-xl">
+                            <option value="">未分类</option>
+                            <option v-for="cat in emojiCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                            <option value="__new__">+ 新建分类</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div v-if="emojiForm.categoryId === '__new__'" class="grid grid-cols-1 gap-2">
+                    <input v-model="emojiNewCategoryName" type="text" placeholder="新分类名称"
+                        class="input input-sm input-bordered w-full rounded-xl" />
+                    <input v-model="emojiNewCategoryDesc" type="text" placeholder="新分类描述（可选）"
+                        class="input input-sm input-bordered w-full rounded-xl" />
+                </div>
+
+                <textarea v-model="emojiForm.description" placeholder="表情描述（可选）"
+                    class="textarea textarea-bordered w-full rounded-xl text-sm"></textarea>
+                <input v-model="emojiForm.keywords" type="text" placeholder="关键词（用逗号分隔）"
+                    class="input input-sm input-bordered w-full rounded-xl" />
+
+                <div class="flex items-center justify-end gap-2">
+                    <button class="btn btn-ghost btn-sm" @click="emojiAddDialogVisible = false">取消</button>
+                    <button class="btn btn-primary btn-sm" @click="submitEmojiAdd">保存</button>
+                </div>
+            </div>
+        </BaseModal>
     </div>
 </template>

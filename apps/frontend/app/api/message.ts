@@ -101,6 +101,7 @@ export enum MessageStatus {
 export enum MessageType {
     TEXT = 'TEXT', /// 普通文本
     IMAGE = 'IMAGE', /// 图片
+    EMOJI = 'EMOJI', /// 表情
     FILE = 'FILE', /// 文件
     AUDIO = 'AUDIO', /// 音频
     VIDEO = 'VIDEO', /// 视频
