@@ -41,8 +41,17 @@ export function importArchive(data: MessageArchivePayload | { archive: MessageAr
 /**
  * 获取消息历史
  */
-export function findAll(conversationId: string, pagination: PaginationOptions, cursor?: number) {
-    return api.get<AwaitedReturnType<MessageService['findAll']>>(`${base}/${conversationId}`, { ...pagination, cursor })
+export function findAll(
+    conversationId: string,
+    pagination: PaginationOptions,
+    cursor?: number,
+    direction?: 'before' | 'after'
+) {
+    return api.get<AwaitedReturnType<MessageService['findAll']>>(`${base}/${conversationId}`, {
+        ...pagination,
+        cursor,
+        direction
+    })
 }
 
 /**
@@ -71,6 +80,13 @@ export function markAsRead(conversationId: string, messageId: string) {
  */
 export function search(conversationId: string, query: string) {
     return api.get<AwaitedReturnType<MessageService['search']>>(`${base}/${conversationId}/search`, { q: query })
+}
+
+/**
+ * 获取指定消息上下文
+ */
+export function getContext(conversationId: string, messageId: string, params?: { before?: number; after?: number }) {
+    return api.get(`${base}/${conversationId}/context/${messageId}`, params || {})
 }
 
 // 消息状态

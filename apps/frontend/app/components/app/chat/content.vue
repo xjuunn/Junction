@@ -26,6 +26,7 @@ const loading = ref(false);
 const initialLoading = ref(true);
 const sending = ref(false);
 const hasMore = ref(true);
+const hasMoreAfter = ref(false);
 const showGroupInfo = ref(false);
 const showChatSettings = ref(false);
 const lastReportedReadId = ref<string | null>(null);
@@ -40,9 +41,12 @@ let streamSyncTimer: ReturnType<typeof setTimeout> | null = null;
 const pendingStreamIds = new Set<string>();
 const pendingStreamContent = new Map<string, string>();
 let socketDisposers: Array<() => void> = [];
+const loadingAfter = ref(false);
 
 const remarkMap = ref<Record<string, string>>({});
-const quotedMessage = ref<{ messageId: string; senderName: string; content: string } | null>(null);
+const quotedMessage = ref<{ messageId: string; senderName: string; content: string; sequence?: number | null } | null>(null);
+const isJumpingToMessage = ref(false);
+const suppressScrollFetchUntil = ref(0);
 
 /**
  * ????????????
@@ -318,6 +322,7 @@ const fetchMessages = async (isMore = false) => {
                 await reportReadIfNeeded();
             }
             hasMore.value = res.data.items.length === 40;
+            if (!isMore) hasMoreAfter.value = false;
         }
     } finally {
         loading.value = false;
@@ -330,13 +335,31 @@ const fetchMessages = async (isMore = false) => {
     }
 };
 
+const fetchMessagesAfter = async () => {
+    if (loadingAfter.value || !conversationId.value || !hasMoreAfter.value) return;
+    const latest = messages.value[messages.value.length - 1];
+    if (!latest?.sequence) return;
+    loadingAfter.value = true;
+    try {
+        const res = await messageApi.findAll(conversationId.value, { limit: 40 }, latest.sequence, 'after');
+        if (res.data?.items?.length) {
+            messages.value = [...messages.value, ...(res.data.items as MessageItem[])];
+        }
+        hasMoreAfter.value = (res.data?.items?.length || 0) === 40;
+    } finally {
+        loadingAfter.value = false;
+    }
+};
+
 const handleScroll = (e: Event) => {
+    if (Date.now() < suppressScrollFetchUntil.value) return;
     const el = e.target as HTMLElement;
     if (el.scrollTop < 400 && !loading.value && hasMore.value && !initialLoading.value) {
         fetchMessages(true);
     }
     if (el.scrollHeight - (el.scrollTop + el.clientHeight) < 200) {
         reportReadIfNeeded();
+        if (!initialLoading.value) fetchMessagesAfter();
     }
     updateAutoScrollState();
 };
@@ -344,7 +367,7 @@ const handleScroll = (e: Event) => {
 /**
  * 处理引用消息设置
  */
-const handleQuoteMessage = (payload: { messageId: string; senderName: string; content: string }) => {
+const handleQuoteMessage = (payload: { messageId: string; senderName: string; content: string; sequence?: number | null }) => {
     quotedMessage.value = payload;
 };
 
@@ -358,13 +381,101 @@ const clearQuotedMessage = () => {
 /**
  * 跳转到指定消息
  */
-const scrollToMessageById = (messageId: string) => {
-    const el = messageElementMap.get(messageId);
+const scrollToMessageById = async (payload: { messageId: string; sequence?: number | null }) => {
+    if (isJumpingToMessage.value) return;
+    isJumpingToMessage.value = true;
+    suppressScrollFetchUntil.value = Date.now() + 800;
+    if (!messageElementMap.has(payload.messageId)) {
+        const loaded = await fetchMessageContext(payload.messageId);
+        if (loaded) {
+            await nextTick();
+        }
+    }
+    const el = await waitForMessageElement(payload.messageId);
     if (!el) {
         toast.info('未找到引用的消息');
+        isJumpingToMessage.value = false;
         return;
     }
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    scrollElementIntoCenter(el, true);
+    suppressScrollFetchUntil.value = Date.now() + 800;
+    isJumpingToMessage.value = false;
+};
+
+/**
+ * 滚动到消息并高亮
+ */
+const waitForMessageElement = async (messageId: string) => {
+    const maxWait = 1200;
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+        const el = messageElementMap.get(messageId) as HTMLElement | undefined;
+        if (el) return el;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    return null;
+};
+
+const scrollElementIntoCenter = (el: HTMLElement, preferUp = false) => {
+    const listEl = listRef.value?.$el as HTMLElement | undefined;
+    if (listEl) {
+        const targetTop = getOffsetTop(el, listEl);
+        const target = targetTop - listEl.clientHeight / 2 + el.offsetHeight / 2;
+        if (preferUp) {
+            listEl.scrollTop = listEl.scrollHeight;
+            requestAnimationFrame(() => {
+                listEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+            });
+        } else {
+            listEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+        }
+    } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    const highlightClass = 'ring-2 ring-primary/40';
+    el.classList.add(...highlightClass.split(' '));
+    window.setTimeout(() => {
+        el.classList.remove(...highlightClass.split(' '));
+    }, 1200);
+};
+
+const getOffsetTop = (el: HTMLElement, container: HTMLElement) => {
+    let offset = 0;
+    let node: HTMLElement | null = el;
+    while (node && node !== container) {
+        offset += node.offsetTop;
+        node = node.offsetParent as HTMLElement | null;
+    }
+    return offset;
+};
+
+/**
+ * 加载历史消息直到包含目标消息
+ */
+const fetchMessageContext = async (messageId: string) => {
+    if (!conversationId.value) return false;
+    const res = await messageApi.getContext(conversationId.value, messageId, { before: 20, after: 20 });
+    if (!res?.success || !res.data?.items?.length) return false;
+    replaceWithContext(res.data.items as MessageItem[]);
+    hasMore.value = Boolean(res.data.hasMoreBefore);
+    hasMoreAfter.value = Boolean(res.data.hasMoreAfter);
+    initialLoading.value = false;
+    return true;
+};
+
+const replaceWithContext = (incoming: MessageItem[]) => {
+    const map = new Map<string, MessageItem>();
+    incoming.forEach(item => map.set(item.id, item));
+    messages.value = Array.from(map.values()).sort((a, b) => {
+        const seqA = a.sequence ?? 0;
+        const seqB = b.sequence ?? 0;
+        return seqA - seqB;
+    });
+    messageElementMap.clear();
+    pendingStreamIds.clear();
+    pendingStreamContent.clear();
+    autoScrollEnabled.value = false;
+    suppressScrollFetchUntil.value = Date.now() + 800;
 };
 
 const fetchConversation = async () => {
@@ -439,7 +550,8 @@ const handleSend = async () => {
             const quote = {
                 messageId: quotedMessage.value.messageId,
                 senderName: quotedMessage.value.senderName,
-                content: quotedMessage.value.content
+                content: quotedMessage.value.content,
+                sequence: quotedMessage.value.sequence ?? null
             };
             payload = payload ? { ...payload, quote } : { quote };
         }
@@ -694,6 +806,8 @@ watch(() => conversationId.value, () => {
     quotedMessage.value = null;
     lastReportedReadId.value = null;
     lastReportedReadSeq.value = 0;
+    hasMoreAfter.value = false;
+    loadingAfter.value = false;
     busEmit('chat:active-conversation', conversationId.value);
     autoScrollEnabled.value = true;
     pendingStreamIds.clear();

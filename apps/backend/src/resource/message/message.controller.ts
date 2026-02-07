@@ -73,9 +73,16 @@ export class MessageController {
     @Session() session: UserSession,
     @Param('conversationId') conversationId: string,
     @Pagination() pagination: PaginationOptions,
-    @Query('cursor') cursor?: string
+    @Query('cursor') cursor?: string,
+    @Query('direction') direction?: 'before' | 'after'
   ) {
-    return this.messageService.findAll(session.user.id, conversationId, pagination, cursor ? Number(cursor) : undefined);
+    return this.messageService.findAll(
+      session.user.id,
+      conversationId,
+      pagination,
+      cursor ? Number(cursor) : undefined,
+      direction
+    );
   }
 
   /**
@@ -124,5 +131,28 @@ export class MessageController {
     @Query('q') q: string
   ) {
     return this.messageService.search(session.user.id, conversationId, q);
+  }
+
+  /**
+   * 鑾峰彇鎸囧畾娑堟伅涓婁笅鏂囧瓙闆嗙殑鍐呭
+   */
+  @Get(':conversationId/context/:messageId')
+  @ApiOperation({ summary: "鑾峰彇鎸囧畾娑堟伅涓婁笅鏂囧瓙闆嗙殑鍐呭" })
+  getContext(
+    @Session() session: UserSession,
+    @Param('conversationId') conversationId: string,
+    @Param('messageId') messageId: string,
+    @Query('before') before?: string,
+    @Query('after') after?: string
+  ) {
+    return this.messageService.getContext(
+      session.user.id,
+      conversationId,
+      messageId,
+      {
+        before: before ? Number(before) : 20,
+        after: after ? Number(after) : 20
+      }
+    );
   }
 }

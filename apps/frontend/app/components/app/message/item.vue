@@ -11,7 +11,7 @@ import RichTextRenderer from './RichTextRenderer.vue';
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
-    message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId'> & {
+    message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId' | 'sequence'> & {
         sender?: { name: string; avatar?: string | null; image?: string | null; accountType?: string | null } | null;
     };
     isMe: boolean;
@@ -183,6 +183,7 @@ const handleQuote = async () => {
         messageId: props.message.id,
         senderName,
         content,
+        sequence: props.message.sequence ?? null,
     });
     toast.success('已添加引用');
 };
@@ -243,6 +244,7 @@ function extractQuotedMessage(payload: unknown) {
         messageId,
         senderName: String((quote as any).senderName || ''),
         content: String((quote as any).content || ''),
+        sequence: typeof (quote as any).sequence === 'number' ? (quote as any).sequence : null,
     };
 }
 
@@ -260,7 +262,10 @@ function getQuotePreview() {
  */
 function handleQuoteJump() {
     if (!quotedMessage.value) return;
-    busEmit('chat:scroll-to-message', quotedMessage.value.messageId);
+    busEmit('chat:scroll-to-message', {
+        messageId: quotedMessage.value.messageId,
+        sequence: quotedMessage.value.sequence ?? null,
+    });
 }
 
 /**

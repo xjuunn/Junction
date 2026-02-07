@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
@@ -264,7 +264,13 @@ export class MessageService {
   /**
    * 分页查询消息
    */
-  async findAll(userId: string, conversationId: string, pagination: PaginationOptions, cursor?: number) {
+  async findAll(
+    userId: string,
+    conversationId: string,
+    pagination: PaginationOptions,
+    cursor?: number,
+    direction: 'before' | 'after' = 'before'
+  ) {
     const cleanId = conversationId?.trim();
     const isMember = await this.prisma.conversationMember.findFirst({
       where: { conversationId: cleanId, userId }
@@ -273,7 +279,11 @@ export class MessageService {
 
     const where: PrismaTypes.Prisma.MessageWhereInput = {
       conversationId: cleanId,
-      sequence: cursor ? { lt: cursor } : undefined,
+      sequence: cursor
+        ? direction === 'after'
+          ? { gt: cursor }
+          : { lt: cursor }
+        : undefined,
       status: { not: PrismaValues.MessageStatus.BLOCKED }
     };
 
@@ -282,7 +292,7 @@ export class MessageService {
         where,
         take: pagination.take,
         skip: pagination.skip,
-        orderBy: { sequence: 'desc' },
+        orderBy: { sequence: direction === 'after' ? 'asc' : 'desc' },
         select: this.messageSelect
       }),
       this.prisma.message.count({ where: { conversationId: cleanId } }),
@@ -303,13 +313,90 @@ export class MessageService {
       readInfo: readInfoMap[item.id]
     }));
 
-    return new PaginationData(enriched.reverse(), { total, limit: pagination.limit, page: pagination.page });
+    const ordered = direction === 'after' ? enriched : enriched.reverse();
+    return new PaginationData(ordered, { total, limit: pagination.limit, page: pagination.page });
   }
 
   /**
    * 已读进度上报
    */
-  async markAsRead(userId: string, conversationId: string, messageId: string) {
+
+    /**
+     * 获取指定消息的上下文
+     */
+    async getContext(
+      userId: string,
+      conversationId: string,
+      messageId: string,
+      options: { before?: number; after?: number }
+    ) {
+      const cleanId = conversationId?.trim();
+      const isMember = await this.prisma.conversationMember.findFirst({
+        where: { conversationId: cleanId, userId }
+      });
+      if (!isMember) throw new ForbiddenException('无权访问历史记录');
+
+      const anchor = await this.prisma.message.findFirst({
+        where: { id: messageId, conversationId: cleanId, status: { not: PrismaValues.MessageStatus.BLOCKED } },
+        select: { id: true, sequence: true }
+      });
+      if (!anchor) throw new NotFoundException('消息不存在');
+
+      const before = Math.max(0, Math.min(50, options.before ?? 20));
+      const after = Math.max(0, Math.min(50, options.after ?? 20));
+      const minSeq = Math.max(0, anchor.sequence - before);
+      const maxSeq = anchor.sequence + after;
+
+      const items = await this.prisma.message.findMany({
+        where: {
+          conversationId: cleanId,
+          sequence: { gte: minSeq, lte: maxSeq },
+          status: { not: PrismaValues.MessageStatus.BLOCKED }
+        },
+        orderBy: { sequence: 'asc' },
+        select: this.messageSelect
+      });
+
+      const members = await this.prisma.conversationMember.findMany({
+        where: { conversationId: cleanId },
+        select: { userId: true, lastReadMessageId: true, user: { select: { id: true, name: true, image: true } } }
+      });
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id: cleanId },
+        select: { type: true }
+      });
+
+      const readInfoMap = await this.buildReadInfo(items, members, userId, conversation?.type);
+      const remarkMessages = await this.attachRemarkToMessages(items, userId);
+      const enriched = remarkMessages.map(item => ({
+        ...item,
+        readInfo: readInfoMap[item.id]
+      }));
+
+      const first = enriched[0];
+      const last = enriched[enriched.length - 1];
+      const [beforeCount, afterCount] = await Promise.all([
+        first
+          ? this.prisma.message.count({
+            where: { conversationId: cleanId, sequence: { lt: first.sequence } }
+          })
+          : 0,
+        last
+          ? this.prisma.message.count({
+            where: { conversationId: cleanId, sequence: { gt: last.sequence } }
+          })
+          : 0
+      ]);
+
+      return {
+        items: enriched,
+        anchorId: anchor.id,
+        hasMoreBefore: beforeCount > 0,
+        hasMoreAfter: afterCount > 0
+      };
+    }
+
+   async markAsRead(userId: string, conversationId: string, messageId: string) {
     const cleanId = conversationId?.trim();
     const message = await this.prisma.message.findFirst({
       where: { id: messageId, conversationId: cleanId },
