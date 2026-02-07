@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ModelMessage } from 'ai'
 import { streamAiText } from '~/api/ai'
+import { defineContextMenu } from '~/composables/useContextMenu'
 
 const toast = useToast()
 
@@ -10,6 +11,37 @@ const isSending = ref(false)
 const messages = ref<Array<{ role: 'user' | 'assistant'; content: string }>>([])
 
 const canSend = computed(() => !isSending.value && input.value.trim().length > 0)
+
+const messageMenu = defineContextMenu<{ role: 'user' | 'assistant'; content: string }>([
+    {
+        id: 'recall',
+        label: '撤回',
+        icon: 'lucide:undo-2',
+        show: (context) => context.role === 'user',
+        handler: () => toast.success('已撤回'),
+    },
+    {
+        id: 'forward',
+        label: '转发',
+        icon: 'lucide:forward',
+        handler: () => toast.info('已转发'),
+    },
+    {
+        id: 'edit',
+        label: '修改',
+        icon: 'lucide:edit-3',
+        show: (context) => context.role === 'user',
+        handler: () => toast.info('已进入修改'),
+    },
+    { type: 'separator' },
+    {
+        id: 'delete',
+        label: '删除',
+        icon: 'lucide:trash-2',
+        danger: true,
+        handler: () => toast.error('已删除'),
+    },
+])
 
 /**
  * 转换为模型消息
@@ -114,7 +146,9 @@ function handleClear() {
                                 </div>
                                 <div v-for="(message, index) in messages" :key="index" class="flex"
                                     :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
-                                    <div class="max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap"
+                                    <div
+                                        v-context-menu="{ items: messageMenu, context: message }"
+                                        class="max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap"
                                         :class="message.role === 'user' ? 'bg-primary text-primary-content' : 'bg-base-200 text-base-content'">
                                         {{ message.content }}
                                     </div>

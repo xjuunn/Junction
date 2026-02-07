@@ -1,6 +1,5 @@
 export default defineNuxtPlugin(async (nuxtApp) => {
     const html = document.getElementsByTagName('html')[0];
-    if (html) html.addEventListener('contextmenu', e => e.preventDefault())
     await AppTheme.getInstance().init();
 
     const socket = useSocket('app');

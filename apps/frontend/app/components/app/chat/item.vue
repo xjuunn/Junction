@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import * as conversationApi from '~/api/conversation';
+import { defineContextMenu } from '~/composables/useContextMenu';
 
 interface ConversationItem {
     id: string;
@@ -22,6 +24,10 @@ interface ConversationItem {
 
 const props = defineProps<{ data: ConversationItem }>();
 const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const dialog = useDialog();
+const { emit: busEmit } = useEmitt();
 
 const isActive = computed(() => route.params.id === props.data.id);
 
@@ -39,10 +45,60 @@ const previewText = computed(() => {
     const prefix = props.data.type === 'GROUP' ? `${props.data.lastMessage.sender?.name}: ` : '';
     return `${prefix}${props.data.lastMessage.content}`;
 });
+const conversationMenu = defineContextMenu<ConversationItem>([
+    {
+        id: 'clear',
+        label: '清空聊天记录',
+        icon: 'lucide:trash',
+        handler: ({ context }) => handleClearConversation(context),
+    },
+    { type: 'separator' },
+    {
+        id: 'remove',
+        label: '删除会话',
+        icon: 'lucide:trash-2',
+        danger: true,
+        handler: ({ context }) => handleRemoveConversation(context),
+    },
+]);
+
+/**
+ * 清空会话消息记录
+ */
+const handleClearConversation = async (conversation: ConversationItem) => {
+    toast.info(`TODO: 清空会话 ${conversation.title} 的聊天记录`);
+};
+
+/**
+ * 删除会话
+ */
+const handleRemoveConversation = async (conversation: ConversationItem) => {
+    const confirmed = await dialog.confirm({
+        title: '删除会话',
+        content: `确认删除 ${conversation.title} 吗？`,
+        type: 'warning',
+        confirmText: '删除',
+        cancelText: '取消',
+        persistent: true
+    });
+    if (!confirmed) return;
+    const res = await conversationApi.remove(conversation.id);
+    if (!res.success) {
+        toast.error(res.message || '删除会话失败');
+        return;
+    }
+    if (route.params.id === conversation.id) {
+        router.push('/chat');
+    }
+    busEmit('chat:conversation-removed', conversation.id);
+    toast.success('会话已删除');
+};
 </script>
 
 <template>
-    <div class="relative mx-2 my-0.5 group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all duration-300 rounded-xl select-none min-w-0 overflow-hidden"
+    <div
+        v-context-menu="{ items: conversationMenu, context: data }"
+        class="relative mx-2 my-0.5 group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-all duration-300 rounded-xl select-none min-w-0 overflow-hidden"
         :class="isActive
             ? 'bg-primary text-primary-content shadow-lg shadow-primary/20 scale-[1.01] z-10'
             : 'hover:bg-base-200 active:scale-[0.98]'" @click="navigateTo('/chat/' + data.id)">

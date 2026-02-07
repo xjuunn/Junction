@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, useAttrs } from 'vue';
+import { useClipboard } from '@vueuse/core';
+import { defineContextMenu } from '~/composables/useContextMenu';
 import type { PrismaTypes } from '@junction/types';
 import * as MessageApi from '~/api/message';
 import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download';
 import { isTauri } from '~/utils/check';
 import RichTextRenderer from './RichTextRenderer.vue';
+
+defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
     message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId'> & {
@@ -28,6 +32,8 @@ const emit = defineEmits<{
 const showReadDetail = ref(false);
 const toast = useToast();
 const dialog = useDialog();
+const attrs = useAttrs();
+const { copy } = useClipboard();
 
 /**
  * 获取撤回状态
@@ -105,6 +111,115 @@ const renderMode = computed(() => {
     return 'PLAIN_TEXT';
 });
 
+const rootAttrs = computed(() => {
+    const { class: _class, ...rest } = attrs;
+    return rest;
+});
+
+const messageMenu = defineContextMenu<{ id: string; content?: string | null; type: string; isMe: boolean }>([
+    {
+        id: 'copy',
+        label: '复制',
+        icon: 'lucide:copy',
+        handler: () => handleCopy(),
+    },
+    {
+        id: 'quote',
+        label: '引用',
+        icon: 'lucide:quote',
+        show: () => !isRevoked.value,
+        handler: () => handleQuote(),
+    },
+    { type: 'separator' },
+    {
+        id: 'delete',
+        label: '删除',
+        icon: 'lucide:trash-2',
+        danger: true,
+        handler: () => handleDelete(),
+    },
+    {
+        id: 'revoke',
+        label: '撤回',
+        icon: 'lucide:undo-2',
+        danger: true,
+        show: () => props.isMe && !isRevoked.value,
+        handler: () => handleRevoke(),
+    },
+]);
+
+/**
+ * 获取可复制的消息文本
+ */
+const getCopyText = () => {
+    if (imagePayload.value?.imageUrl) return getImageUrl(imagePayload.value.imageUrl);
+    if (filePayload.value?.fileUrl) return filePayload.value.fileUrl;
+    return props.message.content || '';
+};
+
+/**
+ * 复制消息内容
+ */
+const handleCopy = async () => {
+    const text = getCopyText();
+    if (!text) {
+        toast.info('无可复制内容');
+        return;
+    }
+    await copy(text);
+    toast.success('已复制');
+};
+
+/**
+ * 引用消息
+ */
+const handleQuote = async () => {
+    toast.info('TODO: 引用消息');
+};
+
+/**
+ * 删除消息
+ */
+const handleDelete = async () => {
+    const confirmed = await dialog.confirm({
+        title: '删除消息',
+        content: '确认删除这条消息吗？',
+        type: 'warning',
+        confirmText: '删除',
+        cancelText: '取消',
+        persistent: true
+    });
+    if (!confirmed) return;
+    const res = await MessageApi.bulkDelete([props.message.id]);
+    if (!res.success) {
+        toast.error(res.message || '删除失败');
+        return;
+    }
+    toast.success('已删除');
+};
+
+/**
+ * 撤回消息
+ */
+const handleRevoke = async () => {
+    const confirmed = await dialog.confirm({
+        title: '撤回消息',
+        content: '确认撤回这条消息吗？',
+        type: 'warning',
+        confirmText: '撤回',
+        cancelText: '取消',
+        persistent: true
+    });
+    if (!confirmed) return;
+    const res = await MessageApi.revoke(props.message.id);
+    if (!res.success) {
+        toast.error(res.message || '撤回失败');
+        return;
+    }
+    emit('revoke', props.message.id);
+    toast.success('已撤回');
+};
+
 /**
  * 切换已读详情显示
  */
@@ -171,7 +286,9 @@ const handleDownload = async () => {
 </script>
 
 <template>
-    <div :class="['chat group transition-all duration-300', isMe ? 'chat-end' : 'chat-start']">
+    <div
+        v-bind="rootAttrs"
+        :class="['chat group transition-all duration-300', isMe ? 'chat-end' : 'chat-start', attrs.class]">
         <div class="chat-image avatar">
             <div class="w-10 rounded-full bg-base-300 ring-1 ring-base-content/5 overflow-hidden">
                 <BaseAvatar :text="message.sender?.name" :src="message.sender?.avatar || message.sender?.image"
@@ -187,7 +304,9 @@ const handleDownload = async () => {
             <time class="tabular-nums">{{ formatTimeAgo(message.createdAt) }}</time>
         </div>
 
-        <div :class="[
+        <div
+            v-context-menu="{ items: messageMenu, context: { id: message.id, content: message.content, type: message.type, isMe } }"
+            :class="[
             'chat-bubble min-h-0 text-[14px] leading-relaxed shadow-sm relative group/bubble',
             isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200 text-base-content border-none',
             isRevoked ? 'italic opacity-50' : ''

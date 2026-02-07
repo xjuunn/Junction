@@ -230,6 +230,13 @@ const handleConversationUpdated = (payload: { id: string; title: string }) => {
     if (target) target.title = payload.title;
 };
 
+/**
+ * 处理会话删除同步
+ */
+const handleConversationRemoved = (conversationId: string) => {
+    conversations.value = conversations.value.filter(item => item.id !== conversationId);
+};
+
 onMounted(() => {
     fetchConversations();
     socketDisposers.push(appSocket.on('conversation-status', handleStatusUpdate));
@@ -240,6 +247,7 @@ onMounted(() => {
     busOn('chat:message-sync', handleMessageSync);
     busOn('chat:conversation-read', handleConversationRead);
     busOn('chat:conversation-updated', handleConversationUpdated);
+    busOn('chat:conversation-removed', handleConversationRemoved);
     busOn('chat:active-conversation', (id: string | null) => {
         activeConversationId.value = id;
     });
@@ -266,6 +274,7 @@ onUnmounted(() => {
     busOff('chat:message-sync', handleMessageSync);
     busOff('chat:conversation-read', handleConversationRead);
     busOff('chat:conversation-updated', handleConversationUpdated);
+    busOff('chat:conversation-removed', handleConversationRemoved);
     busOff('chat:active-conversation');
     pendingStreamPreview.clear();
 });
