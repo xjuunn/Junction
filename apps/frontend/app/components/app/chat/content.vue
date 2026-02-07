@@ -61,6 +61,7 @@ const emojiLoading = ref(false);
 const emojiActiveCategoryId = ref<string | null>(null);
 const emojiAddDialogVisible = ref(false);
 const emojiAddSource = reactive({ messageId: '', imageUrl: '' });
+const emojiUploadLoading = ref(false);
 const emojiForm = reactive({
     name: '',
     categoryId: '',
@@ -607,6 +608,16 @@ const openEmojiAddDialog = (payload: { messageId: string; imageUrl: string; name
     }
 };
 
+const openEmojiAddDialogFromUpload = (imageUrl: string) => {
+    emojiAddSource.messageId = '';
+    emojiAddSource.imageUrl = imageUrl;
+    resetEmojiForm();
+    emojiAddDialogVisible.value = true;
+    if (!emojiCategories.value.length) {
+        loadEmojiCategories();
+    }
+};
+
 const toggleEmojiPanel = () => {
     showEmojiPanel.value = !showEmojiPanel.value;
     if (showEmojiPanel.value) {
@@ -695,7 +706,6 @@ const handleSendEmoji = async (emoji: EmojiItem) => {
 };
 
 const submitEmojiAdd = async () => {
-    if (!emojiAddSource.messageId) return;
     if (!emojiForm.name.trim()) {
         toast.info('请输入表情名称');
         return;
@@ -714,13 +724,15 @@ const submitEmojiAdd = async () => {
             categoryId = created.data?.id;
             await loadEmojiCategories(true);
         }
-        const res = await emojiApi.createFromMessage({
-            messageId: emojiAddSource.messageId,
+        const payload = {
             name: emojiForm.name.trim(),
             categoryId,
             description: emojiForm.description.trim() || undefined,
             keywords: emojiForm.keywords.trim() || undefined
-        });
+        };
+        const res = emojiAddSource.messageId
+            ? await emojiApi.createFromMessage({ messageId: emojiAddSource.messageId, ...payload })
+            : await emojiApi.createEmoji({ imageUrl: emojiAddSource.imageUrl, ...payload });
         if (res.data) {
             toast.success('已添加到表情库');
             emojiAddDialogVisible.value = false;
@@ -730,6 +742,32 @@ const submitEmojiAdd = async () => {
     } catch (e: any) {
         toast.error(e?.message || '添加表情失败');
     }
+};
+
+const handleEmojiUpload = () => {
+    if (emojiUploadLoading.value) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        emojiUploadLoading.value = true;
+        try {
+            const response = await uploadFiles('message', [file]);
+            if (response.success && response.data?.files?.[0]) {
+                const imageUrl = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+                openEmojiAddDialogFromUpload(imageUrl);
+            } else {
+                toast.error('图片上传失败');
+            }
+        } catch (err: any) {
+            toast.error(err?.message || '图片上传失败');
+        } finally {
+            emojiUploadLoading.value = false;
+        }
+    };
+    input.click();
 };
 
 const handleEmojiStatusToggle = async (emoji: EmojiItem) => {
@@ -1337,6 +1375,13 @@ onUnmounted(() => {
                                 </div>
 
                                 <div v-else class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-semibold opacity-70">表情管理</span>
+                                        <button class="btn btn-ghost btn-xs" @click="handleEmojiUpload" :disabled="emojiUploadLoading">
+                                            <span v-if="emojiUploadLoading" class="loading loading-spinner loading-xs"></span>
+                                            <span v-else>添加表情</span>
+                                        </button>
+                                    </div>
                                     <div v-if="emojiLoading" class="py-6 flex items-center justify-center">
                                         <span class="loading loading-dots loading-sm"></span>
                                     </div>
