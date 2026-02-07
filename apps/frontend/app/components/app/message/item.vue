@@ -44,7 +44,9 @@ const isRevokedLike = computed(() => {
     if (isRevoked.value) return true;
     const hasContent = !!props.message.content && String(props.message.content).trim().length > 0;
     const hasPayload = !!props.message.payload;
-    return !hasContent && !hasPayload && props.message.type !== MessageApi.MessageType.SYSTEM;
+    if (hasContent || hasPayload || props.message.type === MessageApi.MessageType.SYSTEM) return false;
+    const createdAt = new Date(props.message.createdAt).getTime();
+    return Date.now() - createdAt > 2 * 60 * 1000;
 });
 const isGroup = computed(() => props.isGroup);
 const readInfo = computed(() => props.readInfo);
