@@ -47,22 +47,18 @@ const buildMentionSuggestion = () => {
         const rect = clientRect;
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
-        const scrollY = window.scrollY;
-        const scrollX = window.scrollX;
         const padding = 12;
         const desiredWidth = Math.max(rect.width, 220);
         container.style.minWidth = `${desiredWidth}px`;
+        container.style.position = 'fixed';
         const box = container.getBoundingClientRect();
         const estimatedHeight = Math.max(box.height, 120);
-        const spaceBelow = viewportHeight - rect.bottom;
-        const spaceAbove = rect.top;
-        const shouldFlip = spaceBelow < estimatedHeight + padding && spaceAbove > spaceBelow;
-        const top = shouldFlip
-            ? rect.top - estimatedHeight - 8 + scrollY
-            : rect.bottom + 8 + scrollY;
+        const top = rect.top - estimatedHeight - 10;
+        const maxTop = viewportHeight - estimatedHeight - padding;
         const maxLeft = viewportWidth - desiredWidth - padding;
-        const left = Math.min(Math.max(rect.left + scrollX, padding + scrollX), maxLeft + scrollX);
-        container.style.top = `${Math.max(top, padding + scrollY)}px`;
+        const left = Math.min(Math.max(rect.left, padding), maxLeft);
+        const clampedTop = Math.min(Math.max(top, padding), maxTop);
+        container.style.top = `${clampedTop}px`;
         container.style.left = `${left}px`;
     };
 
@@ -72,10 +68,10 @@ const buildMentionSuggestion = () => {
         items.forEach((item, index) => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = 'mention-suggest-item';
-            if (index === selectedIndex) {
-                button.classList.add('is-active');
-            }
+    button.className = 'mention-suggest-item';
+    if (index === selectedIndex) {
+        button.classList.add('is-active');
+    }
             button.innerHTML = `
                 <span class="mention-suggest-avatar"></span>
                 <span class="mention-suggest-name">${getItemLabel(item)}</span>
@@ -99,9 +95,7 @@ const buildMentionSuggestion = () => {
             onStart: (props: any) => {
                 selectedIndex = 0;
                 container = document.createElement('div');
-                container.className = 'mention-suggest';
-                container.style.backgroundColor = 'hsl(var(--b3))';
-                container.style.opacity = '1';
+                container.className = 'mention-suggest bg-base-300 text-base-content border border-base-200';
                 headerEl = document.createElement('div');
                 headerEl.className = 'mention-suggest-header';
                 headerEl.textContent = mentionTitle.value;
@@ -559,14 +553,11 @@ onBeforeUnmount(() => {
 :global(.mention-suggest) {
     position: absolute;
     z-index: 60;
-    background-color: hsl(var(--b3) / 1);
-    border: 1px solid hsl(var(--b3));
     border-radius: 16px;
     box-shadow: 0 16px 32px hsl(var(--bc) / 0.18), 0 2px 6px hsl(var(--bc) / 0.1);
     padding: 12px;
     max-height: 280px;
     overflow: hidden;
-    opacity: 1;
     background-clip: padding-box;
 }
 
@@ -596,17 +587,19 @@ onBeforeUnmount(() => {
     padding: 8px 10px;
     border-radius: 12px;
     background: transparent;
-    border: 1px solid transparent;
+    width: 100%;
+    pointer-events: auto;
+    appearance: none;
+    border: none;
     cursor: pointer;
     text-align: left;
     color: inherit;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background 0.15s ease;
 }
 
 :global(.mention-suggest-item:hover),
 :global(.mention-suggest-item.is-active) {
     background: hsl(var(--b2));
-    border-color: hsl(var(--b3));
 }
 
 :global(.mention-suggest-avatar) {
