@@ -2,15 +2,25 @@
 import type { ModelMessage } from 'ai'
 import { streamAiText } from '~/api/ai'
 import { defineContextMenu } from '~/composables/useContextMenu'
+import { notify, getNotificationPermission, requestNotificationPermission } from '~/utils/notification'
 
 const toast = useToast()
 
 const input = ref('')
+const notificationTitle = ref('通知测试')
+const notificationBody = ref('这是一条来自测试页的系统通知')
+const notificationCategory = ref<'message' | 'group' | 'mention' | 'friend-request' | 'system' | 'custom'>('system')
+const notificationPermission = ref<NotificationPermission>('default')
 const systemPrompt = ref('你是一个专业、可靠的 AI 助手。')
 const isSending = ref(false)
 const messages = ref<Array<{ role: 'user' | 'assistant'; content: string }>>([])
 
 const canSend = computed(() => !isSending.value && input.value.trim().length > 0)
+const notificationPermissionText = computed(() => {
+    if (notificationPermission.value === 'granted') return '已授权'
+    if (notificationPermission.value === 'denied') return '已拒绝'
+    return '未设置'
+})
 
 const messageMenu = defineContextMenu<{ role: 'user' | 'assistant'; content: string }>([
     {
@@ -112,6 +122,33 @@ function handleClear() {
     messages.value = []
     input.value = ''
 }
+
+async function refreshNotificationPermission() {
+    notificationPermission.value = await getNotificationPermission()
+}
+
+async function handleRequestNotificationPermission() {
+    const result = await requestNotificationPermission()
+    notificationPermission.value = result
+    if (result === 'granted') toast.success('系统通知权限已授权')
+    else toast.warning('系统通知权限未授权')
+}
+
+async function handleSendNotificationTest() {
+    const result = await notify({
+        title: notificationTitle.value.trim() || '通知测试',
+        body: notificationBody.value.trim() || undefined,
+        category: notificationCategory.value,
+        force: true,
+    }, {
+        requestPermission: true,
+    })
+    if (!result.success) toast.warning('系统通知未发送，请检查权限与设置')
+}
+
+onMounted(() => {
+    refreshNotificationPermission()
+})
 </script>
 
 <template>
@@ -191,6 +228,53 @@ function handleClear() {
                 </div>
 
                 <div class="lg:col-span-4 space-y-4">
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-6 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="font-bold">系统通知测试</div>
+                                <span class="badge badge-sm" :class="notificationPermission === 'granted' ? 'badge-success' : (notificationPermission === 'denied' ? 'badge-error' : 'badge-ghost')">
+                                    {{ notificationPermissionText }}
+                                </span>
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-bold">标题</span>
+                                </label>
+                                <input v-model="notificationTitle" type="text" class="input input-bordered w-full bg-base-100" placeholder="请输入通知标题" />
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-bold">内容</span>
+                                </label>
+                                <textarea v-model="notificationBody" class="textarea textarea-bordered w-full bg-base-100 min-h-[90px]" placeholder="请输入通知内容"></textarea>
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-bold">通知类型</span>
+                                </label>
+                                <select v-model="notificationCategory" class="select select-bordered w-full bg-base-100">
+                                    <option value="message">新消息</option>
+                                    <option value="group">群组消息</option>
+                                    <option value="mention">提及我的消息</option>
+                                    <option value="friend-request">好友请求</option>
+                                    <option value="system">系统通知</option>
+                                    <option value="custom">自定义</option>
+                                </select>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button class="btn btn-ghost btn-sm rounded-xl" @click="handleRequestNotificationPermission">
+                                    授权系统通知
+                                </button>
+                                <button class="btn btn-primary btn-sm rounded-xl" @click="handleSendNotificationTest">
+                                    发送测试通知
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="card bg-base-100 shadow-sm border border-base-200">
                         <div class="card-body p-6">
                             <div class="font-bold mb-3">使用说明</div>

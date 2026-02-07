@@ -24,6 +24,7 @@
     "fs:allow-mkdir",
     "fs:allow-exists",
     "fs:allow-download-write",
+    "notification:default",
     {
       "identifier": "fs:scope",
       "allow": [
