@@ -16,6 +16,7 @@ interface ConversationItem {
         type: string;
         createdAt: string;
         sender?: { name: string };
+        status?: string;
     };
     memberCount: number;
     mySettings?: { pinned: boolean; muted: boolean; };
@@ -42,8 +43,15 @@ const displayTime = computed(() => {
 
 const previewText = computed(() => {
     if (!props.data.lastMessage) return '暂无新消息';
+    const content = props.data.lastMessage.content || '';
+    const isRevoked = props.data.lastMessage.status === 'REVOKED' || !content;
+    if (isRevoked) {
+        return props.data.lastMessage.sender?.name
+            ? `${props.data.lastMessage.sender?.name} 撤回了一条消息`
+            : '对方撤回了一条消息';
+    }
     const prefix = props.data.type === 'GROUP' ? `${props.data.lastMessage.sender?.name}: ` : '';
-    return `${prefix}${props.data.lastMessage.content}`;
+    return `${prefix}${content}`;
 });
 const conversationMenu = defineContextMenu<ConversationItem>([
     {

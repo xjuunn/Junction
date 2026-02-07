@@ -104,7 +104,7 @@ export class ConversationService {
         skip,
         include: {
           lastMessage: {
-            select: { content: true, type: true, createdAt: true, sender: { select: { name: true } } }
+            select: { content: true, type: true, createdAt: true, status: true, sender: { select: { name: true } } }
           },
           _count: { select: { members: true } },
           members: {

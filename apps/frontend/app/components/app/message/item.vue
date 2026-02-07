@@ -40,6 +40,12 @@ const { emit: busEmit } = useEmitt();
  * 获取撤回状态
  */
 const isRevoked = computed(() => props.message.status === MessageApi.MessageStatus.REVOKED);
+const isRevokedLike = computed(() => {
+    if (isRevoked.value) return true;
+    const hasContent = !!props.message.content && String(props.message.content).trim().length > 0;
+    const hasPayload = !!props.message.payload;
+    return !hasContent && !hasPayload && props.message.type !== MessageApi.MessageType.SYSTEM;
+});
 const isGroup = computed(() => props.isGroup);
 const readInfo = computed(() => props.readInfo);
 const humanReadMembers = computed(() => readInfo.value?.readMembers?.filter(member => member.accountType !== 'BOT') ?? []);
@@ -105,12 +111,17 @@ const openImageViewer = (imageUrl: string) => {
  * 确定内容渲染模式
  */
 const renderMode = computed(() => {
-    if (isRevoked.value) return 'REVOKED';
+    if (isRevokedLike.value) return 'REVOKED';
     if (props.message.type === 'IMAGE') return 'IMAGE';
     if (props.message.type === 'FILE') return 'FILE';
     if (props.message.type === 'RICH_TEXT' || hasRichPayload.value) return 'RICH_TEXT';
     return 'PLAIN_TEXT';
 });
+
+/**
+ * 获取撤回显示文案
+ */
+const revokedText = computed(() => (props.isMe ? '你撤回了一条消息' : '对方撤回了一条消息'));
 
 const rootAttrs = computed(() => {
     const { class: _class, ...rest } = attrs;
@@ -120,7 +131,7 @@ const rootAttrs = computed(() => {
 const quotedMessage = computed(() => extractQuotedMessage(props.message.payload));
 
 const canRevoke = computed(() => {
-    if (!props.isMe || isRevoked.value) return false;
+    if (!props.isMe || isRevokedLike.value) return false;
     const createdAt = new Date(props.message.createdAt).getTime();
     return Date.now() - createdAt <= 2 * 60 * 1000;
 });
@@ -136,7 +147,7 @@ const messageMenu = defineContextMenu<{ id: string; content?: string | null; typ
         id: 'quote',
         label: '引用',
         icon: 'lucide:quote',
-        show: () => !isRevoked.value,
+        show: () => !isRevokedLike.value,
         handler: () => handleQuote(),
     },
     { type: 'separator' },
@@ -345,7 +356,7 @@ const handleDownload = async () => {
             :class="[
             'chat-bubble min-h-0 text-[14px] leading-relaxed shadow-sm relative group/bubble',
             isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200 text-base-content border-none',
-            isRevoked ? 'italic opacity-50' : ''
+            isRevokedLike ? 'italic opacity-50' : ''
         ]">
             <div class="break-words max-w-[70vw] sm:max-w-md">
                 <button
@@ -358,7 +369,7 @@ const handleDownload = async () => {
                 </button>
                 <!-- 场景 1: 撤回提示 -->
                 <template v-if="renderMode === 'REVOKED'">
-                    {{ isMe ? '你撤回了一条消息' : '对方撤回了一条消息' }}
+                    {{ revokedText }}
                 </template>
 
                 <!-- 场景 2: 图片消息渲染 -->
@@ -406,7 +417,7 @@ const handleDownload = async () => {
             </div>
 
             <!-- 操作面板 -->
-            <div v-if="!isRevoked && isMe"
+            <div v-if="!isRevokedLike && isMe"
                 class="absolute top-0 right-full mr-2 opacity-0 group-hover/bubble:opacity-100 transition-all flex p-1 bg-base-100 shadow-xl rounded-lg border border-base-content/5 z-10">
                 <button @click="emit('revoke', message.id)" class="btn btn-xs btn-circle btn-ghost text-error">
                     <Icon name="mingcute:refresh-3-line" size="14" />
@@ -415,7 +426,7 @@ const handleDownload = async () => {
         </div>
 
         <div class="chat-footer opacity-40 text-[10px] mt-1 flex items-center gap-2 px-1">
-            <template v-if="isMe && !isRevoked">
+            <template v-if="isMe && !isRevokedLike">
                 <Icon :name="displayRead ? 'mingcute:checks-fill' : 'mingcute:check-line'"
                     :class="displayRead ? 'text-primary' : ''" size="12" />
                 <div v-if="isGroup && readInfo && totalReceivers" class="relative">
