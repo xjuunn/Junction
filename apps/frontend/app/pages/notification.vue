@@ -24,7 +24,7 @@ const pagination = reactive({
 
 // 计算详情页是否打开
 const isDetailOpen = computed(() => {
-    return route.name === 'notification-friend-request-id';
+    return route.name === 'notification-friend-request-id' || route.name === 'notification-id';
 });
 
 // 当前选中的ID
@@ -111,14 +111,11 @@ async function handleItemClick(item: PrismaTypes.Notification) {
         handleReadSideEffect(item.id);
         await NotificationApi.markAsRead(item.id);
     }
-    switch (item.type) {
-        case 'FRIEND_REQUEST':
-            router.push(`/notification/friend-request/${item.id}`);
-            break;
-        default:
-            console.warn("未处理的通知类型");
-
+    if (item.type === 'FRIEND_REQUEST') {
+        router.push(`/notification/friend-request/${item.id}`);
+        return;
     }
+    router.push(`/notification/${item.id}`);
 }
 
 /** 乐观更新已读状态 */
@@ -159,7 +156,7 @@ function handleBack() {
 /** 根据类型获取图标 */
 function getIconByType(type: string): string {
     const map: Record<string, string> = {
-        SYSTEM: 'mingcute:macbook-line',
+        SYSTEM: 'mingcute:computer-line',
         MESSAGE: 'mingcute:chat-4-line',
         FRIEND_REQUEST: 'mingcute:user-add-2-line',
         MODULE_UPDATE: 'mingcute:upload-2-line',
@@ -182,6 +179,49 @@ function getColorByType(type: string): string {
         CUSTOM: 'text-neutral-content'
     };
     return map[type] || 'text-base-content';
+}
+
+function getTypeLabel(type: string): string {
+    const map: Record<string, string> = {
+        SYSTEM: '系统',
+        MESSAGE: '消息',
+        FRIEND_REQUEST: '好友请求',
+        MODULE_UPDATE: '模块更新',
+        DOWNLOAD: '下载',
+        WARNING: '警告',
+        CUSTOM: '自定义'
+    };
+    return map[type] || type;
+}
+
+function getLevelLabel(level: string): string {
+    const map: Record<string, string> = {
+        LOW: '低',
+        NORMAL: '普通',
+        HIGH: '高',
+        URGENT: '紧急'
+    };
+    return map[level] || level;
+}
+
+function getLevelBadgeClass(level: string): string {
+    const map: Record<string, string> = {
+        LOW: 'badge-ghost',
+        NORMAL: 'badge-ghost',
+        HIGH: 'badge-warning',
+        URGENT: 'badge-error'
+    };
+    return map[level] || 'badge-ghost';
+}
+
+function getProcessLabel(status: string): string {
+    const map: Record<string, string> = {
+        PENDING: '待处理',
+        PROCESSED: '已处理',
+        EXPIRED: '已过期',
+        CANCELED: '已取消'
+    };
+    return map[status] || status;
 }
 </script>
 
@@ -275,6 +315,11 @@ function getColorByType(type: string): string {
                                     <span class="text-[11px] font-medium text-base-content/30 whitespace-nowrap ml-2">
                                         {{ formatTimeAgo(item.createdAt) }}
                                     </span>
+                                </div>
+                                <div class="flex items-center gap-1.5 text-[11px] text-base-content/50">
+                                    <span class="badge badge-xs badge-ghost">{{ getTypeLabel(item.type) }}</span>
+                                    <span v-if="item.level" class="badge badge-xs" :class="getLevelBadgeClass(item.level)">{{ getLevelLabel(item.level) }}</span>
+                                    <span v-if="item.processStatus" class="badge badge-xs badge-ghost">{{ getProcessLabel(item.processStatus) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between h-4">
                                     <span class="text-[13px] truncate w-full leading-tight"
