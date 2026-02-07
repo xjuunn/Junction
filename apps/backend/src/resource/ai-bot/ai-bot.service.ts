@@ -511,6 +511,7 @@ export class AiBotService {
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [...systemMessages]
     const conversationType = await this.getConversationType(conversationId)
+    const memberMap = await this.getConversationMemberMap(conversationId)
 
     const filteredHistory = ordered.filter(item => {
       if (!item.content && !item.payload) return false
@@ -526,11 +527,11 @@ export class AiBotService {
         })
         messages.push({
           role: 'user',
-          content: this.buildSummaryPrompt(summaryTarget, conversationType)
+          content: this.buildSummaryPrompt(summaryTarget, conversationType, memberMap)
         })
       } else if (command.type === 'translate' && bot.translationEnabled) {
         const target = command.target || '中文'
-        const text = command.text || this.buildSummaryPrompt(filteredHistory.slice(0, -1), conversationType)
+        const text = command.text || this.buildSummaryPrompt(filteredHistory.slice(0, -1), conversationType, memberMap)
         messages.push({
           role: 'system',
           content: `你是企业级翻译助手，请将内容翻译为${target}。`
@@ -541,8 +542,10 @@ export class AiBotService {
       filteredHistory.forEach(message => {
         const role = message.senderId === bot.userId ? 'assistant' : 'user'
         const name = message.senderId === bot.userId ? bot.name : (message as any).sender?.name || senderName
+        const member = message.senderId ? memberMap.get(message.senderId) : null
+        const label = this.buildMemberLabel(name, member?.role, member?.accountType)
         const senderLabel = conversationType === 'GROUP' && role === 'user'
-          ? `[${name}] `
+          ? `[${label}] `
           : ''
         let content = this.extractPlainText(message)
         if (message.id === latest?.id) {
@@ -869,13 +872,22 @@ export class AiBotService {
     return null
   }
 
-  private buildSummaryPrompt(messages: PrismaTypes.Message[], conversationType?: string | null) {
+  /**
+   * 生成总结提示词
+   */
+  private buildSummaryPrompt(
+    messages: PrismaTypes.Message[],
+    conversationType?: string | null,
+    memberMap?: Map<string, { name: string; role?: string | null; accountType?: string | null }>
+  ) {
     if (!messages.length) return '暂无可总结内容。'
     return messages
       .map(item => {
         const name = (item as any).sender?.name || '用户'
+        const member = item.senderId ? memberMap?.get(item.senderId) : null
+        const label = this.buildMemberLabel(name, member?.role, member?.accountType)
         const text = this.extractPlainText(item)
-        return conversationType === 'GROUP' ? `[${name}] ${text}` : text
+        return conversationType === 'GROUP' ? `[${label}] ${text}` : text
       })
       .join('\n')
   }
@@ -904,6 +916,35 @@ export class AiBotService {
       select: { userId: true }
     })
     return members.map(m => m.userId)
+  }
+
+  /**
+   * 获取会话成员映射
+   */
+  private async getConversationMemberMap(conversationId: string) {
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId },
+      select: {
+        userId: true,
+        role: true,
+        user: { select: { name: true, accountType: true } }
+      }
+    })
+    return new Map(
+      members.map(m => [
+        m.userId,
+        { name: m.user?.name || '用户', role: m.role, accountType: m.user?.accountType }
+      ])
+    )
+  }
+
+  /**
+   * 生成成员标签
+   */
+  private buildMemberLabel(name: string, role?: string | null, accountType?: string | null) {
+    const roleLabel = role ? role : 'MEMBER'
+    const accountLabel = accountType ? accountType : 'USER'
+    return `${name}|${roleLabel}|${accountLabel}`
   }
 
   private async getConversationType(conversationId: string) {

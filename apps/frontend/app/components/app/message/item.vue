@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useAttrs } from 'vue';
+import MarkdownIt from 'markdown-it';
 import { useClipboard } from '@vueuse/core';
 import { defineContextMenu } from '~/composables/useContextMenu';
 import type { PrismaTypes } from '@junction/types';
@@ -124,6 +125,23 @@ const renderMode = computed(() => {
  * 获取撤回显示文案
  */
 const revokedText = computed(() => (props.isMe ? '你撤回了一条消息' : '对方撤回了一条消息'));
+
+/**
+ * 判断文本是否可能是 Markdown
+ */
+const isMarkdownContent = (text: string) => {
+    if (!text) return false;
+    return /(^|\n)#{1,6}\s+\S+/.test(text)
+        || /(^|\n)[\-\*\+]\s+\S+/.test(text)
+        || /`{3}[\s\S]*?`{3}/.test(text)
+        || /\[[^\]]+\]\([^)]+\)/.test(text)
+        || /\*\*[^*]+\*\*/.test(text)
+        || /_([^_]+)_/.test(text);
+};
+
+const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
+const markdownHtml = computed(() => markdown.render(props.message.content || ''));
+const shouldRenderMarkdown = computed(() => isBotSender.value && renderMode.value === 'PLAIN_TEXT' && isMarkdownContent(props.message.content || ''));
 
 const rootAttrs = computed(() => {
     const { class: _class, ...rest } = attrs;
@@ -414,7 +432,8 @@ const handleDownload = async () => {
 
                 <!-- 场景 5: 普通文本渲染 -->
                 <div v-else class="whitespace-pre-wrap">
-                    {{ message.content }}
+                    <div v-if="shouldRenderMarkdown" class="markdown-content" v-html="markdownHtml"></div>
+                    <template v-else>{{ message.content }}</template>
                 </div>
             </div>
 
@@ -474,3 +493,58 @@ const handleDownload = async () => {
         </div>
     </BaseModal>
 </template>
+
+<style scoped>
+.markdown-content :deep(p) {
+    margin: 0;
+    line-height: 1.4;
+}
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+    padding-left: 1.2rem;
+    margin: 0.12rem 0;
+}
+.markdown-content :deep(li) {
+    margin: 0.06rem 0;
+}
+.markdown-content :deep(ul > li + li),
+.markdown-content :deep(ol > li + li) {
+    margin-top: 0.08rem;
+}
+.markdown-content :deep(ul > li > p),
+.markdown-content :deep(ol > li > p) {
+    margin: 0;
+}
+.markdown-content :deep(p + p) {
+    margin-top: 0;
+}
+.markdown-content :deep(p:empty) {
+    display: none;
+}
+.markdown-content :deep(p > br:only-child) {
+    display: none;
+}
+.markdown-content :deep(pre) {
+    margin: 0.2rem 0;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.08);
+    overflow-x: auto;
+}
+.markdown-content :deep(code) {
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.4rem;
+    background: rgba(0, 0, 0, 0.08);
+    font-size: 0.85em;
+}
+.markdown-content :deep(blockquote) {
+    border-left: 3px solid rgba(0, 0, 0, 0.15);
+    padding-left: 0.75rem;
+    opacity: 0.8;
+    margin: 0.4rem 0;
+}
+.markdown-content :deep(a) {
+    color: hsl(var(--p));
+    text-decoration: underline;
+}
+</style>
