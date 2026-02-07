@@ -37,4 +37,5 @@ export type Events = {
     'chat:quote-message': { messageId: string; senderName: string; content: string; sequence?: number | null };
     'chat:scroll-to-message': { messageId: string; sequence?: number | null };
     'chat:message-revoked-local': { id: string; conversationId?: string | null; content: string | null; payload: any; status: string };
+    'chat:active-conversation': string | null;
 }

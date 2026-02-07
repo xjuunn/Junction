@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import * as conversationApi from '~/api/conversation';
 
 type ConversationItem = NonNullable<NonNullable<Awaited<ReturnType<typeof conversationApi.findAll>>['data']>['items']>[number];
 
-const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const currentUserId = computed(() => userStore.user.value?.id);
@@ -19,10 +18,6 @@ const showCreateGroupDialog = ref(false);
 const pendingStreamPreview = new Map<string, string>();
 let socketDisposers: Array<() => void> = [];
 const activeConversationId = ref<string | null>(null);
-
-/**
- * 加载会话列表数据
- */
 const fetchConversations = async (): Promise<void> => {
     loading.value = true;
     try {
@@ -121,6 +116,8 @@ const handleNewMessage = (msg: any) => {
 
         // 将会话移到正确的排序位置
         moveToCorrectPosition(target);
+
+        // 触发系统通知（免打扰会话不通知）
     }
 };
 
