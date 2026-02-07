@@ -42,6 +42,7 @@ const pendingStreamContent = new Map<string, string>();
 let socketDisposers: Array<() => void> = [];
 
 const remarkMap = ref<Record<string, string>>({});
+const quotedMessage = ref<{ messageId: string; senderName: string; content: string } | null>(null);
 
 /**
  * ????????????
@@ -340,6 +341,32 @@ const handleScroll = (e: Event) => {
     updateAutoScrollState();
 };
 
+/**
+ * 处理引用消息设置
+ */
+const handleQuoteMessage = (payload: { messageId: string; senderName: string; content: string }) => {
+    quotedMessage.value = payload;
+};
+
+/**
+ * 清空引用消息
+ */
+const clearQuotedMessage = () => {
+    quotedMessage.value = null;
+};
+
+/**
+ * 跳转到指定消息
+ */
+const scrollToMessageById = (messageId: string) => {
+    const el = messageElementMap.get(messageId);
+    if (!el) {
+        toast.info('未找到引用的消息');
+        return;
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
 const fetchConversation = async () => {
     if (!conversationId.value) return;
     const res = await conversationApi.findOne(conversationId.value);
@@ -396,7 +423,7 @@ const handleSend = async () => {
     const text = messagePlainText.value.trim();
     const hasJson = messageJson.value && messageJson.value.content && messageJson.value.content.length > 0;
 
-    if ((!text && !hasJson) || sending.value) return;
+    if ((!text && !hasJson && !quotedMessage.value) || sending.value) return;
 
     sending.value = true;
     try {
@@ -408,6 +435,14 @@ const handleSend = async () => {
         let messageType = isRichText ? messageApi.MessageType.RICH_TEXT : messageApi.MessageType.TEXT;
         let content = text || '[富文本消息]';
         let payload = toRaw(messageJson.value);
+        if (quotedMessage.value) {
+            const quote = {
+                messageId: quotedMessage.value.messageId,
+                senderName: quotedMessage.value.senderName,
+                content: quotedMessage.value.content
+            };
+            payload = payload ? { ...payload, quote } : { quote };
+        }
 
         const res = await messageApi.send({
             conversationId: conversationId.value,
@@ -423,6 +458,7 @@ const handleSend = async () => {
             editorRef.value?.clear();
             messagePlainText.value = '';
             messageJson.value = null;
+            quotedMessage.value = null;
             scrollToBottom('smooth');
             busEmit('chat:message-sync', patched);
         }
@@ -655,6 +691,7 @@ watch(() => conversationId.value, () => {
     messages.value = [];
     currentConversation.value = null;
     showChatSettings.value = false;
+    quotedMessage.value = null;
     lastReportedReadId.value = null;
     lastReportedReadSeq.value = 0;
     busEmit('chat:active-conversation', conversationId.value);
@@ -682,6 +719,8 @@ watch(() => conversationId.value, () => {
 onMounted(async () => {
     setupSocketListeners();
     busOn('chat:conversation-updated', handleConversationUpdated);
+    busOn('chat:quote-message', handleQuoteMessage);
+    busOn('chat:scroll-to-message', scrollToMessageById);
     busEmit('chat:active-conversation', conversationId.value);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -724,6 +763,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
     busOff('chat:conversation-updated', handleConversationUpdated);
+    busOff('chat:quote-message', handleQuoteMessage);
+    busOff('chat:scroll-to-message', scrollToMessageById);
     busEmit('chat:active-conversation', null);
     socketDisposers.forEach(dispose => dispose());
     socketDisposers = [];
@@ -819,6 +860,16 @@ onUnmounted(() => {
             <div class="max-w-5xl mx-auto relative">
                 <div ref="editorContainerRef"
                     class="relative bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg focus-within:bg-base-100/80 transition-all">
+                    <div v-if="quotedMessage"
+                        class="mx-2 mb-2 flex items-start justify-between gap-3 rounded-2xl border border-base-content/10 bg-base-100/80 px-3 py-2 text-xs">
+                        <div class="min-w-0">
+                            <div class="font-bold opacity-70 truncate">{{ quotedMessage.senderName || '消息引用' }}</div>
+                            <div class="opacity-60 truncate">{{ quotedMessage.content || '...' }}</div>
+                        </div>
+                        <button type="button" class="btn btn-ghost btn-xs h-6 px-2" @click="clearQuotedMessage">
+                            取消
+                        </button>
+                    </div>
 
                     <BaseEditor ref="editorRef" v-model="messageJson" :disabled="sending" @send="handleSend"
                         :enable-mention="true" :mention-items="mentionMembers" mention-title="选择成员"
@@ -873,7 +924,7 @@ onUnmounted(() => {
                             </span>
                             <button
                                 class="btn btn-primary btn-sm h-10 px-6 rounded-2xl font-black shadow-xl shadow-primary/20 active:scale-95 transition-all"
-                                :disabled="(!messagePlainText.trim() && !messageJson?.content?.length) || sending"
+                                :disabled="(!messagePlainText.trim() && !messageJson?.content?.length && !quotedMessage) || sending"
                                 @click="handleSend">
                                 <span>SEND</span>
                                 <Icon name="mingcute:send-plane-fill" size="18" class="ml-1.5" />

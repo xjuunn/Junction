@@ -34,6 +34,7 @@ const toast = useToast();
 const dialog = useDialog();
 const attrs = useAttrs();
 const { copy } = useClipboard();
+const { emit: busEmit } = useEmitt();
 
 /**
  * 获取撤回状态
@@ -116,6 +117,8 @@ const rootAttrs = computed(() => {
     return rest;
 });
 
+const quotedMessage = computed(() => extractQuotedMessage(props.message.payload));
+
 const messageMenu = defineContextMenu<{ id: string; content?: string | null; type: string; isMe: boolean }>([
     {
         id: 'copy',
@@ -174,7 +177,14 @@ const handleCopy = async () => {
  * 引用消息
  */
 const handleQuote = async () => {
-    toast.info('TODO: 引用消息');
+    const senderName = props.message.sender?.name || (props.isMe ? '我' : '对方');
+    const content = getQuotePreview();
+    busEmit('chat:quote-message', {
+        messageId: props.message.id,
+        senderName,
+        content,
+    });
+    toast.success('已添加引用');
 };
 
 /**
@@ -219,6 +229,39 @@ const handleRevoke = async () => {
     emit('revoke', props.message.id);
     toast.success('已撤回');
 };
+
+/**
+ * 提取引用消息信息
+ */
+function extractQuotedMessage(payload: unknown) {
+    if (!payload || typeof payload !== 'object') return null;
+    const quote = (payload as any).quote || (payload as any).quotedMessage;
+    if (!quote || typeof quote !== 'object') return null;
+    const messageId = String((quote as any).messageId || '');
+    if (!messageId) return null;
+    return {
+        messageId,
+        senderName: String((quote as any).senderName || ''),
+        content: String((quote as any).content || ''),
+    };
+}
+
+/**
+ * 获取引用预览文本
+ */
+function getQuotePreview() {
+    if (imagePayload.value?.imageUrl) return '[图片]';
+    if (filePayload.value?.fileUrl) return '[文件]';
+    return props.message.content || '';
+}
+
+/**
+ * 跳转到被引用的消息
+ */
+function handleQuoteJump() {
+    if (!quotedMessage.value) return;
+    busEmit('chat:scroll-to-message', quotedMessage.value.messageId);
+}
 
 /**
  * 切换已读详情显示
@@ -312,6 +355,14 @@ const handleDownload = async () => {
             isRevoked ? 'italic opacity-50' : ''
         ]">
             <div class="break-words max-w-[70vw] sm:max-w-md">
+                <button
+                    v-if="quotedMessage"
+                    type="button"
+                    class="w-full mb-2 rounded-lg border border-base-content/10 bg-base-100/60 px-3 py-2 text-left text-xs hover:bg-base-200/70 transition-colors"
+                    @click="handleQuoteJump">
+                    <div class="font-bold opacity-70 truncate">{{ quotedMessage.senderName || '消息引用' }}</div>
+                    <div class="opacity-60 truncate">{{ quotedMessage.content || '...' }}</div>
+                </button>
                 <!-- 场景 1: 撤回提示 -->
                 <template v-if="renderMode === 'REVOKED'">
                     {{ isMe ? '你撤回了一条消息' : '对方撤回了一条消息' }}
