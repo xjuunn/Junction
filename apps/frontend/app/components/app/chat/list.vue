@@ -159,6 +159,18 @@ const handleMessageUpdated = (msg: any) => {
     }
 };
 
+const handleMessageRevoked = (msg: any) => {
+    const target = conversations.value.find(c => c.id === msg.conversationId);
+    if (!target) return;
+    if (!target.lastMessage) return;
+    target.lastMessage = {
+        content: msg.senderId === currentUserId.value ? '你撤回了一条消息' : '对方撤回了一条消息',
+        type: msg.type || 'TEXT',
+        createdAt: msg.createdAt || target.lastMessage.createdAt,
+        sender: msg.sender || target.lastMessage.sender
+    };
+};
+
 /**
  * 列表过滤与智能排序
  */
@@ -243,11 +255,13 @@ onMounted(() => {
     socketDisposers.push(appSocket.on('new-message', handleNewMessage));
     socketDisposers.push(appSocket.on('message-stream', handleMessageStream));
     socketDisposers.push(appSocket.on('message-updated', handleMessageUpdated));
+    socketDisposers.push(appSocket.on('message-revoked', handleMessageRevoked));
     socketDisposers.push(appSocket.on('message-read', handleMessageRead));
     busOn('chat:message-sync', handleMessageSync);
     busOn('chat:conversation-read', handleConversationRead);
     busOn('chat:conversation-updated', handleConversationUpdated);
     busOn('chat:conversation-removed', handleConversationRemoved);
+    busOn('chat:message-revoked-local', handleMessageRevoked);
     busOn('chat:active-conversation', (id: string | null) => {
         activeConversationId.value = id;
     });
@@ -275,6 +289,7 @@ onUnmounted(() => {
     busOff('chat:conversation-read', handleConversationRead);
     busOff('chat:conversation-updated', handleConversationUpdated);
     busOff('chat:conversation-removed', handleConversationRemoved);
+    busOff('chat:message-revoked-local', handleMessageRevoked);
     busOff('chat:active-conversation');
     pendingStreamPreview.clear();
 });

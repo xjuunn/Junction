@@ -200,13 +200,20 @@ export class MessageService {
   /**
    * 撤回消息
    */
-  async revoke(userId: string, messageId: string) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId },
-      select: { senderId: true, conversationId: true }
-    });
+    async revoke(userId: string, messageId: string) {
+      const message = await this.prisma.message.findUnique({
+        where: { id: messageId },
+        select: { senderId: true, conversationId: true, createdAt: true, status: true }
+      });
 
-    if (!message || message.senderId !== userId) throw new ForbiddenException('无权撤回');
+      if (!message || message.senderId !== userId) throw new ForbiddenException('无权撤回');
+      if (message.status === PrismaValues.MessageStatus.REVOKED) {
+        throw new BadRequestException('消息已撤回');
+      }
+      const createdAt = message.createdAt?.getTime?.() ?? new Date(message.createdAt as any).getTime();
+      if (Date.now() - createdAt > 2 * 60 * 1000) {
+        throw new ForbiddenException('超过撤回时间限制');
+      }
 
     const revokedMessageRaw = await this.prisma.message.update({
       where: { id: messageId },

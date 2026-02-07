@@ -783,6 +783,18 @@ const handleMessageStream = (payload: { conversationId: string; messageId: strin
     scheduleStreamScroll();
 };
 
+const handleMessageRevoked = (payload: { id: string; content?: string | null; payload?: any; status?: string }) => {
+    const idx = messages.value.findIndex(item => item.id === payload.id);
+    if (idx < 0) return;
+    const current = messages.value[idx];
+    messages.value[idx] = {
+        ...current,
+        status: messageApi.MessageStatus.REVOKED,
+        content: payload.content ?? null,
+        payload: payload.payload ?? null
+    } as MessageItem;
+};
+
 const handleMessageRead = (payload: { conversationId: string; userId: string; sequence?: number | string }) => {
     if (payload.conversationId !== conversationId.value || payload.sequence === undefined) return;
     const sequence = Number(payload.sequence);
@@ -796,6 +808,7 @@ const setupSocketListeners = () => {
     socketDisposers.push(appSocket.on('new-message', handleNewMessage));
     socketDisposers.push(appSocket.on('message-updated', handleMessageUpdated));
     socketDisposers.push(appSocket.on('message-stream', handleMessageStream));
+    socketDisposers.push(appSocket.on('message-revoked', handleMessageRevoked));
     socketDisposers.push(appSocket.on('message-read', handleMessageRead));
 };
 
@@ -835,6 +848,7 @@ onMounted(async () => {
     busOn('chat:conversation-updated', handleConversationUpdated);
     busOn('chat:quote-message', handleQuoteMessage);
     busOn('chat:scroll-to-message', scrollToMessageById);
+    busOn('chat:message-revoked-local', handleMessageRevoked);
     busEmit('chat:active-conversation', conversationId.value);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -879,6 +893,7 @@ onUnmounted(() => {
     busOff('chat:conversation-updated', handleConversationUpdated);
     busOff('chat:quote-message', handleQuoteMessage);
     busOff('chat:scroll-to-message', scrollToMessageById);
+    busOff('chat:message-revoked-local', handleMessageRevoked);
     busEmit('chat:active-conversation', null);
     socketDisposers.forEach(dispose => dispose());
     socketDisposers = [];

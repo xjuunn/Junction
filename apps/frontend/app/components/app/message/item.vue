@@ -11,7 +11,7 @@ import RichTextRenderer from './RichTextRenderer.vue';
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
-    message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId' | 'sequence'> & {
+    message: Pick<PrismaTypes.Message, 'id' | 'type' | 'content' | 'payload' | 'createdAt' | 'status' | 'senderId' | 'sequence' | 'conversationId'> & {
         sender?: { name: string; avatar?: string | null; image?: string | null; accountType?: string | null } | null;
     };
     isMe: boolean;
@@ -119,6 +119,12 @@ const rootAttrs = computed(() => {
 
 const quotedMessage = computed(() => extractQuotedMessage(props.message.payload));
 
+const canRevoke = computed(() => {
+    if (!props.isMe || isRevoked.value) return false;
+    const createdAt = new Date(props.message.createdAt).getTime();
+    return Date.now() - createdAt <= 2 * 60 * 1000;
+});
+
 const messageMenu = defineContextMenu<{ id: string; content?: string | null; type: string; isMe: boolean }>([
     {
         id: 'copy',
@@ -146,7 +152,7 @@ const messageMenu = defineContextMenu<{ id: string; content?: string | null; typ
         label: '撤回',
         icon: 'lucide:undo-2',
         danger: true,
-        show: () => props.isMe && !isRevoked.value,
+        show: () => canRevoke.value,
         handler: () => handleRevoke(),
     },
 ]);
@@ -228,6 +234,13 @@ const handleRevoke = async () => {
         return;
     }
     emit('revoke', props.message.id);
+    busEmit('chat:message-revoked-local', {
+        id: props.message.id,
+        conversationId: props.message.conversationId,
+        content: null,
+        payload: null,
+        status: MessageApi.MessageStatus.REVOKED
+    });
     toast.success('已撤回');
 };
 
