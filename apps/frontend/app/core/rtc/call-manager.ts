@@ -185,6 +185,18 @@ export class CallManager {
     this.applyRemoteQualityPolicy()
   }
 
+
+  setPreferredQuality(level: 'auto' | 'high' | 'medium' | 'low') {
+    this.store.setPreferredQuality(level)
+    if (level === 'auto') {
+      this.applyBandwidthPolicy(this.lastQuality)
+      return
+    }
+    this.bandwidthLevel = level
+    if (this.localVideoTrack) {
+      this.applyLocalVideoProfile(level)
+    }
+  }
   async refreshDevices() {
     if (!navigator?.mediaDevices?.enumerateDevices) return
     const devices = await navigator.mediaDevices.enumerateDevices()
@@ -325,6 +337,7 @@ export class CallManager {
 
   private applyBandwidthPolicy(quality: ConnectionQualityLevel) {
     if (this.store.isScreenSharing) return
+    if (this.store.preferredQuality !== 'auto') return
     let level: BandwidthLevel = 'high'
     if (quality === 'poor') level = 'low'
     if (quality === 'good') level = 'medium'
@@ -340,6 +353,14 @@ export class CallManager {
     if (!this.localVideoTrack || this.store.isScreenSharing) return
     const profile = this.getProfile(level)
     const track = this.localVideoTrack as any
+    const mediaTrack = this.localVideoTrack.mediaStreamTrack
+    if (mediaTrack?.applyConstraints) {
+      mediaTrack.applyConstraints({
+        width: { ideal: profile.resolution.width },
+        height: { ideal: profile.resolution.height },
+        frameRate: { ideal: profile.frameRate, max: profile.frameRate }
+      }).catch(() => {})
+    }
     if (typeof track.setCaptureOptions === 'function') {
       track.setCaptureOptions({ resolution: profile.resolution, frameRate: profile.frameRate })
       return
@@ -659,6 +680,7 @@ export class CallManager {
     this.bandwidthLevel = 'high'
     this.activeSpeakerIds.clear()
     this.lastQuality = 'unknown'
+    this.store.setPreferredQuality('auto')
     this.isCleaningUp = false
   }
 

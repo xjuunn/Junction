@@ -4,7 +4,7 @@ import type { RtcCallParticipant } from '@junction/types'
 import gsap from 'gsap'
 import { isTauri } from '~/utils/check'
 
-const { state, localStream, remoteStreams, acceptCall, rejectCall, cancelCall, leaveCall, toggleMute, toggleCamera, toggleScreenShare, refreshDevices, switchAudioInput, switchVideoInput, setFocusUser } = useCall()
+const { state, localStream, remoteStreams, acceptCall, rejectCall, cancelCall, leaveCall, toggleMute, toggleCamera, toggleScreenShare, refreshDevices, switchAudioInput, switchVideoInput, setFocusUser, setPreferredQuality } = useCall()
 const userStore = useUserStore()
 
 const isVisible = computed(() => state.status.value !== 'idle')
@@ -82,6 +82,13 @@ const selectedVideoInputId = computed({
   }
 })
 
+
+const selectedQuality = computed({
+  get: () => state.preferredQuality.value,
+  set: (value: 'auto' | 'high' | 'medium' | 'low') => {
+    setPreferredQuality(value)
+  }
+})
 const connectionQualityLabel = computed(() => {
   const level = state.connectionQuality.value
   if (level === 'excellent') return '\u4f18\u79c0'
@@ -357,6 +364,12 @@ onBeforeUnmount(() => {
               <div class="px-2.5 py-1 rounded-full text-[10px] font-bold" :class="connectionQualityClass">
                 {{ connectionQualityLabel }}
               </div>
+              <select v-model="selectedQuality" class="select select-xs select-bordered rounded-full text-[10px] h-7 min-h-0 px-2">
+                <option value="auto">自动画质</option>
+                <option value="high">高画质</option>
+                <option value="medium">中画质</option>
+                <option value="low">低画质</option>
+              </select>
               <div class="text-xs font-bold opacity-50">
                 {{ participants.length }} 人
               </div>
@@ -405,7 +418,17 @@ onBeforeUnmount(() => {
                   :stream="getStream(p)"
                   :muted="p.userId === meId"
                 />
+              
+              <div class="space-y-1">
+                <div class="text-[10px] font-semibold opacity-60">画质</div>
+                <select v-model="selectedQuality" class="select select-sm select-bordered w-full rounded-xl">
+                  <option value="auto">自动</option>
+                  <option value="high">高</option>
+                  <option value="medium">中</option>
+                  <option value="low">低</option>
+                </select>
               </div>
+</div>
             </div>
           </div>
 

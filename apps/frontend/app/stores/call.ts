@@ -7,6 +7,7 @@ export interface CallState {
   mode: RtcCallMode | null
   status: RtcCallStatus
   connectionQuality: 'excellent' | 'good' | 'poor' | 'unknown'
+  preferredQuality: 'auto' | 'high' | 'medium' | 'low'
   direction: 'incoming' | 'outgoing' | null
   participants: RtcCallParticipant[]
   incomingFrom?: RtcCallParticipant | null
@@ -29,6 +30,7 @@ export const useCallStore = defineStore('call', {
     mode: null,
     status: 'idle',
     connectionQuality: 'unknown',
+    preferredQuality: 'auto',
     direction: null,
     participants: [],
     incomingFrom: null,
@@ -51,6 +53,7 @@ export const useCallStore = defineStore('call', {
       this.mode = null
       this.status = 'idle'
       this.connectionQuality = 'unknown'
+      this.preferredQuality = 'auto'
       this.direction = null
       this.participants = []
       this.incomingFrom = null
@@ -85,6 +88,10 @@ export const useCallStore = defineStore('call', {
 
     setConnectionQuality(quality: CallState['connectionQuality']) {
       this.connectionQuality = quality
+    },
+
+    setPreferredQuality(quality: CallState['preferredQuality']) {
+      this.preferredQuality = quality
     },
 
     setParticipants(participants: RtcCallParticipant[]) {

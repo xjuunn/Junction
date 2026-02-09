@@ -24,6 +24,7 @@ export const useCall = () => {
     refreshDevices: () => manager.refreshDevices(),
     switchAudioInput: (deviceId: string) => manager.switchAudioInput(deviceId),
     switchVideoInput: (deviceId: string) => manager.switchVideoInput(deviceId),
-    setFocusUser: (userId: string | null) => manager.setFocusUser(userId)
+    setFocusUser: (userId: string | null) => manager.setFocusUser(userId),
+    setPreferredQuality: (level: 'auto' | 'high' | 'medium' | 'low') => manager.setPreferredQuality(level)
   }
 }
