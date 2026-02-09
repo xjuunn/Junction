@@ -78,13 +78,31 @@ export class MessageService {
       select: { type: true, ownerId: true }
     });
 
-    let emojiRecord: { id: string; name?: string | null; aiSummary?: string | null; aiTags?: string | null; aiText?: string | null } | null = null;
+    let emojiRecord: {
+      id: string;
+      name?: string | null;
+      description?: string | null;
+      keywords?: string | null;
+      aiSummary?: string | null;
+      aiTags?: string | null;
+      aiText?: string | null;
+      category?: { name: string; description?: string | null } | null;
+    } | null = null;
     if (data.type === PrismaValues.MessageType.EMOJI) {
       const emojiId = (data.payload as any)?.emojiId;
       if (!emojiId) throw new BadRequestException('表情 ID 不能为空');
       emojiRecord = await this.prisma.emoji.findFirst({
         where: { id: String(emojiId), status: PrismaValues.EmojiStatus.ACTIVE },
-        select: { id: true, name: true, aiSummary: true, aiTags: true, aiText: true }
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          keywords: true,
+          aiSummary: true,
+          aiTags: true,
+          aiText: true,
+          category: { select: { name: true, description: true } }
+        }
       });
       if (!emojiRecord) throw new BadRequestException('表情不可用');
     }
@@ -125,6 +143,10 @@ export class MessageService {
         ? {
           ...basePayload,
           emojiName: emojiRecord.name || undefined,
+          emojiDescription: emojiRecord.description || undefined,
+          emojiKeywords: emojiRecord.keywords || undefined,
+          emojiCategoryName: emojiRecord.category?.name || undefined,
+          emojiCategoryDescription: emojiRecord.category?.description || undefined,
           aiSummary: emojiRecord.aiSummary || undefined,
           aiTags: emojiRecord.aiTags || undefined,
           aiText: emojiRecord.aiText || undefined

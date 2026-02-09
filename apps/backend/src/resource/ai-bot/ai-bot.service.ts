@@ -837,6 +837,10 @@ export class AiBotService {
   }
 
   private extractPlainText(message: PrismaTypes.Message) {
+    if (message.type === PrismaValues.MessageType.EMOJI) {
+      const payloadText = this.extractPlainTextFromPayload(message.payload)
+      return payloadText || message.content || ''
+    }
     if (message.content && message.content !== '[富文本消息]') return message.content
     if (!message.payload || typeof message.payload !== 'object') return message.content || ''
     return this.extractPlainTextFromPayload(message.payload) || message.content || ''
@@ -848,8 +852,12 @@ export class AiBotService {
     const tags = (payload as any).aiTags
     const text = (payload as any).aiText
     const emojiName = (payload as any).emojiName || (payload as any).name
-    if (summary || tags || text || emojiName) {
-      return [emojiName, summary, text, tags]
+    const emojiDescription = (payload as any).emojiDescription || (payload as any).description
+    const emojiKeywords = (payload as any).emojiKeywords || (payload as any).keywords
+    const emojiCategoryName = (payload as any).emojiCategoryName
+    const emojiCategoryDescription = (payload as any).emojiCategoryDescription
+    if (summary || tags || text || emojiName || emojiDescription || emojiKeywords || emojiCategoryName || emojiCategoryDescription) {
+      return [emojiName, emojiDescription, emojiKeywords, emojiCategoryName, emojiCategoryDescription, summary, text, tags]
         .filter(item => typeof item === 'string' && item.trim())
         .join('，')
         .trim()

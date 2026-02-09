@@ -296,7 +296,7 @@ onUnmounted(() => {
     <div class="flex flex-col h-full  backdrop-blur-xl border-r border-base-200 overflow-hidden relative">
 
         <!-- 装饰性光晕 -->
-        <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary/5 blur-[80px] pointer-events-none"></div>
+        <!-- <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary/5 blur-[80px] pointer-events-none"></div> -->
 
         <header class="p-6 pb-2 space-y-5">
             <div class="flex items-center justify-between">

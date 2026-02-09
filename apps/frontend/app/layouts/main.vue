@@ -18,13 +18,13 @@ const shouldShowBottomNav = computed(() => {
     <div class="flex h-screen w-full text-base-content overflow-hidden font-sans flex-col sm:flex-row"
         :class="isMicaActive ? 'bg-transparent' : 'bg-base-100'">
         <aside v-if="!isMobile"
-            class="h-full flex-none z-30 border-r border-base-200 backdrop-blur-md transition-all duration-300"
+            class="h-full flex-none z-30 border-base-200 backdrop-blur-md transition-all duration-300"
             :class="isMicaActive ? 'bg-transparent' : 'bg-base-200/50'">
             <AppSidebar />
         </aside>
         <main class="flex-1 h-full min-w-0 flex flex-col relative overflow-hidden"
             :class="isMicaActive ? 'bg-transparent' : 'bg-base-100'">
-            <header class="flex-none z-20 shadow-sm" :class="isMicaActive ? 'bg-transparent' : 'bg-base-100'">
+            <header class="flex-none z-20" :class="isMicaActive ? 'bg-transparent' : 'bg-base-100'">
                 <AppWindowController />
             </header>
             <article id="main-scroll-container" class="flex-1 overflow-x-hidden scroll-smooth relative flex"
