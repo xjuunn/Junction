@@ -61,7 +61,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-base-200 text-base-content rounded-box py-4 select-none overflow-y-auto overflow-x-hidden font-sans border border-base-content/5 transition-[width] duration-200 ease-in-out will-change-[width]"
+    <div class="flex flex-col h-full bg-base-200 text-base-content rounded-box py-4 select-none overflow-y-auto overflow-x-hidden font-sans border-base-content/5 border-r transition-[width] duration-200 ease-in-out will-change-[width]"
         data-tauri-drag-region :class="isCollapsed ? 'w-20' : 'w-80'">
         <!-- ================= User Profile ================= -->
         <div class="flex items-center mb-6 px-2 pt-2 shrink-0 transition-all duration-300" data-tauri-drag-region

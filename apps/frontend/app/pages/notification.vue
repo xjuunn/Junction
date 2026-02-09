@@ -228,7 +228,7 @@ function getProcessLabel(status: string): string {
 <template>
     <LayoutListDetail :show-detail="isDetailOpen" @back="handleBack">
         <template #list>
-            <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-200">
+            <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-content/5">
                 <!-- 头部区域 -->
                 <div class="px-5 pt-8 pb-4 shrink-0 space-y-5">
                     <div class="flex items-center justify-between px-1">

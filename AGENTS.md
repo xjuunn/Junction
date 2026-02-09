@@ -110,6 +110,8 @@ await downloadFile({
   - 不应透明的层叠元素（Modal/Toast/下拉菜单/右键菜单/抽屉/浮层等）必须使用半透明 + 模糊背景：
     - 推荐 `bg-base-100/80` 或 `bg-base-200/80` + `backdrop-blur-md`（或更强 blur）。
   - 避免使用 `bg-base-100/200/300` 作为浮层背景，以免被云母透明化。
+- 布局分界线规范（新增）：
+  - 布局区块分界使用柔和边框，例如 `border-r border-base-content/5`（或同级别透明度）。
 
 ## 后端风格规范（摘要）
 

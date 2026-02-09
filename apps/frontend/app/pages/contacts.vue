@@ -275,7 +275,7 @@ defineExpose({
 <template>
     <LayoutListDetail :show-detail="isDetailOpen" @back="handleBack">
         <template #list>
-            <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-200 overflow-hidden relative">
+            <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-content/2 overflow-hidden relative">
                 <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary/5 blur-[80px] pointer-events-none"></div>
 
                 <header class="p-6 pb-2 space-y-5 relative z-10">
