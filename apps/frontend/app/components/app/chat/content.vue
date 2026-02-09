@@ -1288,7 +1288,7 @@ onUnmounted(() => {
             </div>
         </header>
         <div class="flex-1 relative overflow-hidden bg-base-100">
-            <div v-if="initialLoading" class="absolute inset-0 z-20 bg-base-100/80 backdrop-blur-md flex items-center justify-center">
+            <div v-if="initialLoading" class="absolute inset-0 z-20 flex items-center justify-center">
                 <div class="loading loading-ring loading-lg text-primary/20"></div>
             </div>
 
@@ -1318,7 +1318,7 @@ onUnmounted(() => {
         <footer class="p-4 md:p-8 bg-gradient-to-t z-20">
             <div class="max-w-5xl mx-auto relative">
                 <div ref="editorContainerRef"
-                    class="relative bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg focus-within:bg-base-100/80 transition-all">
+                    class="relative bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg transition-all">
                     <div v-if="quotedMessage"
                         class="mx-2 mb-2 flex items-start justify-between gap-3 rounded-2xl border border-base-content/10 bg-base-100/80 px-3 py-2 text-xs">
                         <div class="min-w-0">

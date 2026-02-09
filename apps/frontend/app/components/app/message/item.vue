@@ -431,8 +431,7 @@ const handleDownload = async () => {
 </script>
 
 <template>
-    <div
-        v-bind="rootAttrs"
+    <div v-bind="rootAttrs"
         :class="['chat group transition-all duration-300', isMe ? 'chat-end' : 'chat-start', attrs.class]">
         <div class="chat-image avatar">
             <div class="w-10 rounded-full bg-base-300 ring-1 ring-base-content/5 overflow-hidden">
@@ -449,18 +448,15 @@ const handleDownload = async () => {
             <time class="tabular-nums">{{ formatTimeAgo(message.createdAt) }}</time>
         </div>
 
-        <div
-            v-context-menu="{ items: messageMenu, context: { id: message.id, content: message.content, type: message.type, isMe } }"
-        :class="[
-            'chat-bubble min-h-0 text-[14px] leading-relaxed shadow-sm relative group/bubble',
-            isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200/80 backdrop-blur-md text-base-content border-none',
-            isRevokedLike ? 'italic opacity-50' : '',
-            renderMode === 'EMOJI' ? 'bg-transparent shadow-none p-0' : ''
-        ]">
+        <div v-context-menu="{ items: messageMenu, context: { id: message.id, content: message.content, type: message.type, isMe } }"
+            :class="[
+                'chat-bubble min-h-0 text-[14px] leading-relaxed shadow-sm relative group/bubble',
+                isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200/80 backdrop-blur-md text-base-content border-none',
+                isRevokedLike ? 'italic opacity-50' : '',
+                renderMode === 'EMOJI' ? 'bg-transparent shadow-none p-0' : ''
+            ]">
             <div class="break-words max-w-[70vw] sm:max-w-md">
-                <button
-                    v-if="quotedMessage"
-                    type="button"
+                <button v-if="quotedMessage" type="button"
                     class="w-full mb-2 rounded-lg border border-base-content/10 bg-base-100/80 backdrop-blur-md px-3 py-2 text-left text-xs hover:bg-base-200/70 transition-colors"
                     @click="handleQuoteJump">
                     <div class="font-bold opacity-70 truncate">{{ quotedMessage.senderName || '消息引用' }}</div>
@@ -476,12 +472,9 @@ const handleDownload = async () => {
                     <div v-if="imagePayload" class="space-y-2">
                         <!-- 图片显示 -->
                         <div class="relative max-w-xs">
-                            <img
-                                :src="getImageUrl(imagePayload.imageUrl)"
-                                alt="图片消息"
+                            <img :src="getImageUrl(imagePayload.imageUrl)" alt="图片消息"
                                 class="w-full h-auto rounded-lg border border-base-content/10 cursor-pointer hover:opacity-90 transition-opacity"
-                                @click="openImageViewer(imagePayload.imageUrl)"
-                                loading="lazy" />
+                                @click="openImageViewer(imagePayload.imageUrl)" loading="lazy" />
                         </div>
                         <!-- 图片描述文本（如果有） -->
                         <div v-if="message.content && message.content !== '[图片]'" class="text-sm opacity-70">
@@ -498,10 +491,7 @@ const handleDownload = async () => {
                 <template v-else-if="renderMode === 'EMOJI'">
                     <div v-if="emojiPayload" class="w-full">
                         <div class="relative w-[32vw] max-w-[180px] aspect-square">
-                            <img
-                                :src="getImageUrl(emojiPayload.imageUrl)"
-                                alt="表情"
-                                class="w-full h-full object-contain"
+                            <img :src="getImageUrl(emojiPayload.imageUrl)" alt="表情" class="w-full h-full object-contain"
                                 loading="lazy" />
                         </div>
                     </div>
@@ -512,7 +502,8 @@ const handleDownload = async () => {
 
                 <!-- 场景 3: 文件消息渲染 -->
                 <template v-else-if="renderMode === 'FILE'">
-                    <button v-if="filePayload" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-base-200 hover:bg-base-300 transition-colors"
+                    <button v-if="filePayload"
+                        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-base-200 hover:bg-base-300 transition-colors"
                         @click="handleDownload">
                         <Icon name="mingcute:document-2-line" size="16" />
                         <span class="truncate max-w-[220px]">{{ filePayload.fileName || '文件' }}</span>
@@ -533,12 +524,12 @@ const handleDownload = async () => {
             </div>
 
             <!-- 操作面板 -->
-            <div v-if="!isRevokedLike && isMe"
+            <!-- <div v-if="!isRevokedLike && isMe"
                 class="absolute top-0 right-full mr-2 opacity-0 group-hover/bubble:opacity-100 transition-all flex p-1 bg-base-100/80 backdrop-blur-md shadow-xl rounded-lg border border-base-content/5 z-10">
                 <button @click="emit('revoke', message.id)" class="btn btn-xs btn-circle btn-ghost text-error">
                     <Icon name="mingcute:refresh-3-line" size="14" />
                 </button>
-            </div>
+            </div> -->
         </div>
 
         <div class="chat-footer opacity-40 text-[10px] mt-1 flex items-center gap-2 px-1">
@@ -559,7 +550,8 @@ const handleDownload = async () => {
             <div class="rounded-2xl border border-base-200 bg-base-100 p-4 space-y-3">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-bold uppercase opacity-60">已读</span>
-                    <span class="badge badge-ghost badge-sm bg-base-200 text-base-content border-none">{{ humanReadMembers.length }}</span>
+                    <span class="badge badge-ghost badge-sm bg-base-200 text-base-content border-none">{{
+                        humanReadMembers.length }}</span>
                 </div>
                 <div v-if="humanReadMembers.length" class="space-y-2 max-h-56 overflow-y-auto">
                     <div v-for="member in humanReadMembers" :key="member.id"
@@ -574,7 +566,8 @@ const handleDownload = async () => {
             <div class="rounded-2xl border border-base-200 bg-base-100 p-4 space-y-3">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-bold uppercase opacity-60">未读</span>
-                    <span class="badge badge-ghost badge-sm bg-base-200 text-base-content border-none">{{ humanUnreadMembers.length }}</span>
+                    <span class="badge badge-ghost badge-sm bg-base-200 text-base-content border-none">{{
+                        humanUnreadMembers.length }}</span>
                 </div>
                 <div v-if="humanUnreadMembers.length" class="space-y-2 max-h-56 overflow-y-auto">
                     <div v-for="member in humanUnreadMembers" :key="member.id"
@@ -594,31 +587,39 @@ const handleDownload = async () => {
     margin: 0;
     line-height: 1.4;
 }
+
 .markdown-content :deep(ul),
 .markdown-content :deep(ol) {
     padding-left: 1.2rem;
     margin: 0.12rem 0;
 }
+
 .markdown-content :deep(li) {
     margin: 0.06rem 0;
 }
+
 .markdown-content :deep(ul > li + li),
 .markdown-content :deep(ol > li + li) {
     margin-top: 0.08rem;
 }
+
 .markdown-content :deep(ul > li > p),
 .markdown-content :deep(ol > li > p) {
     margin: 0;
 }
+
 .markdown-content :deep(p + p) {
     margin-top: 0;
 }
+
 .markdown-content :deep(p:empty) {
     display: none;
 }
+
 .markdown-content :deep(p > br:only-child) {
     display: none;
 }
+
 .markdown-content :deep(pre) {
     margin: 0.2rem 0;
     padding: 0.75rem;
@@ -626,25 +627,30 @@ const handleDownload = async () => {
     background: rgba(0, 0, 0, 0.08);
     overflow-x: auto;
 }
+
 .markdown-content :deep(code) {
     padding: 0.1rem 0.35rem;
     border-radius: 0.4rem;
     background: rgba(0, 0, 0, 0.08);
     font-size: 0.85em;
 }
+
 .markdown-content :deep(pre.hljs) {
     background: rgba(15, 23, 42, 0.9);
     color: #e2e8f0;
 }
+
 .markdown-content :deep(pre.hljs code) {
     background: transparent;
     color: inherit;
     padding: 0;
 }
+
 .markdown-content :deep(.hljs-comment),
 .markdown-content :deep(.hljs-quote) {
     color: #94a3b8;
 }
+
 .markdown-content :deep(.hljs-keyword),
 .markdown-content :deep(.hljs-selector-tag),
 .markdown-content :deep(.hljs-literal),
@@ -652,27 +658,32 @@ const handleDownload = async () => {
 .markdown-content :deep(.hljs-title) {
     color: #60a5fa;
 }
+
 .markdown-content :deep(.hljs-string),
 .markdown-content :deep(.hljs-title.class_),
 .markdown-content :deep(.hljs-doctag) {
     color: #34d399;
 }
+
 .markdown-content :deep(.hljs-number),
 .markdown-content :deep(.hljs-regexp),
 .markdown-content :deep(.hljs-variable),
 .markdown-content :deep(.hljs-template-variable) {
     color: #fbbf24;
 }
+
 .markdown-content :deep(.hljs-attr),
 .markdown-content :deep(.hljs-attribute) {
     color: #f472b6;
 }
+
 .markdown-content :deep(blockquote) {
     border-left: 3px solid rgba(0, 0, 0, 0.15);
     padding-left: 0.75rem;
     opacity: 0.8;
     margin: 0.4rem 0;
 }
+
 .markdown-content :deep(a) {
     color: hsl(var(--p));
     text-decoration: underline;
