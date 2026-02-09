@@ -229,7 +229,7 @@ export class CallManager {
 
   private async connectRoomIfNeeded() {
     if (!this.store.callId || !this.store.conversationId) return
-    if (this.room?.connectionState === ConnectionState.Connected) return
+    if (this.room?.state === ConnectionState.Connected) return
     if (this.roomConnecting) return this.roomConnecting
     this.roomConnecting = this.connectRoom(this.store.callId, this.store.conversationId)
     await this.roomConnecting
