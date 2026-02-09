@@ -289,7 +289,7 @@ const isMobile = computed(() => useDevice().isMobile);
 
                 <!-- 对话框主体 -->
                 <div
-                    class="relative bg-base-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-base-200/50">
+                    class="relative bg-base-100/80 backdrop-blur-md modal-surface rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-base-200/50">
 
                     <!-- 装饰性光效 -->
                     <div class="absolute -top-20 -right-20 w-40 h-40 bg-primary/10 blur-[60px] pointer-events-none">
@@ -514,7 +514,7 @@ const isMobile = computed(() => useDevice().isMobile);
                                                             <Icon name="mingcute:more-2-line" size="16" />
                                                         </div>
                                                         <ul tabindex="0"
-                                                            class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow border border-base-200">
+                                                            class="dropdown-content menu bg-base-100/80 backdrop-blur-md rounded-box z-[1] w-52 p-2 shadow border border-base-200">
                                                             <li>
                                                                 <a @click="changeMemberRole(member.user.id, 'MEMBER')">
                                                                     <Icon name="mingcute:user-star-line" size="16" />
@@ -580,7 +580,7 @@ const isMobile = computed(() => useDevice().isMobile);
                                                             <Icon name="mingcute:more-2-line" size="16" />
                                                         </div>
                                                         <ul tabindex="0"
-                                                            class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow border border-base-200">
+                                                            class="dropdown-content menu bg-base-100/80 backdrop-blur-md rounded-box z-[1] w-52 p-2 shadow border border-base-200">
                                                             <li v-if="myRole === 'OWNER'">
                                                                 <a @click="changeMemberRole(member.user.id, 'ADMIN')">
                                                                     <Icon name="mingcute:shield-user-line" size="16" />
@@ -634,13 +634,13 @@ const isMobile = computed(() => useDevice().isMobile);
     transform: scale(0.9) translateY(20px);
 }
 
-.modal-enter-active .relative.bg-base-100,
-.modal-leave-active .relative.bg-base-100 {
+.modal-enter-active .relative.modal-surface,
+.modal-leave-active .relative.modal-surface {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-enter-from .relative.bg-base-100,
-.modal-leave-to .relative.bg-base-100 {
+.modal-enter-from .relative.modal-surface,
+.modal-leave-to .relative.modal-surface {
     transform: scale(0.9);
 }
 

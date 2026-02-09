@@ -63,7 +63,7 @@ function toggleApiKeyVisible() {
       </h2>
 
       <div class="space-y-8 max-w-2xl">
-        <div class="rounded-2xl border border-base-200 bg-base-100/60 p-4 md:p-5 space-y-4">
+        <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-4 md:p-5 space-y-4">
           <div class="text-sm font-bold">客户端 API Key</div>
           <div class="text-sm text-base-content/60">
             该配置仅保存在本地设备，不会同步到服务器。留空时使用系统默认配置。

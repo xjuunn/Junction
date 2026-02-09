@@ -192,7 +192,7 @@ watch(() => props.conversation, () => {
 
 <template>
   <div class="space-y-6">
-    <div class="rounded-2xl border border-base-200 bg-base-100/70 p-5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div class="flex flex-col items-center gap-4">
         <BaseAvatar :text="conversation?.title" :src="conversation?.avatar" :size="88" :radius="20" />
         <div class="text-center space-y-2">
@@ -213,7 +213,7 @@ watch(() => props.conversation, () => {
       </div>
     </div>
 
-    <div class="rounded-2xl border border-base-200 bg-base-100/70 p-5 shadow-sm space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
+    <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
       style="animation-delay: 60ms;">
       <div class="flex items-center justify-between">
         <div>
@@ -224,7 +224,7 @@ watch(() => props.conversation, () => {
       </div>
       <div class="flex flex-col sm:flex-row gap-3">
         <input v-model="remark" type="text" placeholder="输入备注"
-          class="input input-bordered flex-1 bg-base-100" />
+          class="input input-bordered flex-1 bg-base-100/80" />
         <button class="btn btn-primary btn-sm" @click="handleSaveRemark" :disabled="savingRemark || !remarkChanged">
           <span v-if="savingRemark" class="loading loading-spinner loading-xs"></span>
           保存
@@ -232,7 +232,7 @@ watch(() => props.conversation, () => {
       </div>
     </div>
 
-    <div class="rounded-2xl border border-base-200 bg-base-100/70 p-5 shadow-sm space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
+    <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
       style="animation-delay: 120ms;">
       <div class="font-bold">消息设置</div>
       <div class="space-y-3">
@@ -253,7 +253,7 @@ watch(() => props.conversation, () => {
       </div>
     </div>
 
-    <div class="rounded-2xl border border-base-200 bg-base-100/70 p-5 shadow-sm space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
+    <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
       style="animation-delay: 180ms;">
       <div class="font-bold">隐私与安全</div>
       <button class="btn btn-soft btn-sm w-full justify-start" @click="handleBlock">

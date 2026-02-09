@@ -1249,7 +1249,7 @@ onUnmounted(() => {
 <template>
     <div class="flex flex-col h-full bg-base-100 overflow-hidden relative">
         <header
-            class="navbar h-16 min-h-0 px-6 border-b border-base-200 bg-base-100/60 backdrop-blur-2xl z-30 shrink-0">
+            class="navbar h-16 min-h-0 px-6 border-b border-base-200 bg-base-100 backdrop-blur-2xl z-30 shrink-0">
             <div class="flex-1 flex items-center gap-4 min-w-0">
                 <button class="btn btn-ghost btn-circle btn-sm md:hidden" @click="navigateTo('/chat')">
                     <Icon name="mingcute:left-line" size="20" />
@@ -1288,7 +1288,7 @@ onUnmounted(() => {
             </div>
         </header>
         <div class="flex-1 relative overflow-hidden bg-base-100">
-            <div v-if="initialLoading" class="absolute inset-0 z-20 bg-base-100 flex items-center justify-center">
+            <div v-if="initialLoading" class="absolute inset-0 z-20 bg-base-100/80 backdrop-blur-md flex items-center justify-center">
                 <div class="loading loading-ring loading-lg text-primary/20"></div>
             </div>
 
@@ -1315,7 +1315,7 @@ onUnmounted(() => {
             </AppMessageList>
         </div>
 
-        <footer class="p-4 md:p-8 bg-gradient-to-t from-base-100 via-base-100 to-transparent z-20">
+        <footer class="p-4 md:p-8 bg-gradient-to-t z-20">
             <div class="max-w-5xl mx-auto relative">
                 <div ref="editorContainerRef"
                     class="relative bg-base-200/40 backdrop-blur-3xl border border-base-content/5 rounded-[28px] p-2.5 shadow-lg focus-within:bg-base-100/80 transition-all">
@@ -1368,7 +1368,7 @@ onUnmounted(() => {
                             </button>
 
                             <div v-if="showExtensionsMenu"
-                                class="absolute bottom-full left-0 mb-4 bg-base-100 border border-base-200 rounded-2xl shadow-2xl p-3 grid grid-cols-4 gap-2 z-50 animate-in fade-in slide-in-from-bottom-2 min-w-[200px]">
+                                class="absolute bottom-full left-0 mb-4 bg-base-100/80 backdrop-blur-md border border-base-200 rounded-2xl shadow-2xl p-3 grid grid-cols-4 gap-2 z-50 animate-in fade-in slide-in-from-bottom-2 min-w-[200px]">
                                 <button
                                     v-for="action in ['bold', 'italic', 'code', 'link', 'list-check', 'list-ordered', 'blockquote', 'code']"
                                     :key="action" @click="handleExtensionAction(action)"
@@ -1378,7 +1378,7 @@ onUnmounted(() => {
                             </div>
 
                             <div v-if="showEmojiPanel" ref="emojiPanelRef"
-                                class="absolute bottom-full left-0 mb-4 w-[520px] max-w-[92vw] bg-base-100 border border-base-200 rounded-3xl shadow-2xl p-5 z-50 animate-in fade-in slide-in-from-bottom-2">
+                                class="absolute bottom-full left-0 mb-4 w-[520px] max-w-[92vw] bg-base-100/80 backdrop-blur-md border border-base-200 rounded-3xl shadow-2xl p-5 z-50 animate-in fade-in slide-in-from-bottom-2">
                                 <div class="flex items-center justify-between gap-2 mb-3">
                                     <div class="text-xs font-semibold opacity-70">表情</div>
                                     <div class="flex items-center gap-2">

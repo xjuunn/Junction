@@ -124,7 +124,7 @@ async function handleSave() {
           </div>
         </div>
 
-        <div v-if="isTauriEnv" class="rounded-2xl border border-base-200 bg-base-100/60 p-4 md:p-5">
+        <div v-if="isTauriEnv" class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-4 md:p-5">
           <div class="flex flex-col sm:flex-row sm:items-start gap-4">
             <div class="flex-1 space-y-2">
               <div class="text-sm font-bold">文件保存路径</div>

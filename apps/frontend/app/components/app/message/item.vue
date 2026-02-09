@@ -453,7 +453,7 @@ const handleDownload = async () => {
             v-context-menu="{ items: messageMenu, context: { id: message.id, content: message.content, type: message.type, isMe } }"
         :class="[
             'chat-bubble min-h-0 text-[14px] leading-relaxed shadow-sm relative group/bubble',
-            isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200 text-base-content border-none',
+            isMe ? 'chat-bubble-primary' : 'chat-bubble-neutral bg-base-200/80 backdrop-blur-md text-base-content border-none',
             isRevokedLike ? 'italic opacity-50' : '',
             renderMode === 'EMOJI' ? 'bg-transparent shadow-none p-0' : ''
         ]">
@@ -461,7 +461,7 @@ const handleDownload = async () => {
                 <button
                     v-if="quotedMessage"
                     type="button"
-                    class="w-full mb-2 rounded-lg border border-base-content/10 bg-base-100/60 px-3 py-2 text-left text-xs hover:bg-base-200/70 transition-colors"
+                    class="w-full mb-2 rounded-lg border border-base-content/10 bg-base-100/80 backdrop-blur-md px-3 py-2 text-left text-xs hover:bg-base-200/70 transition-colors"
                     @click="handleQuoteJump">
                     <div class="font-bold opacity-70 truncate">{{ quotedMessage.senderName || '消息引用' }}</div>
                     <div class="opacity-60 truncate">{{ quotedMessage.content || '...' }}</div>
@@ -534,7 +534,7 @@ const handleDownload = async () => {
 
             <!-- 操作面板 -->
             <div v-if="!isRevokedLike && isMe"
-                class="absolute top-0 right-full mr-2 opacity-0 group-hover/bubble:opacity-100 transition-all flex p-1 bg-base-100 shadow-xl rounded-lg border border-base-content/5 z-10">
+                class="absolute top-0 right-full mr-2 opacity-0 group-hover/bubble:opacity-100 transition-all flex p-1 bg-base-100/80 backdrop-blur-md shadow-xl rounded-lg border border-base-content/5 z-10">
                 <button @click="emit('revoke', message.id)" class="btn btn-xs btn-circle btn-ghost text-error">
                     <Icon name="mingcute:refresh-3-line" size="14" />
                 </button>

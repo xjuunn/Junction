@@ -381,7 +381,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="drawerOpen" class="fixed inset-0 z-[200] flex items-center justify-end bg-black/30">
-      <div class="w-full max-w-2xl h-full bg-base-100 shadow-xl p-6 overflow-y-auto">
+      <div class="w-full max-w-2xl h-full bg-base-100/80 backdrop-blur-md shadow-xl p-6 overflow-y-auto">
         <div class="flex items-center justify-between">
           <div>
             <h3 class="text-lg font-bold">{{ isCreating ? '新增记录' : '编辑记录' }}</h3>
@@ -449,7 +449,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="lookupOpen" class="fixed inset-0 z-[210] flex items-center justify-center bg-black/30">
-      <div class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-xl w-full max-w-xl">
+      <div class="bg-base-100/80 backdrop-blur-md rounded-2xl border border-base-200 p-6 shadow-xl w-full max-w-xl">
         <div class="flex items-center justify-between">
           <div>
             <h3 class="text-lg font-bold">外键查找</h3>
@@ -466,7 +466,7 @@ onMounted(async () => {
         <div class="mt-4 max-h-64 overflow-y-auto">
           <div v-if="lookupLoading" class="text-center text-base-content/60 py-6">加载中...</div>
           <div v-else-if="lookupResults.length === 0" class="text-center text-base-content/60 py-6">暂无结果</div>
-          <ul v-else class="menu bg-base-100">
+          <ul v-else class="menu bg-base-100/80 backdrop-blur-md">
             <li v-for="item in lookupResults" :key="item.value">
               <button class="flex items-center gap-2" @click="selectLookup(item)">
                 <span class="font-medium">{{ item.label }}</span>

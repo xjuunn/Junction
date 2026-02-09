@@ -418,7 +418,7 @@ onMounted(loadBots)
               </div>
             </div>
 
-            <div class="rounded-2xl border border-base-200 bg-base-100/70 p-4 space-y-4">
+            <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-4 space-y-4">
               <div class="text-sm font-bold text-base-content/70">人类输入模拟</div>
               <label class="label cursor-pointer justify-start gap-3">
                 <input v-model="form.humanizeEnabled" type="checkbox" class="checkbox checkbox-sm" />

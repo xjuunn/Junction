@@ -40,7 +40,7 @@
                                 <span v-else class="text-2xl font-black text-base-content/20">{{
                                     userInfo.name?.charAt(0).toUpperCase() }}</span>
                             </div>
-                            <div class="absolute -bottom-1 -right-1 bg-base-100 rounded-full p-1 shadow-sm">
+                            <div class="absolute -bottom-1 -right-1 bg-base-100/80 backdrop-blur-md rounded-full p-1 shadow-sm">
                                 <Icon
                                     :name="userInfo.banned ? 'mingcute:close-circle-fill' : 'mingcute:check-circle-fill'"
                                     class="text-[20px]" :class="userInfo.banned ? 'text-error' : 'text-success'" />

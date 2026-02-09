@@ -64,7 +64,7 @@ const handleBackdropClick = () => {
 <template>
     <Teleport to="body">
         <dialog ref="modalRef" class="modal modal-bottom sm:modal-middle" @close="handleNativeClose">
-            <div class="modal-box relative bg-base-100/90 backdrop-blur-md border border-base-content/5 shadow-2xl transition-all duration-300 p-0 flex flex-col max-h-[90vh] w-full min-w-full sm:min-w-0 m-0 sm:m-auto rounded-t-2xl rounded-b-none sm:rounded-2xl"
+            <div class="modal-box relative bg-base-100/80 backdrop-blur-md border border-base-content/5 shadow-2xl transition-all duration-300 p-0 flex flex-col max-h-[90vh] w-full min-w-full sm:min-w-0 m-0 sm:m-auto rounded-t-2xl rounded-b-none sm:rounded-2xl"
                 :class="props.boxClass">
                 <div v-if="title || $slots.header" class="px-6 pt-5 pb-2 flex items-center justify-between shrink-0">
                     <div class="font-bold text-lg flex items-center gap-2 flex-1">
@@ -82,7 +82,7 @@ const handleBackdropClick = () => {
                     <slot :close="closeModal"></slot>
                 </div>
 
-                <div v-if="$slots.actions" class="modal-action px-6 pb-6 pt-2 shrink-0 bg-base-100/50 mt-0">
+                <div v-if="$slots.actions" class="modal-action px-6 pb-6 pt-2 shrink-0 bg-base-100/80 backdrop-blur-md mt-0">
                     <slot name="actions" :close="closeModal"></slot>
                 </div>
             </div>

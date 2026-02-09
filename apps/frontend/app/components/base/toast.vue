@@ -8,7 +8,7 @@
                 leave-from-class="opacity-100 translate-x-0 scale-100"
                 leave-to-class="opacity-0 translate-x-12 scale-95" move-class="transition-all duration-300 ease-in-out">
                 <div v-for="item in toasts" :key="item.id"
-                    class="alert shadow-lg grid-cols-[auto_1fr_auto] min-w-[320px] py-3 border-l-4 pointer-events-auto"
+                    class="alert shadow-lg grid-cols-[auto_1fr_auto] min-w-[320px] py-3 border-l-4 pointer-events-auto bg-base-200/80 backdrop-blur-md"
                     :class="getAlertClass(item.type)">
                     <icon :name="getIconName(item.type)" class="text-2xl" />
 

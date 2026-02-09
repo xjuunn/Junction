@@ -98,12 +98,12 @@ function getItemClass(item: ResolvedContextMenuItem) {
   <div v-if="state.visible" class="fixed inset-0 z-[200]" @mousedown="closeContextMenu" @contextmenu.prevent>
     <ul
       ref="menuRef"
-      class="menu bg-base-100 border border-base-200 rounded-xl shadow-xl p-2 fixed"
+      class="menu bg-base-100/80 backdrop-blur-md border border-base-200 rounded-xl shadow-xl p-2 fixed"
       :style="menuStyle"
       @mousedown.stop
     >
       <li v-for="item in items" :key="item.type === 'separator' ? item.id ?? 'separator' : item.id">
-        <div v-if="item.type === 'separator'" class="h-px my-1 bg-base-200"></div>
+        <div v-if="item.type === 'separator'" class="h-px my-1 bg-base-200/70"></div>
         <button
           v-else
           type="button"

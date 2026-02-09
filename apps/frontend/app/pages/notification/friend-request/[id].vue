@@ -130,7 +130,7 @@ function formatDate(date: string | Date) {
                 <div class="w-full space-y-6">
                     <div class="relative w-full">
                         <div
-                            class="absolute -top-2.5 left-5 z-10 bg-base-100 px-2 text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
+                            class="absolute -top-2.5 left-5 z-10 bg-base-100/80 backdrop-blur-md px-2 text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
                             验证消息
                         </div>
                         <div

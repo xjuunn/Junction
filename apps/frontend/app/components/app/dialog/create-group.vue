@@ -237,7 +237,7 @@ const isMobile = computed(() => useDevice().isMobile);
             <div v-if="isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
                 <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-md" @click="isOpen = false"></div>
                 <div
-                    class="relative bg-base-100/90 backdrop-blur-xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-white/20">
+                    class="relative bg-base-100/80 backdrop-blur-xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-white/20">
 
                     <div
                         class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 blur-[80px] rounded-full pointer-events-none">
@@ -427,7 +427,7 @@ const isMobile = computed(() => useDevice().isMobile);
                     </main>
 
                     <!-- 底部操作：磨砂背景 -->
-                    <footer class="p-8 pt-4 bg-base-100/50 backdrop-blur-md border-t border-base-200/30">
+                    <footer class="p-8 pt-4 bg-base-100/80 backdrop-blur-md border-t border-base-200/30">
                         <div class="flex items-center gap-4">
                             <button v-if="step > 1" class="btn btn-ghost rounded-2xl font-bold" @click="prevStep">
                                 <Icon name="mingcute:left-line" size="18" />

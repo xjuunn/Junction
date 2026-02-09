@@ -209,7 +209,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="activeTab === 'members'" class="space-y-4">
-      <div class="rounded-2xl border border-base-200 bg-base-100/70 p-4">
+      <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-4">
         <div class="flex flex-col sm:flex-row sm:items-center gap-3">
           <div class="flex-1">
             <div class="text-sm font-bold">成员管理</div>
@@ -227,7 +227,7 @@ onMounted(async () => {
           </div>
         </div>
         <div class="mt-4">
-          <input v-model="keyword" type="text" class="input input-bordered w-full bg-base-100"
+          <input v-model="keyword" type="text" class="input input-bordered w-full bg-base-100/80"
             placeholder="搜索成员名称或ID" />
         </div>
       </div>
@@ -238,7 +238,7 @@ onMounted(async () => {
 
       <div v-else class="space-y-2">
         <div v-for="member in filteredMembers" :key="member.id"
-          class="flex items-center justify-between p-3 rounded-xl border border-base-200 bg-base-100/60 hover:bg-base-200/50 transition">
+          class="flex items-center justify-between p-3 rounded-xl border border-base-200 bg-base-100/80 hover:bg-base-200/50 transition">
           <div class="flex items-center gap-3">
             <BaseAvatar :text="member.user?.name" :src="member.user?.avatar" :size="44" :radius="12" />
             <div>
@@ -260,7 +260,7 @@ onMounted(async () => {
                 <Icon name="mingcute:more-1-line" size="18" />
               </button>
               <ul tabindex="0"
-                class="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-xl w-40 border border-base-200">
+                class="dropdown-content z-50 menu p-2 shadow-lg bg-base-100/80 backdrop-blur-md rounded-xl w-40 border border-base-200">
                 <li v-if="member.role !== 'ADMIN' && isOwner">
                   <button @click="handleUpdateMemberRole(member, 'ADMIN')">设为管理员</button>
                 </li>
@@ -284,7 +284,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="activeTab === 'info'" class="space-y-6">
-      <div class="rounded-2xl border border-base-200 bg-base-100/70 p-5 shadow-sm">
+      <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm">
         <div class="flex flex-col items-center gap-4">
           <BaseAvatar :text="conversation?.title" :src="conversation?.avatar" :size="88" :radius="20" />
           <div class="text-center">
@@ -300,7 +300,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="rounded-2xl border border-base-200 bg-base-100/70 p-5 shadow-sm space-y-3">
+      <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm space-y-3">
         <div class="flex justify-between py-2 border-b border-base-200">
           <span class="opacity-60">群成员</span>
           <span class="font-medium">{{ memberCount }} 人</span>
@@ -321,7 +321,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="activeTab === 'settings'" class="space-y-6">
-      <div class="rounded-2xl border border-base-200 bg-base-100/70 p-5 shadow-sm space-y-3">
+      <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm space-y-3">
         <div class="font-bold">消息设置</div>
         <label class="flex items-center justify-between gap-4 rounded-xl border border-base-200 p-3 hover:bg-base-200/40 transition">
           <div>

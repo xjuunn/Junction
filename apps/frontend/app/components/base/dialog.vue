@@ -110,7 +110,7 @@ const getDefaultTitle = (type: DialogType | undefined) => {
 
       <div class="modal-action px-6 pb-6 mt-2 flex gap-3">
         <button v-if="store.options.showCancel"
-          class="btn btn-ghost flex-1 border border-base-content/10 bg-base-200/50 hover:bg-base-200"
+          class="btn btn-ghost flex-1 border border-base-content/10 bg-base-200/80 hover:bg-base-200/90 backdrop-blur-md"
           @click="handleClose(false)">
           {{ store.options.cancelText || '取消' }}
         </button>

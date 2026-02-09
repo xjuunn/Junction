@@ -293,7 +293,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-base-100/50 backdrop-blur-xl border-r border-base-200 overflow-hidden relative">
+    <div class="flex flex-col h-full  backdrop-blur-xl border-r border-base-200 overflow-hidden relative">
 
         <!-- 装饰性光晕 -->
         <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary/5 blur-[80px] pointer-events-none"></div>
@@ -324,7 +324,7 @@ onUnmounted(() => {
                     <Icon name="mingcute:search-line" size="18" />
                 </div>
                 <input v-model="searchQuery" type="text" placeholder="搜索联系人..."
-                    class="input input-sm h-11 w-full pl-11 bg-base-200/50 border-none focus:bg-base-100 rounded-2xl font-medium transition-all focus:ring-4 focus:ring-primary/10" />
+                    class="input input-sm h-11 w-full pl-11 bg-base-200/20 border-none focus:bg-base-100 rounded-2xl font-medium transition-all focus:ring-4 focus:ring-primary/10" />
             </div>
 
             <!-- 选项卡导航 -->

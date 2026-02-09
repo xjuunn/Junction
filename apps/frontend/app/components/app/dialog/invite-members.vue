@@ -156,7 +156,7 @@ const isMobile = computed(() => useDevice().isMobile);
                 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isOpen = false"></div>
                 
                 <!-- 对话框主体 -->
-                <div class="relative bg-base-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-base-200/50">
+                <div class="relative bg-base-100/80 backdrop-blur-md modal-surface rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-base-200/50">
                     
                     <!-- 装饰性光效 -->
                     <div class="absolute -top-20 -right-20 w-40 h-40 bg-primary/10 blur-[60px] pointer-events-none"></div>
@@ -381,13 +381,13 @@ const isMobile = computed(() => useDevice().isMobile);
     transform: scale(0.9) translateY(20px);
 }
 
-.modal-enter-active .relative.bg-base-100,
-.modal-leave-active .relative.bg-base-100 {
+.modal-enter-active .relative.modal-surface,
+.modal-leave-active .relative.modal-surface {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-enter-from .relative.bg-base-100,
-.modal-leave-to .relative.bg-base-100 {
+.modal-enter-from .relative.modal-surface,
+.modal-leave-to .relative.modal-surface {
     transform: scale(0.9);
 }
 

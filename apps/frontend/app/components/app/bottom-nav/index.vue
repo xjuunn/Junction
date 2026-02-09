@@ -17,7 +17,7 @@ const handleItemClick = (item: any) => {
 
 <template>
     <div
-        class="fixed bottom-0 left-0 right-0 z-50 bg-base-100/90 backdrop-blur-xl border-t border-base-content/5 pb-[env(safe-area-inset-bottom)] transition-all duration-300">
+        class="fixed bottom-0 left-0 right-0 z-50 bg-base-100/80 backdrop-blur-xl border-t border-base-content/5 pb-[env(safe-area-inset-bottom)] transition-all duration-300">
         <div class="flex items-center justify-around h-16 px-1">
             <template v-if="groups['main']">
                 <button v-for="item in groups['main']" :key="item.id" v-show="item.getShouldShow"

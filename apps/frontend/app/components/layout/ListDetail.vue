@@ -42,7 +42,7 @@ const bpConfig = computed(() => {
 });
 
 const listClasses = computed(() => {
-    const base = 'flex-none h-full border-r border-base-content/5 overflow-hidden transition-all duration-300 ease-in-out';
+    const base = 'flex-none h-full border-base-content/5 overflow-hidden transition-all duration-300 ease-in-out';
     const mobile = props.showDetail ? 'hidden' : 'w-full block';
     return `${base} ${mobile} ${bpConfig.value.listDesktop}`;
 });

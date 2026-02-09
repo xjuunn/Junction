@@ -81,7 +81,7 @@ onMounted(verifyAdmin)
                 :key="item.to"
                 :to="item.to"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-all"
-                :class="isActive(item.to) ? 'bg-base-100 text-base-content shadow-sm' : 'text-base-content/60 hover:bg-base-100/70 hover:text-base-content'"
+                :class="isActive(item.to) ? 'bg-base-100 text-base-content shadow-sm' : 'text-base-content/60 hover:bg-base-100/80 hover:text-base-content'"
               >
                 <Icon :name="item.icon" size="18" />
                 <span class="font-medium">{{ item.label }}</span>
@@ -94,7 +94,7 @@ onMounted(verifyAdmin)
     <main class="flex-1 h-full min-w-0 flex flex-col"
       :class="isMicaActive ? 'bg-transparent' : 'bg-base-100'">
       <header class="flex-none border-b border-base-200 backdrop-blur"
-        :class="isMicaActive ? 'bg-transparent' : 'bg-base-100/70'">
+        :class="isMicaActive ? 'bg-transparent' : 'bg-base-100/80'">
         <AppWindowController />
       </header>
       <section class="flex-1 overflow-y-auto">
