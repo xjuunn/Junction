@@ -58,6 +58,15 @@ export default defineNuxtPlugin(async () => {
   const conversationCache = new Map<string, ConversationMeta>()
   const cacheTTL = 60 * 1000
 
+  const isConversationActive = (conversationId: string | null | undefined) => {
+    if (!conversationId) return false
+    const activeId = activeConversationId.value || (route.params.id ? String(route.params.id) : null)
+    if (!activeId) return false
+    if (String(activeId) === String(conversationId)) return true
+    const routePath = typeof route.path === 'string' ? route.path : ''
+    return routePath.startsWith(`/chat/${conversationId}`)
+  }
+
   const resolveActiveConversationId = () => {
     if (activeConversationId.value) return activeConversationId.value
     const id = route.params.id
@@ -109,8 +118,7 @@ export default defineNuxtPlugin(async () => {
     if (!msg?.conversationId) return
     if (msg?.senderId && msg.senderId === currentUserId.value) return
 
-    const activeId = resolveActiveConversationId()
-    if (activeId && String(activeId) === String(msg.conversationId)) return
+    if (isConversationActive(String(msg.conversationId)) && document.visibilityState === 'visible') return
 
     const meta = await getConversationMeta(String(msg.conversationId))
     if (meta?.muted) return
@@ -132,5 +140,9 @@ export default defineNuxtPlugin(async () => {
 
   busOn('chat:active-conversation', (id) => {
     activeConversationId.value = id
+  })
+
+  watch(() => route.params.id, (id) => {
+    activeConversationId.value = id ? String(id) : null
   })
 })
