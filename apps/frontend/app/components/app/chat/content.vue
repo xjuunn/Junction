@@ -1267,8 +1267,8 @@ onUnmounted(() => {
 <template>
     <div class="flex flex-col h-full bg-base-100 overflow-hidden relative">
         <header
-            class="navbar h-16 min-h-0 px-6 border-b border-base-200 bg-base-100 backdrop-blur-2xl z-30 shrink-0">
-            <div class="flex-1 flex items-center gap-4 min-w-0">
+            class="navbar h-16 min-h-0 border-b border-base-200 bg-base-100 backdrop-blur-2xl z-30 shrink-0">
+            <div class="flex-1 flex items-center min-w-0">
                 <button class="btn btn-ghost btn-circle btn-sm md:hidden" @click="navigateTo('/chat')">
                     <Icon name="mingcute:left-line" size="20" />
                 </button>
@@ -1299,7 +1299,7 @@ onUnmounted(() => {
                 </button>
             </div>
             <!-- 通话按钮 -->
-            <div v-if="currentConversation" class="flex items-center gap-2">
+            <div v-if="currentConversation" class="flex items-center">
                 <button class="btn btn-ghost btn-circle btn-sm" @click="handleStartCall('audio')">
                     <Icon name="mingcute:mic-line" size="20" />
                 </button>

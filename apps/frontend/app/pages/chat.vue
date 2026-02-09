@@ -22,6 +22,10 @@ const handleBack = () => {
 
 <template>
     <LayoutListDetail :show-detail="isDetailOpen" sidebar-width="340px" @back="handleBack">
+        <template #mobile-header>
+            <!-- <AppChatListHeader /> -->
+            <div></div>
+        </template>
         <template #list>
             <AppChatList />
         </template>
