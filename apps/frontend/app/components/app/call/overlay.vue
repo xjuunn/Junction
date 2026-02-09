@@ -4,7 +4,7 @@ import type { RtcCallParticipant } from '@junction/types'
 import gsap from 'gsap'
 import { isTauri } from '~/utils/check'
 
-const { state, localStream, remoteStreams, acceptCall, rejectCall, cancelCall, leaveCall, toggleMute, toggleCamera, toggleScreenShare } = useCall()
+const { state, localStream, remoteStreams, acceptCall, rejectCall, cancelCall, leaveCall, toggleMute, toggleCamera, toggleScreenShare, refreshDevices, switchAudioInput, switchVideoInput, setFocusUser } = useCall()
 const userStore = useUserStore()
 
 const isVisible = computed(() => state.status.value !== 'idle')
@@ -19,6 +19,7 @@ const isMinimized = ref(false)
 const isAnimating = ref(false)
 const isDragging = ref(false)
 const dragMoved = ref(false)
+const showDevicePanel = ref(false)
 const lastDrag = reactive({ x: 0, y: 0, t: 0 })
 const velocity = reactive({ x: 0, y: 0 })
 const dragOffset = reactive({ x: 0, y: 0 })
@@ -44,11 +45,73 @@ const getStream = (participant: RtcCallParticipant) => {
   return remoteStreams.value[participant.userId] ?? null
 }
 
+const focusedUserId = computed(() => state.focusedUserId.value)
+const focusedParticipant = computed(() => {
+  if (!focusedUserId.value) return null
+  return participants.value.find(p => p.userId === focusedUserId.value) || null
+})
+
+const isFocusedView = computed(() => !!focusedParticipant.value)
+const mainParticipants = computed(() => {
+  if (focusedParticipant.value) return [focusedParticipant.value]
+  return participants.value
+})
+const otherParticipants = computed(() => {
+  if (!focusedParticipant.value) return []
+  return participants.value.filter(p => p.userId !== focusedParticipant.value?.userId)
+})
+
 const miniParticipant = computed(() => {
+  if (focusedParticipant.value) return focusedParticipant.value
   if (!participants.value.length) return null
   const remote = participants.value.find(p => p.userId !== meId.value)
   return remote || participants.value[0]
 })
+
+const selectedAudioInputId = computed({
+  get: () => state.selectedAudioInputId.value,
+  set: (value: string | null) => {
+    if (value) switchAudioInput(value)
+  }
+})
+
+const selectedVideoInputId = computed({
+  get: () => state.selectedVideoInputId.value,
+  set: (value: string | null) => {
+    if (value) switchVideoInput(value)
+  }
+})
+
+const connectionQualityLabel = computed(() => {
+  const level = state.connectionQuality.value
+  if (level === 'excellent') return '\u4f18\u79c0'
+  if (level === 'good') return '\u826f\u597d'
+  if (level === 'poor') return '\u8f83\u5dee'
+  return '\u672a\u77e5'
+})
+
+const connectionQualityClass = computed(() => {
+  const level = state.connectionQuality.value
+  if (level === 'excellent') return 'bg-emerald-500/15 text-emerald-600'
+  if (level === 'good') return 'bg-sky-500/15 text-sky-600'
+  if (level === 'poor') return 'bg-amber-500/15 text-amber-600'
+  return 'bg-base-200/70 text-base-content/60'
+})
+
+const toggleDevicePanel = async () => {
+  showDevicePanel.value = !showDevicePanel.value
+  if (showDevicePanel.value) {
+    await refreshDevices()
+  }
+}
+
+const handleTileClick = (participant: RtcCallParticipant) => {
+  if (focusedUserId.value === participant.userId) {
+    setFocusUser(null)
+    return
+  }
+  setFocusUser(participant.userId)
+}
 
 const updateMiniPosition = () => {
   const { innerWidth, innerHeight } = window
@@ -237,6 +300,12 @@ watch(isVisible, (value) => {
   })
 })
 
+watch(participants, (value) => {
+  if (!focusedUserId.value) return
+  const exists = value.some(p => p.userId === focusedUserId.value)
+  if (!exists) setFocusUser(null)
+})
+
 onMounted(() => {
   updateMiniPosition()
   window.addEventListener('resize', updateMiniPosition, { passive: true })
@@ -268,8 +337,8 @@ onBeforeUnmount(() => {
         <div class="absolute inset-y-0 right-0 w-3" :data-tauri-drag-region="isTauri() ? '' : undefined"></div>
         <div class="absolute inset-x-0 bottom-0 h-3" :data-tauri-drag-region="isTauri() ? '' : undefined"></div>
       </div>
-      <div class="flex-1 p-4 md:p-8">
-        <div class="h-full rounded-3xl border border-base-content/5 bg-base-100/80 backdrop-blur-md overflow-hidden flex flex-col shadow-[0_30px_80px_rgba(0,0,0,0.12)]">
+      <div class="flex-1 p-4 md:p-8 min-h-0">
+        <div class="h-full rounded-3xl border border-base-content/5 bg-base-100/80 backdrop-blur-md overflow-hidden flex flex-col shadow-[0_30px_80px_rgba(0,0,0,0.12)] relative">
           <div class="flex items-center justify-between px-4 md:px-6 py-4 border-b border-base-content/5">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
@@ -285,6 +354,9 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="flex items-center gap-3">
+              <div class="px-2.5 py-1 rounded-full text-[10px] font-bold" :class="connectionQualityClass">
+                {{ connectionQualityLabel }}
+              </div>
               <div class="text-xs font-bold opacity-50">
                 {{ participants.length }} 人
               </div>
@@ -294,15 +366,46 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="flex-1 p-4 md:p-6">
-            <div class="grid gap-4 h-full" :class="gridClass">
-              <AppCallVideoTile
-                v-for="p in participants"
+          <div class="flex-1 p-4 md:p-6 min-h-0">
+            <div v-if="isFocusedView" class="flex flex-col h-full min-h-0 gap-3">
+              <div class="flex-1 min-h-0">
+                <div class="h-full rounded-2xl border border-base-content/5 overflow-hidden" @click="handleTileClick(mainParticipants[0])">
+                  <AppCallVideoTile
+                    v-if="mainParticipants[0]"
+                    :participant="mainParticipants[0]"
+                    :stream="getStream(mainParticipants[0])"
+                    :muted="mainParticipants[0].userId === meId"
+                  />
+                </div>
+              </div>
+              <div v-if="otherParticipants.length" class="flex gap-3 overflow-x-auto pb-1 shrink-0">
+                <div
+                  v-for="p in otherParticipants"
+                  :key="p.userId"
+                  class="w-40 h-28 rounded-xl border border-base-content/5 overflow-hidden shrink-0 cursor-pointer"
+                  @click="handleTileClick(p)"
+                >
+                  <AppCallVideoTile
+                    :participant="p"
+                    :stream="getStream(p)"
+                    :muted="p.userId === meId"
+                  />
+                </div>
+              </div>
+            </div>
+            <div v-else class="grid gap-4 h-full min-h-0" :class="gridClass">
+              <div
+                v-for="p in mainParticipants"
                 :key="p.userId"
-                :participant="p"
-                :stream="getStream(p)"
-                :muted="p.userId === meId"
-              />
+                class="rounded-2xl border border-base-content/5 overflow-hidden cursor-pointer"
+                @click="handleTileClick(p)"
+              >
+                <AppCallVideoTile
+                  :participant="p"
+                  :stream="getStream(p)"
+                  :muted="p.userId === meId"
+                />
+              </div>
             </div>
           </div>
 
@@ -316,9 +419,34 @@ onBeforeUnmount(() => {
             <button class="btn btn-ghost btn-circle" @click="toggleScreenShare">
               <Icon :name="state.isScreenSharing.value ? 'mingcute:upload-2-line' : 'mingcute:upload-2-line'" size="20" />
             </button>
+            <button class="btn btn-ghost btn-circle" @click="toggleDevicePanel">
+              <Icon name="mingcute:settings-3-line" size="20" />
+            </button>
             <button class="btn btn-error btn-circle text-base-100" @click="leaveCall">
               <Icon name="mingcute:phone-outgoing-line" size="20" />
             </button>
+          </div>
+
+          <div v-if="showDevicePanel" class="absolute bottom-24 left-1/2 -translate-x-1/2 w-[320px] max-w-[86vw] rounded-2xl border border-base-content/5 bg-base-100/90 backdrop-blur-md p-4 shadow-[0_20px_40px_rgba(0,0,0,0.18)]">
+            <div class="text-xs font-bold opacity-60 mb-2">设备选择</div>
+            <div class="space-y-3">
+              <div class="space-y-1">
+                <div class="text-[10px] font-semibold opacity-60">麦克风</div>
+                <select v-model="selectedAudioInputId" class="select select-sm select-bordered w-full rounded-xl">
+                  <option v-for="device in state.audioInputDevices.value" :key="device.deviceId" :value="device.deviceId">
+                    {{ device.label || '未知麦克风' }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1">
+                <div class="text-[10px] font-semibold opacity-60">摄像头</div>
+                <select v-model="selectedVideoInputId" class="select select-sm select-bordered w-full rounded-xl">
+                  <option v-for="device in state.videoInputDevices.value" :key="device.deviceId" :value="device.deviceId">
+                    {{ device.label || '未知摄像头' }}
+                  </option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </div>

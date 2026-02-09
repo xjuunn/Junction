@@ -20,6 +20,10 @@ export const useCall = () => {
     leaveCall: () => manager.leaveCall(),
     toggleMute: () => manager.toggleMute(),
     toggleCamera: () => manager.toggleCamera(),
-    toggleScreenShare: () => manager.toggleScreenShare()
+    toggleScreenShare: () => manager.toggleScreenShare(),
+    refreshDevices: () => manager.refreshDevices(),
+    switchAudioInput: (deviceId: string) => manager.switchAudioInput(deviceId),
+    switchVideoInput: (deviceId: string) => manager.switchVideoInput(deviceId),
+    setFocusUser: (userId: string | null) => manager.setFocusUser(userId)
   }
 }

@@ -34,6 +34,10 @@ export interface StartCallOptions {
   targetUserIds?: string[]
 }
 
+type BandwidthLevel = 'high' | 'medium' | 'low'
+
+type ConnectionQualityLevel = 'excellent' | 'good' | 'poor' | 'unknown'
+
 export class CallManager {
   private static instance: CallManager | null = null
   private socket = useSocket('app')
@@ -48,11 +52,17 @@ export class CallManager {
   private room: Room | null = null
   private roomConnecting: Promise<void> | null = null
   private roomBound = false
+  private isCleaningUp = false
 
   private localAudioTrack: LocalAudioTrack | null = null
   private localVideoTrack: LocalVideoTrack | null = null
   private screenTrack: LocalVideoTrack | null = null
   private resumeCameraAfterScreen = false
+
+  private bandwidthLevel: BandwidthLevel = 'high'
+  private lastQuality: ConnectionQualityLevel = 'unknown'
+  private lastQualityToastAt = 0
+  private activeSpeakerIds = new Set<string>()
 
   private disposers: Array<() => void> = []
 
@@ -170,6 +180,41 @@ export class CallManager {
     await this.startScreenShare()
   }
 
+  setFocusUser(userId: string | null) {
+    this.store.setFocusedUserId(userId)
+    this.applyRemoteQualityPolicy()
+  }
+
+  async refreshDevices() {
+    if (!navigator?.mediaDevices?.enumerateDevices) return
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const audioInputs = devices
+      .filter(device => device.kind === 'audioinput')
+      .map(device => ({ deviceId: device.deviceId, label: device.label || '未知麦克风' }))
+    const videoInputs = devices
+      .filter(device => device.kind === 'videoinput')
+      .map(device => ({ deviceId: device.deviceId, label: device.label || '未知摄像头' }))
+    this.store.setDevices({ audioInputs, videoInputs })
+    if (!this.store.selectedAudioInputId && audioInputs[0]) {
+      this.store.setSelectedDevices({ audioInputId: audioInputs[0].deviceId })
+    }
+    if (!this.store.selectedVideoInputId && videoInputs[0]) {
+      this.store.setSelectedDevices({ videoInputId: videoInputs[0].deviceId })
+    }
+  }
+
+  async switchAudioInput(deviceId: string) {
+    this.store.setSelectedDevices({ audioInputId: deviceId })
+    if (!this.localAudioTrack) return
+    await this.replaceAudioTrack(deviceId)
+  }
+
+  async switchVideoInput(deviceId: string) {
+    this.store.setSelectedDevices({ videoInputId: deviceId })
+    if (!this.localVideoTrack || this.store.isScreenSharing) return
+    await this.replaceVideoTrack(deviceId)
+  }
+
   private async connectRoomIfNeeded() {
     if (!this.store.callId || !this.store.conversationId) return
     if (this.room?.connectionState === ConnectionState.Connected) return
@@ -183,7 +228,11 @@ export class CallManager {
     try {
       const room = this.ensureRoom()
       const res = await callApi.getLiveKitToken({ callId, conversationId })
+      if (!res?.data?.url || !res?.data?.token) {
+        throw new Error('invalid livekit token')
+      }
       await room.connect(res.data.url, res.data.token, { autoSubscribe: true })
+      await this.refreshDevices()
     } catch (error) {
       console.error('[RTC] livekit connect failed', error)
       this.store.setStatus('error')
@@ -205,28 +254,130 @@ export class CallManager {
   private bindRoomEvents(room: Room) {
     if (this.roomBound) return
     this.roomBound = true
+    room.on(RoomEvent.ConnectionStateChanged, state => {
+      if (state === ConnectionState.Connected) {
+        if (this.store.status !== 'in-call') {
+          this.store.setStatus('in-call')
+        }
+        return
+      }
+      if (state === ConnectionState.Reconnecting) {
+        this.store.setStatus('connecting')
+        return
+      }
+      if (state === ConnectionState.Disconnected) {
+        if (!this.isCleaningUp && this.store.status !== 'idle') {
+          this.toast.error('通话已断开')
+          this.cleanup()
+        }
+      }
+    })
+    room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+      if (participant && participant.identity !== this.currentUserId()) return
+      const level = this.normalizeQuality(quality as string)
+      this.store.setConnectionQuality(level)
+      this.lastQuality = level
+      this.applyBandwidthPolicy(level)
+      this.maybeToastQuality(level)
+    })
+    room.on(RoomEvent.ActiveSpeakersChanged, speakers => {
+      this.activeSpeakerIds = new Set(speakers.map(s => s.identity).filter(Boolean))
+      this.applyRemoteQualityPolicy()
+    })
     room.on(RoomEvent.ParticipantConnected, participant => {
       console.info('[RTC] participant connected', { userId: participant.identity })
+      this.applyRemoteQualityPolicy()
     })
     room.on(RoomEvent.ParticipantDisconnected, participant => {
       console.info('[RTC] participant disconnected', { userId: participant.identity })
       this.clearRemoteStream(participant.identity)
+      this.applyRemoteQualityPolicy()
     })
     room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
       if (!participant?.identity) return
       if (track.kind !== Track.Kind.Video && track.kind !== Track.Kind.Audio) return
       const mediaTrack = track.mediaStreamTrack
       if (!mediaTrack) return
+      if (mediaTrack.enabled === false) {
+        mediaTrack.enabled = true
+      }
       this.addRemoteTrack(participant.identity, mediaTrack)
+      this.applyRemoteQualityPolicy()
     })
     room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
       if (!participant?.identity) return
       if (!track?.mediaStreamTrack) return
       this.removeRemoteTrack(participant.identity, track.mediaStreamTrack)
+      this.applyRemoteQualityPolicy()
     })
     room.on(RoomEvent.Disconnected, () => {
       console.info('[RTC] room disconnected')
       this.clearAllRemoteStreams()
+    })
+  }
+
+  private normalizeQuality(input: string): ConnectionQualityLevel {
+    if (input === 'excellent') return 'excellent'
+    if (input === 'good') return 'good'
+    if (input === 'poor') return 'poor'
+    return 'unknown'
+  }
+
+  private applyBandwidthPolicy(quality: ConnectionQualityLevel) {
+    if (this.store.isScreenSharing) return
+    let level: BandwidthLevel = 'high'
+    if (quality === 'poor') level = 'low'
+    if (quality === 'good') level = 'medium'
+    if (quality === 'excellent') level = 'high'
+    if (this.bandwidthLevel === level) return
+    this.bandwidthLevel = level
+    if (this.localVideoTrack) {
+      this.applyLocalVideoProfile(level)
+    }
+  }
+
+  private applyLocalVideoProfile(level: BandwidthLevel) {
+    if (!this.localVideoTrack || this.store.isScreenSharing) return
+    const profile = this.getProfile(level)
+    const track = this.localVideoTrack as any
+    if (typeof track.setCaptureOptions === 'function') {
+      track.setCaptureOptions({ resolution: profile.resolution, frameRate: profile.frameRate })
+      return
+    }
+    this.replaceVideoTrack(this.store.selectedVideoInputId || undefined)
+  }
+
+  private getProfile(level: BandwidthLevel) {
+    if (level === 'low') {
+      return { resolution: { width: 640, height: 360 }, frameRate: 15 }
+    }
+    if (level === 'medium') {
+      return { resolution: { width: 960, height: 540 }, frameRate: 24 }
+    }
+    return { resolution: { width: 1280, height: 720 }, frameRate: 30 }
+  }
+
+  private maybeToastQuality(level: ConnectionQualityLevel) {
+    if (level !== 'poor') return
+    const now = Date.now()
+    if (now - this.lastQualityToastAt < 10000) return
+    this.lastQualityToastAt = now
+    this.toast.warning('网络质量较差，已自动降低视频质量')
+  }
+
+  private applyRemoteQualityPolicy() {
+    const room = this.room
+    if (!room) return
+    const focusId = this.store.focusedUserId
+    room.remoteParticipants.forEach(participant => {
+      const isFocused = focusId && participant.identity === focusId
+      const isActive = this.activeSpeakerIds.has(participant.identity)
+      participant.videoTrackPublications.forEach(pub => {
+        const publication: any = pub as any
+        if (publication?.setSubscribed) {
+          publication.setSubscribed(true)
+        }
+      })
     })
   }
 
@@ -269,7 +420,11 @@ export class CallManager {
 
   private async enableAudioTrack() {
     try {
-      const track = await createLocalAudioTrack()
+      const constraints: any = {}
+      if (this.store.selectedAudioInputId) {
+        constraints.deviceId = { exact: this.store.selectedAudioInputId }
+      }
+      const track = await createLocalAudioTrack(constraints)
       if (track.mediaStreamTrack) {
         track.mediaStreamTrack.enabled = true
       }
@@ -277,10 +432,27 @@ export class CallManager {
       this.localAudioTrack = track
       this.store.setMediaState({ isMuted: false })
       this.updateLocalStream()
+      await this.refreshDevices()
     } catch (error) {
       console.error('[RTC] enable audio failed', error)
       this.toast.error('无法访问麦克风')
     }
+  }
+
+  private async replaceAudioTrack(deviceId?: string) {
+    if (!this.localAudioTrack) return
+    const constraints: any = {}
+    if (deviceId) {
+      constraints.deviceId = { exact: deviceId }
+    }
+    const next = await createLocalAudioTrack(constraints)
+    if (next.mediaStreamTrack) {
+      next.mediaStreamTrack.enabled = true
+    }
+    await this.unpublishTrack(this.localAudioTrack)
+    await this.publishTrack(next, Track.Source.Microphone)
+    this.localAudioTrack = next
+    this.updateLocalStream()
   }
 
   private async disableAudioTrack() {
@@ -293,7 +465,15 @@ export class CallManager {
 
   private async enableVideoTrack() {
     try {
-      const track = await createLocalVideoTrack()
+      const profile = this.getProfile(this.bandwidthLevel)
+      const constraints: any = {
+        resolution: profile.resolution,
+        frameRate: profile.frameRate
+      }
+      if (this.store.selectedVideoInputId) {
+        constraints.deviceId = { exact: this.store.selectedVideoInputId }
+      }
+      const track = await createLocalVideoTrack(constraints)
       if (track.mediaStreamTrack) {
         track.mediaStreamTrack.enabled = true
       }
@@ -301,10 +481,31 @@ export class CallManager {
       this.localVideoTrack = track
       this.store.setMediaState({ isCameraOff: false })
       this.updateLocalStream()
+      await this.refreshDevices()
     } catch (error) {
       console.error('[RTC] enable video failed', error)
       this.toast.error('无法访问摄像头')
     }
+  }
+
+  private async replaceVideoTrack(deviceId?: string) {
+    if (!this.localVideoTrack || this.store.isScreenSharing) return
+    const profile = this.getProfile(this.bandwidthLevel)
+    const constraints: any = {
+      resolution: profile.resolution,
+      frameRate: profile.frameRate
+    }
+    if (deviceId) {
+      constraints.deviceId = { exact: deviceId }
+    }
+    const next = await createLocalVideoTrack(constraints)
+    if (next.mediaStreamTrack) {
+      next.mediaStreamTrack.enabled = true
+    }
+    await this.unpublishTrack(this.localVideoTrack)
+    await this.publishTrack(next, Track.Source.Camera)
+    this.localVideoTrack = next
+    this.updateLocalStream()
   }
 
   private async disableVideoTrack() {
@@ -423,6 +624,9 @@ export class CallManager {
     if (payload.callId !== this.store.callId) return
     this.store.removeParticipant(payload.userId)
     this.clearRemoteStream(payload.userId)
+    if (this.store.focusedUserId === payload.userId) {
+      this.store.setFocusedUserId(null)
+    }
   }
 
   private handleEnded(payload: { callId: string; reason: string }) {
@@ -444,12 +648,18 @@ export class CallManager {
   }
 
   private cleanup() {
+    if (this.isCleaningUp) return
+    this.isCleaningUp = true
     this.teardownRoom()
     this.stopLocalTracks()
     this.clearAllRemoteStreams()
     stopMediaStream(this.localStream.value)
     this.localStream.value = null
     this.store.reset()
+    this.bandwidthLevel = 'high'
+    this.activeSpeakerIds.clear()
+    this.lastQuality = 'unknown'
+    this.isCleaningUp = false
   }
 
   private async createCallMessage(action: 'start' | 'accept') {

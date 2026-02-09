@@ -6,6 +6,7 @@ export interface CallState {
   callType: RtcCallType | null
   mode: RtcCallMode | null
   status: RtcCallStatus
+  connectionQuality: 'excellent' | 'good' | 'poor' | 'unknown'
   direction: 'incoming' | 'outgoing' | null
   participants: RtcCallParticipant[]
   incomingFrom?: RtcCallParticipant | null
@@ -13,6 +14,11 @@ export interface CallState {
   isMuted: boolean
   isCameraOff: boolean
   isScreenSharing: boolean
+  focusedUserId: string | null
+  audioInputDevices: Array<{ deviceId: string; label: string }>
+  videoInputDevices: Array<{ deviceId: string; label: string }>
+  selectedAudioInputId: string | null
+  selectedVideoInputId: string | null
 }
 
 export const useCallStore = defineStore('call', {
@@ -22,13 +28,19 @@ export const useCallStore = defineStore('call', {
     callType: null,
     mode: null,
     status: 'idle',
+    connectionQuality: 'unknown',
     direction: null,
     participants: [],
     incomingFrom: null,
     error: null,
     isMuted: false,
     isCameraOff: false,
-    isScreenSharing: false
+    isScreenSharing: false,
+    focusedUserId: null,
+    audioInputDevices: [],
+    videoInputDevices: [],
+    selectedAudioInputId: null,
+    selectedVideoInputId: null
   }),
 
   actions: {
@@ -38,6 +50,7 @@ export const useCallStore = defineStore('call', {
       this.callType = null
       this.mode = null
       this.status = 'idle'
+      this.connectionQuality = 'unknown'
       this.direction = null
       this.participants = []
       this.incomingFrom = null
@@ -45,6 +58,11 @@ export const useCallStore = defineStore('call', {
       this.isMuted = false
       this.isCameraOff = false
       this.isScreenSharing = false
+      this.focusedUserId = null
+      this.audioInputDevices = []
+      this.videoInputDevices = []
+      this.selectedAudioInputId = null
+      this.selectedVideoInputId = null
     },
 
     setSession(payload: {
@@ -63,6 +81,10 @@ export const useCallStore = defineStore('call', {
 
     setStatus(status: RtcCallStatus) {
       this.status = status
+    },
+
+    setConnectionQuality(quality: CallState['connectionQuality']) {
+      this.connectionQuality = quality
     },
 
     setParticipants(participants: RtcCallParticipant[]) {
@@ -90,6 +112,27 @@ export const useCallStore = defineStore('call', {
       this.isMuted = payload.isMuted ?? this.isMuted
       this.isCameraOff = payload.isCameraOff ?? this.isCameraOff
       this.isScreenSharing = payload.isScreenSharing ?? this.isScreenSharing
+    },
+
+    setFocusedUserId(userId: string | null) {
+      this.focusedUserId = userId
+    },
+
+    setDevices(payload: {
+      audioInputs: Array<{ deviceId: string; label: string }>
+      videoInputs: Array<{ deviceId: string; label: string }>
+    }) {
+      this.audioInputDevices = payload.audioInputs
+      this.videoInputDevices = payload.videoInputs
+    },
+
+    setSelectedDevices(payload: { audioInputId?: string | null; videoInputId?: string | null }) {
+      if (payload.audioInputId !== undefined) {
+        this.selectedAudioInputId = payload.audioInputId
+      }
+      if (payload.videoInputId !== undefined) {
+        this.selectedVideoInputId = payload.videoInputId
+      }
     },
 
     setError(message: string | null) {

@@ -75,7 +75,7 @@ watchEffect(() => {
     <audio ref="audioRef" autoplay playsinline muted class="hidden" />
     <video
       ref="videoRef"
-      class="w-full h-full object-cover"
+      class="w-full h-full object-contain bg-black/90"
       autoplay
       playsinline
       muted
