@@ -1,7 +1,8 @@
 ﻿<script setup lang="ts">
 definePageMeta({ layout: "main" });
 
-const menuItems = [
+const { isAdmin } = useAdminAccess()
+const menuItems = computed(() => [
     { to: '/settings/general', label: '通用设置', icon: 'mingcute:settings-3-line' },
     { to: '/settings/ai', label: 'AI 设置', icon: 'mingcute:ai-line' },
     { to: '/settings/bots', label: '机器人管理', icon: 'mingcute:ai-line' },
@@ -9,7 +10,8 @@ const menuItems = [
     { to: '/settings/privacy', label: '隐私设置', icon: 'mingcute:shield-line' },
     { to: '/settings/theme', label: '主题设置', icon: 'mingcute:paint-line' },
     { to: '/settings/about', label: '关于 Junction', icon: 'mingcute:information-line' },
-];
+    ...(isAdmin.value ? [{ to: '/admin', label: '管理员后台', icon: 'mingcute:shield-line' }] : []),
+])
 </script>
 
 <template>
