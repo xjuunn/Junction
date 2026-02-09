@@ -164,6 +164,7 @@ export class FriendshipService {
     const friend = record.senderId === userId ? record.receiver : record.sender;
     return {
       id: record.id,
+      status: record.status,
       friendId: friend.id,
       friend: {
         id: friend.id,
