@@ -9,7 +9,8 @@
     "dev:backend": "npx turbo run dev --filter=./apps/backend",
     "start": "npx turbo run start",
     "build": "npx turbo run build",
-    "build:packages": "npx turbo run build --filter=./packages/*"
+    "build:packages": "npx turbo run build --filter=./packages/*",
+    "livekit": "docker compose -f infra/livekit/docker-compose.yml up -d"
   },
   "keywords": [],
   "author": "",

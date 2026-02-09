@@ -28,7 +28,7 @@ import { AiBotModule } from './resource/ai-bot/ai-bot.module';
 import { AdminModule } from './resource/admin/admin.module';
 import { AiModule } from './resource/ai/ai.module';
 import { EmojiModule } from './resource/emoji/emoji.module';
-import { CallGateway } from './resource/call/call.gateway';
+import { CallModule } from './resource/call/call.module';
 
 @Module({
   imports: [
@@ -72,13 +72,13 @@ import { CallGateway } from './resource/call/call.gateway';
     AiBotModule,
     AdminModule,
     AiModule,
+    CallModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     EmailService,
     AppGateway,
-    CallGateway,
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
