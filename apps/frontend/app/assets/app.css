@@ -136,3 +136,9 @@ html {
 .layout-leave-to {
     filter: grayscale(1);
 }
+
+.mica-active .bg-base-100,
+.mica-active .bg-base-200,
+.mica-active .bg-base-300 {
+    background-color: transparent !important;
+}

@@ -2,6 +2,8 @@
 import * as adminApi from '~/api/admin'
 
 const route = useRoute()
+const appTheme = AppTheme.getInstance()
+const isMicaActive = computed(() => isTauri() && appTheme.getIsBgTransparent().value)
 
 const menuGroups = [
   {
@@ -49,8 +51,10 @@ onMounted(verifyAdmin)
 </script>
 
 <template>
-  <div class="flex h-screen w-full bg-base-100 text-base-content overflow-hidden font-sans">
-    <aside class="w-80 border-r border-base-200 bg-base-200/50 backdrop-blur-md">
+  <div class="flex h-screen w-full text-base-content overflow-hidden font-sans"
+    :class="isMicaActive ? 'bg-transparent' : 'bg-base-100'">
+    <aside class="w-80 border-r border-base-200 backdrop-blur-md"
+      :class="isMicaActive ? 'bg-transparent' : 'bg-base-200/50'">
       <div class="h-full flex flex-col">
         <div class="p-6 border-b border-base-200">
           <div class="flex items-center gap-3">
@@ -87,8 +91,10 @@ onMounted(verifyAdmin)
         </div>
       </div>
     </aside>
-    <main class="flex-1 h-full min-w-0 flex flex-col bg-base-100">
-      <header class="flex-none border-b border-base-200 bg-base-100/70 backdrop-blur">
+    <main class="flex-1 h-full min-w-0 flex flex-col"
+      :class="isMicaActive ? 'bg-transparent' : 'bg-base-100'">
+      <header class="flex-none border-b border-base-200 backdrop-blur"
+        :class="isMicaActive ? 'bg-transparent' : 'bg-base-100/70'">
         <AppWindowController />
       </header>
       <section class="flex-1 overflow-y-auto">

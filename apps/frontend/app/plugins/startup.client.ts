@@ -10,7 +10,34 @@ type ConversationMeta = {
 }
 
 export default defineNuxtPlugin(async () => {
-  await AppTheme.getInstance().init()
+  const appTheme = AppTheme.getInstance()
+  await appTheme.init()
+
+  const settings = useSettingsStore()
+  const prefersDark = usePreferredDark()
+
+  const applyThemeMode = async (mode: string) => {
+    appTheme.setFollowSystem(mode === 'system')
+    if (mode === 'system') {
+      await appTheme.setTheme(prefersDark.value, true)
+      return
+    }
+    await appTheme.setTheme(mode === 'dark', true)
+  }
+
+  watch(
+    () => settings.themeMode,
+    (mode) => {
+      applyThemeMode(mode)
+    },
+    { immediate: true }
+  )
+
+  watch(prefersDark, (val) => {
+    if (settings.themeMode === 'system') {
+      appTheme.setTheme(val, true)
+    }
+  })
 
   const userStore = useUserStore()
   if (userStore.authToken.value) {

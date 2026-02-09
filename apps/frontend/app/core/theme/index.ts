@@ -8,6 +8,7 @@ export class AppTheme {
     public isDark = ref<boolean>(true)
     public isBgTransparent = ref<boolean>(true);
     public isTransitioning = ref<boolean>(false)
+    public followSystem = ref<boolean>(false)
 
     private theme = {
         dark: 'dark',
@@ -37,7 +38,7 @@ export class AppTheme {
         }
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            this.setTheme(e.matches)
+            if (this.followSystem.value) this.setTheme(e.matches)
         })
         if (isTauri())
             await listen('theme-changed', (event) => {
@@ -85,10 +86,17 @@ export class AppTheme {
         return this.isDark
     }
 
+    public setFollowSystem(follow: boolean) {
+        this.followSystem.value = follow
+    }
+
     public setBgTransparent(trans: boolean) {
         const html = document.documentElement
         if (!(html && isTauri() && (type() === 'windows' || type() === 'macos'))) return;
         html.style.background = (trans ? 'transparent' : '');
+        if (document.body) document.body.style.background = (trans ? 'transparent' : '');
+        html.classList.toggle('mica-active', trans);
+        if (document.body) document.body.classList.toggle('mica-active', trans);
         this.isBgTransparent.value = trans;
         localStorage.setItem('bg-transparent', trans + "");
     }

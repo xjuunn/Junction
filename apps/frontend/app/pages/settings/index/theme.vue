@@ -1,6 +1,7 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 const settings = useSettingsStore()
 const toast = useToast()
+const appTheme = AppTheme.getInstance()
 
 const themes = [
   { value: 'light', label: '浅色', icon: 'mingcute:sun-line', color: 'bg-base-100' },
@@ -27,6 +28,40 @@ const animationSpeeds = [
 ]
 
 const isSaving = ref(false)
+const prefersDark = usePreferredDark()
+const isMicaSupported = computed(() => isTauri())
+const isBgTransparent = appTheme.getIsBgTransparent()
+
+const applyThemeMode = async (mode: string) => {
+  appTheme.setFollowSystem(mode === 'system')
+  if (mode === 'system') {
+    await appTheme.setTheme(prefersDark.value, true)
+    return
+  }
+  await appTheme.setTheme(mode === 'dark', true)
+}
+
+watch(
+  () => settings.themeMode,
+  (mode) => {
+    applyThemeMode(mode)
+  },
+  { immediate: true }
+)
+
+watch(prefersDark, (val) => {
+  if (settings.themeMode === 'system') {
+    appTheme.setTheme(val, true)
+  }
+})
+
+const handleThemeSelect = (mode: string) => {
+  settings.themeMode = mode
+}
+
+const handleToggleMica = (val: boolean) => {
+  appTheme.setBgTransparent(val)
+}
 
 async function handleSave() {
   isSaving.value = true
@@ -42,6 +77,7 @@ function handleResetTheme() {
   settings.sidebarCollapsed = false
   settings.animationsEnabled = true
   settings.animationSpeed = 'normal'
+  appTheme.setBgTransparent(true)
   toast.success('已恢复为默认设置')
 }
 </script>
@@ -62,7 +98,7 @@ function handleResetTheme() {
           </h3>
 
           <div class="grid grid-cols-3 gap-4">
-            <button v-for="t in themes" :key="t.value" @click="settings.themeMode = t.value"
+            <button v-for="t in themes" :key="t.value" @click="handleThemeSelect(t.value)"
               class="card p-4 border-2 transition-all cursor-pointer hover:scale-[1.02]"
               :class="settings.themeMode === t.value ? 'border-primary bg-primary/5' : 'border-base-300'">
               <div class="flex flex-col items-center gap-3">
@@ -91,6 +127,29 @@ function handleResetTheme() {
               <div class="w-10 h-10 rounded-full shadow-sm" :class="c.class"></div>
               <span class="text-sm">{{ c.label }}</span>
             </button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+          <h3 class="text-md font-bold mb-4 flex items-center gap-2">
+            <Icon name="mingcute:window-line" class="text-base-content/50" />
+            云母效果
+          </h3>
+
+          <div class="form-control">
+            <label class="label cursor-pointer justify-start gap-4">
+              <input type="checkbox" class="toggle toggle-primary" :checked="isBgTransparent"
+                :disabled="!isMicaSupported" @change="handleToggleMica(($event.target as HTMLInputElement).checked)" />
+              <span class="label-text">
+                <span class="font-bold">启用窗口云母</span>
+                <br />
+                <span class="text-sm text-base-content/50">
+                  仅在桌面端生效，启用后会将应用背景设为透明
+                </span>
+              </span>
+            </label>
           </div>
         </div>
 
