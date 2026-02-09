@@ -78,13 +78,13 @@ export class MessageService {
       select: { type: true, ownerId: true }
     });
 
-    let emojiRecord: { id: string } | null = null;
+    let emojiRecord: { id: string; name?: string | null; aiSummary?: string | null; aiTags?: string | null; aiText?: string | null } | null = null;
     if (data.type === PrismaValues.MessageType.EMOJI) {
       const emojiId = (data.payload as any)?.emojiId;
       if (!emojiId) throw new BadRequestException('表情 ID 不能为空');
       emojiRecord = await this.prisma.emoji.findFirst({
         where: { id: String(emojiId), status: PrismaValues.EmojiStatus.ACTIVE },
-        select: { id: true }
+        select: { id: true, name: true, aiSummary: true, aiTags: true, aiText: true }
       });
       if (!emojiRecord) throw new BadRequestException('表情不可用');
     }
@@ -118,9 +118,23 @@ export class MessageService {
         select: { sequence: true }
       });
 
+      const basePayload = data.payload && typeof data.payload === 'object' && !Array.isArray(data.payload)
+        ? data.payload as Record<string, any>
+        : {};
+      const payload = emojiRecord
+        ? {
+          ...basePayload,
+          emojiName: emojiRecord.name || undefined,
+          aiSummary: emojiRecord.aiSummary || undefined,
+          aiTags: emojiRecord.aiTags || undefined,
+          aiText: emojiRecord.aiText || undefined
+        }
+        : data.payload;
+
       const newMessage = await tx.message.create({
         data: {
           ...data,
+          payload,
           conversationId,
           senderId: userId,
           sequence: (lastMsg?.sequence ?? 0) + 1,

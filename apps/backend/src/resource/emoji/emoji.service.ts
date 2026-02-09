@@ -1,4 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
+import { readFile } from 'fs/promises';
+import { extname, join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types';
 import { PaginationOptions } from '~/decorators/pagination.decorator';
@@ -141,6 +144,7 @@ export class EmojiService {
         createdById: userId
       }
     });
+    this.analyzeEmojiInBackground(created.id, imageUrl);
     await this.bumpEmojiToTop(userId, created.id);
     return created;
   }
@@ -190,6 +194,7 @@ export class EmojiService {
         sourceMessageId: messageId
       }
     });
+    this.analyzeEmojiInBackground(created.id, imageUrl);
     await this.bumpEmojiToTop(userId, created.id);
     return created;
   }
@@ -228,7 +233,7 @@ export class EmojiService {
     const exists = await this.prisma.emoji.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('表情不存在');
 
-    return this.prisma.emoji.update({
+    const updated = await this.prisma.emoji.update({
       where: { id },
       data: {
         ...(data.name ? { name: String(data.name).trim() } : {}),
@@ -241,9 +246,177 @@ export class EmojiService {
         ...(data.usageCount !== undefined ? { usageCount: Number(data.usageCount) || 0 } : {})
       }
     });
+    if (data.imageUrl) {
+      this.analyzeEmojiInBackground(updated.id, String(data.imageUrl));
+    }
+    return updated;
   }
 
   async removeEmoji(userId: string, id: string) {
     return this.prisma.emoji.delete({ where: { id } });
+  }
+
+  private analyzeEmojiInBackground(emojiId: string, imageUrl: string) {
+    const enabled = (process.env.AI_EMOJI_ENABLED || 'true').toLowerCase() === 'true';
+    if (!enabled) return;
+    setTimeout(() => {
+      this.analyzeEmoji(emojiId, imageUrl).catch(() => undefined);
+    }, 0);
+  }
+
+  private async analyzeEmoji(emojiId: string, imageUrl: string) {
+    const bytes = await this.readImageBytes(imageUrl);
+    if (!bytes) return;
+    const meta = await this.buildImageMeta(bytes, imageUrl);
+    const maxVisionSize = Number(process.env.AI_EMOJI_MAX_BYTES || 4 * 1024 * 1024);
+    const ai = bytes.length > maxVisionSize
+      ? null
+      : await this.callVisionModel(bytes, imageUrl).catch(() => null);
+    await this.prisma.emoji.update({
+      where: { id: emojiId },
+      data: {
+        aiSummary: ai?.summary || null,
+        aiTags: ai?.tags || null,
+        aiText: ai?.text || null,
+        aiMeta: meta || undefined
+      }
+    });
+  }
+
+  private async readImageBytes(imageUrl: string) {
+    const url = imageUrl?.trim();
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const buffer = await response.arrayBuffer();
+      return Buffer.from(buffer);
+    }
+    const normalized = url.startsWith('/') ? url.slice(1) : url;
+    const fullPath = join(process.cwd(), normalized);
+    return readFile(fullPath);
+  }
+
+  private async buildImageMeta(bytes: Buffer, imageUrl: string) {
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    const ext = extname(imageUrl || '').replace('.', '').toLowerCase();
+    const mimeMap: Record<string, string> = {
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      bmp: 'image/bmp',
+      svg: 'image/svg+xml'
+    };
+    let width: number | null = null;
+    let height: number | null = null;
+    try {
+      const mod: any = await import('image-size');
+      const size = mod?.imageSize ? mod.imageSize(bytes) : null;
+      width = size?.width ?? null;
+      height = size?.height ?? null;
+    } catch {
+      // 忽略尺寸解析失败
+    }
+    return {
+      size: bytes.length,
+      width,
+      height,
+      ext: ext || null,
+      mime: mimeMap[ext] || null,
+      sha256
+    };
+  }
+
+  private async callVisionModel(bytes: Buffer, imageUrl: string) {
+    const apiKey = process.env.DEEPSEEK_API_KEY || '';
+    if (!apiKey) return null;
+    const baseUrl = process.env.DEEPSEEK_API_BASE_URL || 'https://api.deepseek.com/v1';
+    const model = process.env.AI_EMOJI_MODEL || process.env.DEEPSEEK_DEFAULT_MODEL || 'deepseek-chat';
+    const prompt = process.env.AI_EMOJI_PROMPT || '请识别表情包的含义，给出简短描述、关键词（逗号分隔）和可见文字。';
+
+    const dataUrl = this.toDataUrl(bytes, imageUrl);
+    const payload = {
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: '你是企业级视觉理解助手，需要输出结构化 JSON。'
+        },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: `${prompt}\n输出 JSON：{ "summary": string, "tags": string, "text": string }` },
+            { type: 'image_url', image_url: { url: dataUrl } }
+          ]
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 512
+    };
+
+    const endpoint = this.buildChatCompletionUrl(baseUrl);
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const content = String(data?.choices?.[0]?.message?.content ?? '').trim();
+    if (!content) return null;
+    return this.parseVisionJson(content);
+  }
+
+  private toDataUrl(bytes: Buffer, imageUrl: string) {
+    const ext = extname(imageUrl || '').replace('.', '').toLowerCase();
+    const mimeMap: Record<string, string> = {
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      bmp: 'image/bmp',
+      svg: 'image/svg+xml'
+    };
+    const mime = mimeMap[ext] || 'image/png';
+    const base64 = bytes.toString('base64');
+    return `data:${mime};base64,${base64}`;
+  }
+
+  private parseVisionJson(content: string) {
+    const trimmed = content.trim();
+    try {
+      const parsed = JSON.parse(trimmed);
+      return {
+        summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : null,
+        tags: typeof parsed.tags === 'string' ? parsed.tags.trim() : null,
+        text: typeof parsed.text === 'string' ? parsed.text.trim() : null
+      };
+    } catch {
+      const match = trimmed.match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      try {
+        const parsed = JSON.parse(match[0]);
+        return {
+          summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : null,
+          tags: typeof parsed.tags === 'string' ? parsed.tags.trim() : null,
+          text: typeof parsed.text === 'string' ? parsed.text.trim() : null
+        };
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  private buildChatCompletionUrl(baseUrl: string) {
+    const normalized = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    if (normalized.endsWith('/chat/completions')) return normalized;
+    if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`;
+    return `${normalized}/v1/chat/completions`;
   }
 }

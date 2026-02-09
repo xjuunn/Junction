@@ -165,6 +165,10 @@ export class AdminService {
         { name: 'description', label: '描述', type: 'string', editable: true },
         { name: 'keywords', label: '关键词', type: 'string', editable: true },
         { name: 'imageUrl', label: '图片地址', type: 'string', editable: true },
+        { name: 'aiSummary', label: 'AI 摘要', type: 'string', editable: false },
+        { name: 'aiTags', label: 'AI 关键词', type: 'string', editable: false },
+        { name: 'aiText', label: 'AI 识别文字', type: 'string', editable: false },
+        { name: 'aiMeta', label: 'AI 元数据', type: 'json', editable: false },
         { name: 'categoryId', label: '分类ID', type: 'string', editable: true, relation: { table: 'emojiCategory', valueField: 'id', labelField: 'name' } },
         { name: 'status', label: '状态', type: 'enum', editable: true, enumValues: Object.values(PrismaValues.EmojiStatus) },
         { name: 'sortOrder', label: '排序', type: 'number', editable: true },
@@ -214,7 +218,7 @@ export class AdminService {
     friendship: ['id', 'senderId', 'receiverId', 'note'],
     notification: ['id', 'title', 'userId', 'content'],
     aiLog: ['id', 'userId', 'provider', 'model'],
-    emoji: ['id', 'name', 'keywords', 'imageUrl', 'categoryId'],
+    emoji: ['id', 'name', 'keywords', 'imageUrl', 'categoryId', 'aiSummary', 'aiTags', 'aiText'],
     emojiCategory: ['id', 'name', 'description']
   }
 

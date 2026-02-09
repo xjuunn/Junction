@@ -370,7 +370,7 @@ export class AiBotService {
   async handleMessageCreated(event: MessageCreatedEvent) {
     if (!event || !event.conversationId || event.isBotMessage) return
     if (!event.content && !event.payload) return
-    if (![PrismaValues.MessageType.TEXT, PrismaValues.MessageType.RICH_TEXT].includes(event.type as any)) return
+    if (![PrismaValues.MessageType.TEXT, PrismaValues.MessageType.RICH_TEXT, PrismaValues.MessageType.EMOJI].includes(event.type as any)) return
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: event.conversationId },
       select: {
@@ -481,7 +481,7 @@ export class AiBotService {
       where: {
         conversationId,
         status: PrismaValues.MessageStatus.NORMAL,
-        type: { in: [PrismaValues.MessageType.TEXT, PrismaValues.MessageType.RICH_TEXT] },
+        type: { in: [PrismaValues.MessageType.TEXT, PrismaValues.MessageType.RICH_TEXT, PrismaValues.MessageType.EMOJI] },
         createdAt: { gte: memoryCutoff }
       },
       orderBy: { sequence: 'desc' },
@@ -844,6 +844,16 @@ export class AiBotService {
 
   private extractPlainTextFromPayload(payload: any) {
     if (!payload || typeof payload !== 'object') return ''
+    const summary = (payload as any).aiSummary
+    const tags = (payload as any).aiTags
+    const text = (payload as any).aiText
+    const emojiName = (payload as any).emojiName || (payload as any).name
+    if (summary || tags || text || emojiName) {
+      return [emojiName, summary, text, tags]
+        .filter(item => typeof item === 'string' && item.trim())
+        .join('，')
+        .trim()
+    }
     if (!payload?.content || !Array.isArray(payload.content)) return ''
     const texts: string[] = []
     const walk = (node: any) => {

@@ -248,6 +248,10 @@ model Emoji {
   description     String?
   keywords        String?
   imageUrl        String
+  aiSummary       String?
+  aiTags          String?
+  aiText          String?
+  aiMeta          Json?
   categoryId      String?
   category        EmojiCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   status          EmojiStatus   @default(ACTIVE)
