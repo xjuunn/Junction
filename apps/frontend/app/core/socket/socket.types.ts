@@ -1,4 +1,4 @@
-import type { PrismaTypes } from '@junction/types';
+import type { PrismaTypes, RtcCallCanceled, RtcCallEnded, RtcCallInvite, RtcCallJoined, RtcCallMode, RtcCallParticipantEvent, RtcCallParticipantLeft, RtcCallRejected, RtcCallSignal, RtcCallType } from '@junction/types';
 
 /**
  * S = Send (发送给后端的数据), A = Ack (后端回调的数据), L = Listen (后端主动推送的数据)
@@ -19,6 +19,19 @@ export interface SocketNamespaces {
         "message-stream": SocketEvent<never, never, { conversationId: string; messageId: string; delta?: string; fullContent?: string }>;
         "message-revoked": SocketEvent<never, never, { id: string; conversationId: string;[key: string]: any }>;
         "message-read": SocketEvent<never, never, { conversationId: string; messageId: string; userId: string; sequence?: number; readAt: string }>;
+        "call-start": SocketEvent<{ callId: string; conversationId: string; callType: RtcCallType; mode: RtcCallMode; targetUserIds?: string[] }, never, never>;
+        "call-accept": SocketEvent<{ callId: string }, never, never>;
+        "call-reject": SocketEvent<{ callId: string }, never, never>;
+        "call-cancel": SocketEvent<{ callId: string }, never, never>;
+        "call-leave": SocketEvent<{ callId: string }, never, never>;
+        "call-signal": SocketEvent<{ callId: string; toUserId: string; data: RtcCallSignal['data'] }, never, RtcCallSignal>;
+        "call-incoming": SocketEvent<never, never, RtcCallInvite>;
+        "call-joined": SocketEvent<never, never, RtcCallJoined>;
+        "call-participant-joined": SocketEvent<never, never, RtcCallParticipantEvent>;
+        "call-participant-left": SocketEvent<never, never, RtcCallParticipantLeft>;
+        "call-ended": SocketEvent<never, never, RtcCallEnded>;
+        "call-rejected": SocketEvent<never, never, RtcCallRejected>;
+        "call-canceled": SocketEvent<never, never, RtcCallCanceled>;
     };
 }
 

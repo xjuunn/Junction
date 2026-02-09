@@ -7,3 +7,4 @@ export type * as PrismaTypes from 'prismaclient';
 export * as PrismaValues from 'prismaclient';
 export * from './api-response';
 export * from './admin';
+export * from './rtc';

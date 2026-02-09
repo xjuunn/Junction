@@ -40,6 +40,7 @@ const shouldShowBottomNav = computed(() => {
                     class="fixed bottom-0 left-0 right-0 z-40 border-t border-base-200 backdrop-blur-lg"
                     :class="isMicaActive ? 'bg-transparent' : 'bg-base-100/80'" />
             </transition>
+            <AppCallOverlay />
         </main>
     </div>
 </template>

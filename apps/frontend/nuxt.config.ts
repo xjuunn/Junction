@@ -35,6 +35,7 @@ export default defineNuxtConfig({
       tauriServerHost: process.env.NUXT_PUBLIC_TAURI_SERVER_HOST,
       backendPort: process.env.NUXT_PUBLIC_BACKEND_PORT,
       frontendPort: process.env.NUXT_PUBLIC_FRONTEND_PORT,
+      rtcIceServers: process.env.NUXT_PUBLIC_RTC_ICE_SERVERS,
       ai: {
         defaultProvider: process.env.NUXT_PUBLIC_AI_DEFAULT_PROVIDER || 'deepseek',
         providers: {

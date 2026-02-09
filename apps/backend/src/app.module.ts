@@ -28,6 +28,7 @@ import { AiBotModule } from './resource/ai-bot/ai-bot.module';
 import { AdminModule } from './resource/admin/admin.module';
 import { AiModule } from './resource/ai/ai.module';
 import { EmojiModule } from './resource/emoji/emoji.module';
+import { CallGateway } from './resource/call/call.gateway';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { EmojiModule } from './resource/emoji/emoji.module';
     AppService,
     EmailService,
     AppGateway,
+    CallGateway,
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,

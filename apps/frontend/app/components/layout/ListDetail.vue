@@ -63,7 +63,7 @@ const detailClasses = computed(() => {
         <main :class="detailClasses">
             <div v-if="showDetail" class="h-full flex flex-col w-full">
                 <slot name="mobile-header">
-                    <div class="flex items-center h-14 px-4 border-b border-base-content/5 shrink-0 bg-base-100/95 backdrop-blur z-20"
+                    <div class="flex items-center h-14 px-4 border-b border-base-content/5 shrink-0 bg-base-100 backdrop-blur z-20"
                         :class="bpConfig.navHidden">
                         <button @click="$emit('back')" class="btn btn-sm btn-circle btn-ghost -ml-2">
                             <Icon name="mingcute:left-line" size="24" />

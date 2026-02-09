@@ -8,7 +8,7 @@ import { isTauri } from '~/utils/check';
 import { normalizeUploadPath, resolveAssetUrl } from '~/utils/format';
 import { normalizeMessageImagePayload } from '~/utils/message';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
-import type { PrismaTypes } from '@junction/types';
+import type { PrismaTypes, RtcCallType } from '@junction/types';
 import gsap from 'gsap';
 
 const route = useRoute();
@@ -17,6 +17,7 @@ const toast = useToast();
 const dialog = useDialog();
 const appSocket = useSocket('app');
 const { emit: busEmit, on: busOn, off: busOff } = useEmitt();
+const { startCall } = useCall();
 
 const conversationId = computed(() => route.params.id as string);
 const currentUserId = computed(() => unref(userStore.user)?.id);
@@ -77,6 +78,23 @@ const emojiForm = reactive({
 const emojiNewCategoryName = ref('');
 const emojiNewCategoryDesc = ref('');
 let emojiSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const handleStartCall = async (callType: RtcCallType) => {
+    if (!currentConversation.value) return;
+    if (currentConversation.value.type === 'PRIVATE' && currentConversation.value.otherUserAccountType === 'BOT') {
+        toast.warning('机器人暂不支持通话');
+        return;
+    }
+    const targetUserIds = currentConversation.value.type === 'PRIVATE'
+        ? [currentConversation.value.otherUserId].filter(Boolean)
+        : undefined;
+    await startCall({
+        conversationId: conversationId.value,
+        callType,
+        mode: currentConversation.value.type,
+        targetUserIds
+    });
+};
 
 /**
  * 获取备注信息
@@ -1278,6 +1296,15 @@ onUnmounted(() => {
             <div v-if="currentConversation && currentConversation.type === 'GROUP'" class="flex items-center gap-2">
                 <button class="btn btn-ghost btn-circle btn-sm" @click="showGroupInfo = true">
                     <Icon name="mingcute:information-line" size="20" />
+                </button>
+            </div>
+            <!-- 通话按钮 -->
+            <div v-if="currentConversation" class="flex items-center gap-2">
+                <button class="btn btn-ghost btn-circle btn-sm" @click="handleStartCall('audio')">
+                    <Icon name="mingcute:mic-line" size="20" />
+                </button>
+                <button class="btn btn-ghost btn-circle btn-sm" @click="handleStartCall('video')">
+                    <Icon name="mingcute:video-line" size="20" />
                 </button>
             </div>
             <!-- 设置按钮 -->
