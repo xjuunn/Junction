@@ -3,12 +3,13 @@ import { EditorContent } from '@tiptap/vue-3'
 import { createReadonlyEditor } from '../../../core/editor'
 import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download'
 import { isTauri } from '~/utils/check'
+import { resolveMessageImagePayload } from '~/utils/message'
 
 const props = defineProps<{
     node: any
 }>()
 
-const editor = createReadonlyEditor(props.node)
+const editor = createReadonlyEditor(resolveMessageImagePayload(props.node))
 const dialog = useDialog()
 const toast = useToast()
 const router = useRouter()
@@ -16,7 +17,7 @@ const router = useRouter()
 watch(
     () => props.node,
     value => {
-        editor.commands.setContent(value)
+        editor.commands.setContent(resolveMessageImagePayload(value))
     },
     { deep: true },
 )

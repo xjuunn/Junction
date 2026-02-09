@@ -45,3 +45,37 @@ export function resolveAssetUrl(
         return `${base}${value}`;
     return `${base}/${value}`;
 }
+
+/**
+ * 规范化上传资源路径，仅保留 /uploads 下的相对路径
+ */
+export function normalizeUploadPath(
+    input?: string | null,
+    options?: {
+        baseUrl?: string
+    }
+): string {
+    if (!input) return '';
+    const value = input.trim();
+    if (!value) return '';
+    if (/^(data:|blob:)/.test(value)) return value;
+    if (value.startsWith('/uploads/')) return value;
+    if (value.startsWith('uploads/')) return `/${value}`;
+
+    if (/^(https?:)?\/\//.test(value)) {
+        try {
+            const config = useRuntimeConfig();
+            const base = options?.baseUrl ?? config.public.apiUrl;
+            const baseUrl = base ? new URL(base) : null;
+            const url = new URL(value, baseUrl ?? undefined);
+            if (url.pathname.startsWith('/uploads/')) {
+                if (baseUrl && url.origin !== baseUrl.origin) return value;
+                return `${url.pathname}${url.search || ''}`;
+            }
+        } catch {
+            return value;
+        }
+    }
+
+    return value;
+}

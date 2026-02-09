@@ -5,6 +5,8 @@ import * as friendshipApi from '~/api/friendship';
 import { uploadFiles } from '~/api/upload';
 import * as emojiApi from '~/api/emoji';
 import { isTauri } from '~/utils/check';
+import { normalizeUploadPath, resolveAssetUrl } from '~/utils/format';
+import { normalizeMessageImagePayload } from '~/utils/message';
 import type { ComponentPublicInstance, VNodeRef } from 'vue';
 import type { PrismaTypes } from '@junction/types';
 import gsap from 'gsap';
@@ -581,8 +583,7 @@ const hasMentionNode = (node: any): boolean => {
 
 const getEmojiImageUrl = (url: string) => {
     if (!url) return '';
-    if (url.startsWith('http')) return url;
-    return `${useRuntimeConfig().public.apiUrl}${url}`;
+    return resolveAssetUrl(url);
 };
 
 const emojiCategoryMap = computed(() => {
@@ -603,7 +604,7 @@ const resetEmojiForm = () => {
 
 const openEmojiAddDialog = (payload: { messageId: string; imageUrl: string; name?: string }) => {
     emojiAddSource.messageId = payload.messageId;
-    emojiAddSource.imageUrl = payload.imageUrl;
+    emojiAddSource.imageUrl = normalizeUploadPath(payload.imageUrl);
     resetEmojiForm();
     emojiForm.name = payload.name?.trim() || '';
     emojiAddDialogVisible.value = true;
@@ -614,7 +615,7 @@ const openEmojiAddDialog = (payload: { messageId: string; imageUrl: string; name
 
 const openEmojiAddDialogFromUpload = (imageUrl: string) => {
     emojiAddSource.messageId = '';
-    emojiAddSource.imageUrl = imageUrl;
+    emojiAddSource.imageUrl = normalizeUploadPath(imageUrl);
     resetEmojiForm();
     emojiAddDialogVisible.value = true;
     if (!emojiCategories.value.length) {
@@ -674,7 +675,7 @@ const handleSendEmoji = async (emoji: EmojiItem) => {
     try {
         let payload: any = {
             emojiId: emoji.id,
-            imageUrl: emoji.imageUrl,
+            imageUrl: normalizeUploadPath(emoji.imageUrl),
             name: emoji.name,
             categoryId: emoji.categoryId || null
         };
@@ -759,7 +760,7 @@ const handleEmojiUpload = () => {
         try {
             const response = await uploadFiles('message', [file]);
             if (response.success && response.data?.files?.[0]) {
-                const imageUrl = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+                const imageUrl = normalizeUploadPath(response.data.files[0]);
                 openEmojiAddDialogFromUpload(imageUrl);
             } else {
                 toast.error('图片上传失败');
@@ -858,6 +859,7 @@ const handleSend = async () => {
             };
             payload = payload ? { ...payload, quote } : { quote };
         }
+        payload = payload ? normalizeMessageImagePayload(payload) : payload;
 
         const res = await messageApi.send({
             conversationId: conversationId.value,
@@ -901,7 +903,7 @@ const handleImageUploadTrigger = () => {
             try {
                 const response = await uploadFiles('message', [file]);
                 if (response.success && response.data?.files?.[0]) {
-                    const imageUrl = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+                    const imageUrl = resolveAssetUrl(response.data.files[0]);
                     editor.chain().focus().setImage({ src: imageUrl }).run();
                 }
             } catch (err) {

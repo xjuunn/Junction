@@ -112,11 +112,7 @@ const hasRichPayload = computed(() => {
  */
 const getImageUrl = (imageUrl: string) => {
     if (!imageUrl) return '';
-    if (imageUrl.startsWith('http')) return imageUrl;
-
-    const { public: { apiUrl } } = useRuntimeConfig();
-    // 图片URL已经是完整路径，直接拼接基础URL
-    return `${apiUrl}${imageUrl}`;
+    return resolveAssetUrl(imageUrl);
 };
 
 /**
