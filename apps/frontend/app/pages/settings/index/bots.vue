@@ -44,6 +44,12 @@ const form = reactive({
   apiKeyHint: ''
 })
 
+watch(() => form.triggerMode, (mode) => {
+  if (mode === 'AUTO' && !form.autoReplyInGroup) {
+    form.autoReplyInGroup = true
+  }
+})
+
 const visibilityOptions = [
   { value: 'PRIVATE', label: '私有（仅自己可见）' },
   { value: 'PUBLIC', label: '公开（所有人可见）' },
@@ -157,6 +163,49 @@ const formatJson = (value: any) => {
   } catch {
     return String(value)
   }
+}
+
+const parseJsonSafe = (value: string) => {
+  if (!value) return null
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
+}
+
+const insertMcpTemplate = () => {
+  const template = {
+    mcp: {
+      enabled: true,
+      allow: [],
+      deny: [],
+      timezone: '',
+      web: {
+        allowDomains: [],
+        timeoutMs: 8000,
+        maxBytes: 200000
+      }
+    }
+  }
+  const current = parseJsonSafe(form.tools)
+  if (!current || typeof current !== 'object' || Array.isArray(current)) {
+    form.tools = JSON.stringify(template, null, 2)
+    return
+  }
+  const currentMcp = (current as any).mcp || {}
+  const merged = {
+    ...(current as any),
+    mcp: {
+      ...template.mcp,
+      ...currentMcp,
+      web: {
+        ...template.mcp.web,
+        ...(currentMcp.web || {})
+      }
+    }
+  }
+  form.tools = JSON.stringify(merged, null, 2)
 }
 
 const handleSave = async () => {
@@ -471,8 +520,14 @@ onMounted(loadBots)
             </div>
 
             <div class="form-control">
-              <label class="label"><span class="label-text font-bold">工具定义（JSON）</span></label>
+              <label class="label items-center justify-between">
+                <span class="label-text font-bold">工具定义（JSON）</span>
+                <button class="btn btn-ghost btn-xs" type="button" @click="insertMcpTemplate">插入 MCP 模板</button>
+              </label>
               <textarea v-model="form.tools" class="textarea textarea-bordered h-28" placeholder='例如：[{"name":"search","description":"检索知识库"}]'></textarea>
+              <label class="label">
+                <span class="label-text-alt text-base-content/50">MCP 示例：{"mcp":{"enabled":true,"allow":["time.now"],"deny":[],"timezone":"Asia/Shanghai","web":{"allowDomains":["example.com"]}}}</span>
+              </label>
             </div>
 
             <div class="form-control">

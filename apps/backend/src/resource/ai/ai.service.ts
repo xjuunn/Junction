@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { MessageService } from '../message/message.service'
 import { PrismaValues } from '@junction/types'
+import { generateAiText, streamAiText } from '~/utils/ai'
 
 export interface AiRequestPayload {
   system?: string
@@ -162,6 +163,7 @@ export class AiService {
     return { provider, apiKey, baseUrl, model }
   }
 
+
   private async createChatCompletion(options: {
     apiKey: string
     baseUrl: string
@@ -169,30 +171,23 @@ export class AiService {
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
     temperature: number
     maxTokens: number
+    timeoutMs?: number
   }) {
-    const endpoint = this.buildChatCompletionUrl(options.baseUrl)
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${options.apiKey}`
-      },
-      body: JSON.stringify({
+    try {
+      return await generateAiText({
+        apiKey: options.apiKey,
+        baseUrl: options.baseUrl,
         model: options.model,
         messages: options.messages,
         temperature: options.temperature,
-        max_tokens: options.maxTokens
+        maxTokens: options.maxTokens,
+        timeoutMs: options.timeoutMs
       })
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new BadRequestException(`AI 请求失败: ${errorText}`)
+    } catch (error: any) {
+      throw new BadRequestException(`AI 请求失败: ${error?.message || error}`)
     }
-    const data = await response.json()
-    const content = data?.choices?.[0]?.message?.content ?? ''
-    return String(content).trim()
   }
+
 
   private async *streamChatCompletion(options: {
     apiKey: string
@@ -201,57 +196,23 @@ export class AiService {
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
     temperature: number
     maxTokens: number
+    timeoutMs?: number
   }) {
-    const endpoint = this.buildChatCompletionUrl(options.baseUrl)
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${options.apiKey}`
-      },
-      body: JSON.stringify({
+    try {
+      for await (const chunk of streamAiText({
+        apiKey: options.apiKey,
+        baseUrl: options.baseUrl,
         model: options.model,
         messages: options.messages,
         temperature: options.temperature,
-        max_tokens: options.maxTokens,
-        stream: true
-      })
-    })
-
-    if (!response.ok || !response.body) {
-      const errorText = await response.text()
-      throw new BadRequestException(`AI 流式请求失败: ${errorText}`)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const data = trimmed.replace(/^data:\s*/, '')
-        if (data === '[DONE]') return
-        try {
-          const payload = JSON.parse(data)
-          const delta = payload?.choices?.[0]?.delta?.content ?? ''
-          if (delta) yield String(delta)
-        } catch {
-          continue
-        }
+        maxTokens: options.maxTokens,
+        timeoutMs: options.timeoutMs
+      })) {
+        yield chunk
       }
+    } catch (error: any) {
+      throw new BadRequestException(`AI 流式请求失败: ${error?.message || error}`)
     }
   }
 
-  private buildChatCompletionUrl(baseUrl: string) {
-    const normalized = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-    if (normalized.endsWith('/chat/completions')) return normalized
-    if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`
-    return `${normalized}/v1/chat/completions`
-  }
 }

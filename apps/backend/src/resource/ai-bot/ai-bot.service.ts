@@ -8,6 +8,9 @@ import { MessageGateway } from '../message/message.gateway'
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types'
 import { decryptSecret, encryptSecret, maskSecret } from '~/utils/crypto'
 import type { MessageCreatedEvent } from '../events/event-types'
+import { McpRuntime, createDefaultMcpRegistry, type McpConfig } from './mcp'
+import { generateAiText, streamAiText } from '~/utils/ai'
+import { tool, jsonSchema, type ToolSet, type ToolChoice } from 'ai'
 
 export interface CreateBotInput {
   name: string
@@ -46,6 +49,7 @@ export interface UpdateBotInput extends Partial<CreateBotInput> {
 export class AiBotService {
   private readonly logger = new Logger(AiBotService.name)
   private readonly replyGuards = new Map<string, { token: number }>()
+  private readonly mcpRuntime = new McpRuntime(createDefaultMcpRegistry())
 
   constructor(
     private readonly prisma: PrismaService,
@@ -459,9 +463,7 @@ export class AiBotService {
       const isMentioned = this.isBotMentioned(triggerText, bot.name, bot.userId)
       const isGroup = conversation.type === 'GROUP'
       const shouldTrigger = isGroup
-        ? (bot.triggerMode === PrismaValues.BotTriggerMode.MENTION
-          ? isMentioned
-          : (bot.autoReplyInGroup || isMentioned))
+        ? (isMentioned || (bot.triggerMode === PrismaValues.BotTriggerMode.AUTO && bot.autoReplyInGroup !== false))
         : true
       if (!shouldTrigger) continue
 
@@ -469,6 +471,7 @@ export class AiBotService {
         await this.replyAsBot(bot, conversation.id, senderName)
       } catch (error: any) {
         this.logger.error(`机器人回复失败: ${error?.message || error}`)
+        await this.sendBotErrorMessage(bot, conversation.id)
       }
     }
   }
@@ -509,9 +512,117 @@ export class AiBotService {
       systemMessages.push({ role: 'system', content: `可用工具与能力：${JSON.stringify(bot.tools)}` })
     }
 
-    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [...systemMessages]
     const conversationType = await this.getConversationType(conversationId)
     const memberMap = await this.getConversationMemberMap(conversationId)
+    const provider = this.resolveProvider(bot)
+    const mcpConfig = this.resolveMcpConfig(bot)
+    const mcpContext = {
+      bot,
+      conversationId,
+      latestMessageText: latestStripped,
+      conversationType,
+      emitMessage: async (input: { content: string; payload?: any }) => {
+        const text = String(input?.content || '').trim()
+        if (!text) throw new Error('消息内容不能为空')
+        const payload = input?.payload
+        return this.createMessageWithTimeout(bot.userId, {
+          conversationId,
+          type: PrismaValues.MessageType.TEXT,
+          content: text,
+          payload,
+          clientMessageId: `bot_${bot.userId}_${Date.now()}_mcp`
+        })
+      }
+    }
+    const aiSdkTools = this.buildAiSdkTools(mcpContext, mcpConfig)
+    const humanizeEnabled = !!bot.humanizeEnabled
+    const autoResults = await this.mcpRuntime.autoInvoke(latestStripped, mcpContext, mcpConfig)
+    const autoTimeReady = autoResults.some(record => record.tool?.id === 'time.now' && record.result?.ok)
+    const autoSystemReady = autoResults.some(record => record.tool?.id === 'system.info' && record.result?.ok)
+    autoResults.forEach(record => {
+      if (record.result && record.result.ok === false) {
+        this.logger.warn(`MCP 自动调用失败: tool=${record.tool?.id} error=${record.result.error || 'unknown'}`)
+      }
+      const prompt = record.systemPrompt
+        || (record.result?.ok ? `MCP ${record.tool?.name || record.tool?.id} 结果：${JSON.stringify(record.result.data)}` : '')
+      if (prompt) systemMessages.push({ role: 'system', content: prompt })
+    })
+
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [...systemMessages]
+    if (aiSdkTools?.time_now && !autoTimeReady) {
+      messages.push({
+        role: 'system',
+        content: '当需要当前时间/日期/星期等信息时，必须调用工具 time_now 获取，不要猜测。'
+      })
+    }
+    if (aiSdkTools?.system_info && !autoSystemReady) {
+      messages.push({
+        role: 'system',
+        content: '当用户询问系统信息/服务器状态/资源概况时，必须调用工具 system_info 获取，并基于结果回复。'
+      })
+    }
+
+    const isTimeQuery = /(现在|当前).*(时间|日期)|几点|几号|星期|周[一二三四五六日天]|今天|明天|昨天|日期|时间|time|date/i.test(latestStripped)
+    const isSystemQuery = /(系统|服务器).*(信息|状态|资源)|CPU|内存|负载|磁盘|system info|system status/i.test(latestStripped)
+    const temperature = this.clampNumber(bot.temperature ?? 0.7, 0, 2)
+    const maxTokens = this.clampNumber(bot.maxTokens ?? 1024, 1, 4096)
+    if ((isTimeQuery || isSystemQuery) && autoResults.length) {
+      const timeResult = autoResults.find(record => record.tool?.id === 'time.now' && record.result?.ok)?.result?.data as any
+      const systemResult = autoResults.find(record => record.tool?.id === 'system.info' && record.result?.ok)?.result?.data as any
+      const replyParts: string[] = []
+      if (timeResult) {
+        replyParts.push(`当前时间：${timeResult.localeTime || timeResult.iso || ''}`.trim())
+        if (timeResult.timezone) replyParts.push(`时区：${timeResult.timezone}`)
+      }
+      if (systemResult) {
+        const load = Array.isArray(systemResult.loadAvg) ? systemResult.loadAvg.join(', ') : ''
+        const totalMemMb = systemResult.totalMemory ? Math.round(systemResult.totalMemory / 1024 / 1024) : null
+        const freeMemMb = systemResult.freeMemory ? Math.round(systemResult.freeMemory / 1024 / 1024) : null
+        replyParts.push(`系统：${systemResult.platform || ''}/${systemResult.arch || ''}`.trim())
+        if (systemResult.cpuCount) replyParts.push(`CPU：${systemResult.cpuCount} 核 ${systemResult.cpuModel || ''}`.trim())
+        if (load) replyParts.push(`负载：${load}`)
+        if (totalMemMb !== null && freeMemMb !== null) replyParts.push(`内存：${freeMemMb}MB 可用 / ${totalMemMb}MB 总量`)
+      }
+      const reply = replyParts.filter(Boolean).join('\n')
+      if (reply && !humanizeEnabled) {
+        await this.createMessageWithTimeout(bot.userId, {
+          conversationId,
+          type: PrismaValues.MessageType.TEXT,
+          content: reply,
+          clientMessageId: `bot_${bot.userId}_${Date.now()}_mcp`
+        })
+        return
+      }
+      if (reply && humanizeEnabled) {
+        const humanized = await this.createChatCompletion({
+          ...provider,
+          messages: [
+            { role: 'system', content: this.buildHumanizeInstruction(bot) },
+            { role: 'system', content: '你只能使用以下事实回答用户问题，不得改动任何时间/数字/名称；不要说“我来帮你查看”。' },
+            { role: 'system', content: `事实：\n${reply}` },
+            { role: 'user', content: latestStripped || '请用自然口语回答。' }
+          ],
+          temperature: Math.min(0.4, temperature),
+          maxTokens,
+          toolChoice: 'none',
+          timeoutMs: 20000
+        })
+        const parsed = this.parseHumanizeResponse(String(humanized ?? ''))
+        if (parsed.messages.length) {
+          await this.sendHumanizedMessages(bot, conversationId, parsed.messages, guard)
+          return
+        }
+        await this.sendHumanizedMessages(bot, conversationId, reply, guard)
+        return
+      }
+    }
+
+    if (humanizeEnabled && autoResults.length) {
+      messages.push({
+        role: 'system',
+        content: '已获取 MCP 结果，请直接基于结果给出最终回复，不要说“我来帮你查看”。'
+      })
+    }
 
     const filteredHistory = ordered.filter(item => {
       if (!item.content && !item.payload) return false
@@ -555,12 +666,8 @@ export class AiBotService {
       })
     }
 
-    const provider = this.resolveProvider(bot)
     const responseMode = bot.responseMode ?? PrismaValues.BotResponseMode.INSTANT
-    const temperature = this.clampNumber(bot.temperature ?? 0.7, 0, 2)
-    const maxTokens = this.clampNumber(bot.maxTokens ?? 1024, 1, 4096)
 
-    const humanizeEnabled = !!bot.humanizeEnabled
     if (responseMode === PrismaValues.BotResponseMode.STREAM && !humanizeEnabled) {
       const created = await this.messageService.create(bot.userId, {
         conversationId,
@@ -575,7 +682,9 @@ export class AiBotService {
         ...provider,
         messages,
         temperature,
-        maxTokens
+        maxTokens,
+        tools: aiSdkTools,
+        timeoutMs: 30000
       })) {
         if (!this.isGuardActive(guard)) return
         fullContent += chunk
@@ -599,24 +708,36 @@ export class AiBotService {
         ? [{ role: 'system', content: humanizeInstruction }, ...messages]
         : messages,
       temperature,
-      maxTokens
+      maxTokens,
+      tools: aiSdkTools,
+      toolChoice: humanizeEnabled ? 'none' : undefined,
+      timeoutMs: 20000
     })
+    const rawContent = String(content ?? '')
+    if (!rawContent.trim()) {
+      this.logger.error(`机器人回复为空: bot=${bot.id} conv=${conversationId}`)
+      await this.sendBotErrorMessage(bot, conversationId)
+      return
+    }
 
     if (humanizeEnabled) {
-      const parsed = this.parseHumanizeResponse(content)
+      const parsed = this.parseHumanizeResponse(rawContent)
       if (parsed.messages.length) {
         await this.sendHumanizedMessages(bot, conversationId, parsed.messages, guard)
         return
       }
-      await this.sendHumanizedMessages(bot, conversationId, content, guard)
+      await this.sendHumanizedMessages(bot, conversationId, rawContent, guard)
       return
     }
 
-    if (!this.isGuardActive(guard)) return
-    await this.messageService.create(bot.userId, {
+    if (!this.isGuardActive(guard)) {
+      return
+    }
+    const safeContent = rawContent.trim()
+    await this.createMessageWithTimeout(bot.userId, {
       conversationId,
       type: PrismaValues.MessageType.TEXT,
-      content,
+      content: safeContent,
       clientMessageId: `bot_${bot.userId}_${Date.now()}`
     })
   }
@@ -639,6 +760,7 @@ export class AiBotService {
     return { apiKey, baseUrl, model }
   }
 
+
   private async createChatCompletion(options: {
     apiKey: string
     baseUrl: string
@@ -646,30 +768,27 @@ export class AiBotService {
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
     temperature: number
     maxTokens: number
+    tools?: ToolSet
+    toolChoice?: ToolChoice<ToolSet>
+    timeoutMs?: number
   }) {
-    const endpoint = this.buildChatCompletionUrl(options.baseUrl)
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${options.apiKey}`
-      },
-      body: JSON.stringify({
+    try {
+      return await generateAiText({
+        apiKey: options.apiKey,
+        baseUrl: options.baseUrl,
         model: options.model,
         messages: options.messages,
         temperature: options.temperature,
-        max_tokens: options.maxTokens
+        maxTokens: options.maxTokens,
+        tools: options.tools,
+        toolChoice: options.toolChoice,
+        timeoutMs: options.timeoutMs
       })
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new BadRequestException(`AI 请求失败: ${errorText}`)
+    } catch (error: any) {
+      throw new BadRequestException(`AI 请求失败: ${error?.message || error}`)
     }
-    const data = await response.json()
-    const content = data?.choices?.[0]?.message?.content ?? ''
-    return String(content).trim()
   }
+
 
   private async *streamChatCompletion(options: {
     apiKey: string
@@ -678,58 +797,25 @@ export class AiBotService {
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
     temperature: number
     maxTokens: number
+    tools?: ToolSet
+    timeoutMs?: number
   }) {
-    const endpoint = this.buildChatCompletionUrl(options.baseUrl)
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${options.apiKey}`
-      },
-      body: JSON.stringify({
+    try {
+      for await (const chunk of streamAiText({
+        apiKey: options.apiKey,
+        baseUrl: options.baseUrl,
         model: options.model,
         messages: options.messages,
         temperature: options.temperature,
-        max_tokens: options.maxTokens,
-        stream: true
-      })
-    })
-
-    if (!response.ok || !response.body) {
-      const errorText = await response.text()
-      throw new BadRequestException(`AI 流式请求失败: ${errorText}`)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const data = trimmed.replace(/^data:\s*/, '')
-        if (data === '[DONE]') return
-        try {
-          const payload = JSON.parse(data)
-          const delta = payload?.choices?.[0]?.delta?.content ?? ''
-          if (delta) yield String(delta)
-        } catch {
-          continue
-        }
+        maxTokens: options.maxTokens,
+        tools: options.tools,
+        timeoutMs: options.timeoutMs
+      })) {
+        yield chunk
       }
+    } catch (error: any) {
+      throw new BadRequestException(`AI 流式请求失败: ${error?.message || error}`)
     }
-  }
-
-  private buildChatCompletionUrl(baseUrl: string) {
-    const normalized = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-    if (normalized.endsWith('/chat/completions')) return normalized
-    if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`
-    return `${normalized}/v1/chat/completions`
   }
 
   private formatBot(bot: PrismaTypes.AiBot) {
@@ -817,6 +903,106 @@ export class AiBotService {
       }
     }
     return value
+  }
+
+  private resolveMcpConfig(bot: PrismaTypes.AiBot): McpConfig {
+    const raw = bot.tools as any
+    if (!raw || typeof raw !== 'object') return { enabled: true }
+    const mcp = raw.mcp
+    if (!mcp || typeof mcp !== 'object') return { enabled: true }
+    return {
+      enabled: mcp.enabled !== false,
+      allow: Array.isArray(mcp.allow) ? mcp.allow.map((item: any) => String(item)) : [],
+      deny: Array.isArray(mcp.deny) ? mcp.deny.map((item: any) => String(item)) : []
+    }
+  }
+
+  private buildAiSdkTools(context: {
+    bot: PrismaTypes.AiBot
+    conversationId: string
+    latestMessageText: string
+    conversationType?: string | null
+  }, config: McpConfig) {
+    if (config?.enabled === false) return undefined
+    const allow = new Set((config?.allow || []).map(item => String(item)))
+    const deny = new Set((config?.deny || []).map(item => String(item)))
+    const tools: ToolSet = {}
+
+    const canUseTime = !deny.has('time.now') && (allow.size === 0 || allow.has('time.now'))
+    if (canUseTime) {
+      tools.time_now = tool({
+        description: '获取当前系统时间与时区信息',
+        inputSchema: jsonSchema({ type: 'object', properties: {} }),
+        execute: async () => {
+          const results = await this.mcpRuntime.invokeByIds(['time.now'], context, config)
+          const result = results[0]?.result
+          if (!result?.ok) throw new Error(result?.error || '获取时间失败')
+          return result?.data ?? {}
+        }
+      })
+    }
+
+    const canUseSystemInfo = !deny.has('system.info') && (allow.size === 0 || allow.has('system.info'))
+    if (canUseSystemInfo) {
+      tools.system_info = tool({
+        description: '获取服务器系统信息与资源概况',
+        inputSchema: jsonSchema({ type: 'object', properties: {} }),
+        execute: async () => {
+          const results = await this.mcpRuntime.invokeByIds(['system.info'], context, config)
+          const result = results[0]?.result
+          if (!result?.ok) throw new Error(result?.error || '获取系统信息失败')
+          return result?.data ?? {}
+        }
+      })
+    }
+
+    const canUseWeb = !deny.has('web.fetch') && (allow.size === 0 || allow.has('web.fetch'))
+    if (canUseWeb) {
+      tools.web_fetch = tool({
+        description: '查看网页内容（仅允许白名单域名）',
+        inputSchema: jsonSchema({
+          type: 'object',
+          properties: {
+            url: { type: 'string' },
+            maxChars: { type: 'number' }
+          },
+          required: ['url']
+        }),
+        execute: async (input: { url: string; maxChars?: number }) => {
+          const registry = this.mcpRuntime.getRegistry()
+          const toolImpl = registry.get('web.fetch')
+          if (!toolImpl) throw new Error('网页工具未注册')
+          const result = await toolImpl.invoke(input, context)
+          if (!result?.ok) throw new Error(result?.error || '获取网页失败')
+          return result?.data ?? {}
+        }
+      })
+    }
+
+    const canUseMessageSend = !deny.has('message.send') && (allow.size === 0 || allow.has('message.send'))
+    if (canUseMessageSend) {
+      tools.message_send = tool({
+        description: '主动发送一条文本消息到当前会话（用于补充说明或后续更新）',
+        inputSchema: jsonSchema({
+          type: 'object',
+          properties: {
+            content: { type: 'string' },
+            payload: { type: 'object' }
+          },
+          required: ['content']
+        }),
+        execute: async (input: { content: string; payload?: any }) => {
+          const registry = this.mcpRuntime.getRegistry()
+          const toolImpl = registry.get('message.send')
+          if (!toolImpl) throw new Error('消息发送工具未注册')
+          const result = await toolImpl.invoke(input, context)
+          if (!result?.ok) throw new Error(result?.error || '消息发送失败')
+          return result?.data ?? {}
+        }
+      })
+    }
+
+    return Object.keys(tools).length ? tools : undefined
   }
 
   private isBotMentioned(content: string, botName: string, botId: string) {
@@ -1015,19 +1201,23 @@ export class AiBotService {
       ? contentOrMessages
       : this.splitHumanChunks(contentOrMessages, chunkSize).map(text => ({ text }))
     const finalMessages = plannedMessages.length ? plannedMessages : [{ text: String(contentOrMessages || '').trim() }]
+    let sentCount = 0
     for (let i = 0; i < finalMessages.length; i += 1) {
-      if (guard && !this.isGuardActive(guard)) return
+      if (guard && !this.isGuardActive(guard)) {
+        return
+      }
       const item = finalMessages[i]
       const text = this.stripTrailingPunctuation(String(item.text || '')).trim()
       if (!text) continue
       const payload = item.thoughts ? { internal: { thoughts: item.thoughts } } : undefined
-      await this.messageService.create(bot.userId, {
+      await this.createMessageWithTimeout(bot.userId, {
         conversationId,
         type: PrismaValues.MessageType.TEXT,
         content: text,
         payload,
         clientMessageId: `bot_${bot.userId}_${Date.now()}_${i}`
       })
+      sentCount += 1
       if (i < finalMessages.length - 1) {
         const delay = this.clampNumber(
           this.calculateTypingDelay(text, minDelay, maxDelay, charMinMs, charMaxMs, overLimitThreshold, overLimitDelayMs),
@@ -1037,6 +1227,10 @@ export class AiBotService {
         const interrupted = await this.sleepWithGuard(delay, guard)
         if (interrupted) return
       }
+    }
+    if (sentCount === 0) {
+      this.logger.error(`机器人拟人化未发送任何消息: bot=${bot.id} conv=${conversationId}`)
+      await this.sendBotErrorMessage(bot, conversationId)
     }
   }
 
@@ -1164,6 +1358,45 @@ export class AiBotService {
 
   private buildGuardKey(botId: string, conversationId: string) {
     return `${botId}:${conversationId}`
+  }
+
+  /**
+   * 机器人异常时反馈提示
+   */
+  private async sendBotErrorMessage(bot: PrismaTypes.AiBot, conversationId: string) {
+    try {
+      await this.createMessageWithTimeout(bot.userId, {
+        conversationId,
+        type: PrismaValues.MessageType.TEXT,
+        content: '机器人服务暂时不可用，请稍后再试。',
+        clientMessageId: `bot_${bot.userId}_${Date.now()}_error`
+      })
+    } catch (error: any) {
+      this.logger.error(`机器人错误提示发送失败: ${error?.message || error}`)
+    }
+  }
+
+  /**
+   * 发送消息并加超时保护，避免卡死无日志
+   */
+  private async createMessageWithTimeout(userId: string, payload: {
+    conversationId: string
+    type: PrismaValues.MessageType
+    content: string
+    clientMessageId: string
+    payload?: any
+  }) {
+    const timeoutMs = 5000
+    try {
+      const result = await Promise.race([
+        this.messageService.create(userId, payload),
+        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('写入消息超时')), timeoutMs))
+      ])
+      return result
+    } catch (error: any) {
+      this.logger.error(`机器人写入消息失败: ${error?.message || error}`)
+      throw error
+    }
   }
 
   private getReplyGuard(botId: string, conversationId: string) {
