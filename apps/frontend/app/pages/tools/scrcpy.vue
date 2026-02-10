@@ -22,9 +22,12 @@ const isLoading = ref(false);
 const selectedSerial = ref<string>('');
 const wifiPort = ref('53301');
 const manualIp = ref('');
-const isScanning = ref(false);
-const scanProgress = ref({ total: 0, done: 0 });
 const actionText = ref('');
+const deviceIp = ref('');
+const autoLinkedSerials = new Set<string>();
+const isAutoLinking = ref(false);
+const pollTimer = ref<ReturnType<typeof setInterval> | null>(null);
+const showHelpModal = ref(false);
 
 // --- 计算属性 ---
 const isSupported = computed(() => isTauriEnv && ['windows', 'macos', 'linux', 'darwin'].includes(osType.value.toLowerCase()));
@@ -49,86 +52,62 @@ const buildScrcpyArgs = () => {
   return args;
 };
 
-/**
- * 核心逻辑：智能发现与连接
- * 解决 IP 获取不到的终极方案
- */
-const smartDiscover = async () => {
-  if (!adbReady.value) return;
-  isScanning.value = true;
-  scanProgress.value = { total: 0, done: 0 };
-  let successCount = 0;
-
-  try {
-    // 1. 先刷新现有设备
-    await refreshDevices(true);
-
-    // 2. 策略 A：从 USB 设备直接提取 IP（最高优先级）
-    const usbDevices = devices.value.filter(d => !d.isTcp);
-    if (usbDevices.length > 0) {
-      for (const d of usbDevices) {
-        toast.info(`正在转换 USB 设备 ${d.displayName} 为无线...`);
-        const ip = await adbClient.value.getDeviceIp(d.serial);
-        if (ip) {
-          console.log(`[Discovery] 抓取到 USB 设备 IP: ${ip}`);
-          await adbClient.value.enableTcpip(d.serial, Number(wifiPort.value));
-          await new Promise(r => setTimeout(r, 1000)); // 等待端口开启
-          await adbClient.value.connect(ip, Number(wifiPort.value));
-        }
-      }
-    }
-
-    // 3. 策略 B：尝试静默 ARP 扫描（容错处理）
-    let candidateIps: string[] = [];
-    try {
-      const arpResults = await adbClient.value.listArpIps();
-      if (arpResults) candidateIps.push(...arpResults);
-    } catch (e) {
-      console.warn('[Discovery] ARP 编码报错，跳过该环节');
-    }
-
-    // 4. 策略 C：基于已发现 IP 的网段盲扫
-    if (candidateIps.length > 0) {
-      const targetIps = [...new Set(candidateIps)];
-      scanProgress.value.total = targetIps.length;
-      const batchSize = 10;
-      for (let i = 0; i < targetIps.length; i += batchSize) {
-        const batch = targetIps.slice(i, i + batchSize);
-        await Promise.all(batch.map(async (ip) => {
-          try {
-            await adbClient.value.connect(ip, Number(wifiPort.value));
-            successCount += 1;
-          } catch { }
-          scanProgress.value.done++;
-        }));
-        await refreshDevices(true);
-      }
-    }
-
-    if (successCount > 0) {
-      toast.success(`发现并连接 ${successCount} 台设备`);
-    } else {
-      toast.warning('未发现可连接的设备');
-    }
-  } catch (err: any) {
-    console.error('[Discovery] Failed', err);
-  } finally {
-    isScanning.value = false;
-    await refreshDevices();
-  }
-};
-
 const refreshDevices = async (silent = false) => {
   if (!isSupported.value || !adbReady.value) return;
   if (!silent) isLoading.value = true;
   try {
     const list = await adbClient.value.listDevices();
-    devices.value = list || [];
+    const deduped = new Map<string, AdbDevice>();
+    for (const item of list || []) {
+      const key = item.serial || '';
+      if (!key || deduped.has(key)) continue;
+      deduped.set(key, item);
+    }
+    devices.value = Array.from(deduped.values());
     if (devices.value.length > 0 && !selectedSerial.value) {
       selectedSerial.value = devices.value[0].serial;
     }
+    const currentSerials = new Set(devices.value.map(item => item.serial));
+    for (const serial of Array.from(autoLinkedSerials)) {
+      if (!currentSerials.has(serial)) autoLinkedSerials.delete(serial);
+    }
+    if (!isAutoLinking.value) {
+      const usbDevices = devices.value.filter(d => !d.isTcp && !autoLinkedSerials.has(d.serial));
+      if (usbDevices.length > 0) {
+        isAutoLinking.value = true;
+        for (const d of usbDevices) {
+          try {
+            const ip = await adbClient.value.getDeviceIp(d.serial);
+            if (!ip) continue;
+            deviceIp.value = ip;
+            autoLinkedSerials.add(d.serial);
+            await adbClient.value.enableTcpip(d.serial, Number(wifiPort.value));
+            await new Promise(r => setTimeout(r, 800));
+            await adbClient.value.connect(ip, Number(wifiPort.value));
+          } catch {
+            // 自动流程失败时不阻塞用户手动操作
+          }
+        }
+        await refreshDevices(true);
+        isAutoLinking.value = false;
+      }
+    }
   } finally {
     isLoading.value = false;
+  }
+};
+
+const disconnectAll = async () => {
+  if (!adbReady.value) {
+    toast.warning('ADB 未就绪');
+    return;
+  }
+  try {
+    await adbClient.value.disconnect();
+    await refreshDevices();
+    toast.success('已断开所有连接');
+  } catch (e: any) {
+    toast.error(e?.message || '断开失败');
   }
 };
 
@@ -207,29 +186,47 @@ onMounted(async () => {
   await checkEnv();
   if (adbReady.value) {
     await refreshDevices();
-    smartDiscover();
+    if (!pollTimer.value) {
+      pollTimer.value = setInterval(() => {
+        refreshDevices(true);
+      }, 4000);
+    }
   }
   gsap.from(".side-panel", { x: -50, opacity: 0, duration: 0.8, ease: "expo.out" });
   gsap.from(".main-card", { scale: 0.95, opacity: 0, duration: 0.8, delay: 0.2, ease: "expo.out" });
+});
+
+onBeforeUnmount(() => {
+  if (pollTimer.value) {
+    clearInterval(pollTimer.value);
+    pollTimer.value = null;
+  }
 });
 </script>
 
 <template>
   <div
-    class="h-screen bg-base-100 flex p-4 gap-4 overflow-hidden text-base-content selection:bg-primary selection:text-primary-content">
+    class="h-full bg-base-100 flex p-4 gap-4 overflow-hidden text-base-content selection:bg-primary selection:text-primary-content">
 
     <!-- 左侧：侧边导航与列表 -->
     <aside class="side-panel w-80 flex flex-col gap-4 z-10">
       <div
-        class="bg-base-200/50 backdrop-blur-2xl rounded-[2.5rem] border border-base-content/5 flex flex-col overflow-hidden shadow-sm flex-1">
+        class="bg-base-100 backdrop-blur-2xl rounded-[2.5rem] border border-base-content/5 flex flex-col overflow-hidden shadow-sm flex-1">
         <div class="p-6 pb-2 flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
             <h1 class="text-sm font-black uppercase tracking-widest opacity-70">设备终端</h1>
           </div>
-          <button @click="refreshDevices()" class="btn btn-circle btn-ghost btn-xs" :disabled="isLoading">
-            <Icon name="heroicons:arrow-path" :class="{ 'animate-spin': isLoading }" />
-          </button>
+          <div class="flex items-center gap-2">
+            <button @click="disconnectAll" class="btn btn-ghost btn-xs rounded-full"
+              :disabled="isLoading || devices.length === 0">
+              <Icon name="tabler:link-off" />
+              断开全部
+            </button>
+            <button @click="refreshDevices()" class="btn btn-circle btn-ghost btn-xs" :disabled="isLoading">
+              <Icon name="heroicons:arrow-path" :class="{ 'animate-spin': isLoading }" />
+            </button>
+          </div>
         </div>
 
         <!-- 列表容器 -->
@@ -237,7 +234,7 @@ onMounted(async () => {
           <div v-if="devices.length === 0"
             class="h-full flex flex-col items-center justify-center text-center opacity-30 px-6">
             <Icon name="heroicons:bolt-slash" class="text-5xl mb-4" />
-            <p class="text-xs font-bold leading-relaxed uppercase">无连接端点<br>请通过 USB 引导或点击自动发现</p>
+            <p class="text-xs font-bold leading-relaxed uppercase">无连接端点<br>请通过 USB 连接或手动输入 IP</p>
           </div>
 
           <button v-for="d in devices" :key="d.serial" @click="selectedSerial = d.serial" :class="['w-full p-4 rounded-3xl transition-all duration-500 border text-left relative group',
@@ -247,23 +244,17 @@ onMounted(async () => {
           ]">
             <div class="flex justify-between items-center mb-3">
               <div :class="['p-2 rounded-xl', selectedSerial === d.serial ? 'bg-white/20' : 'bg-base-200']">
-                <Icon :name="d.isTcp ? 'heroicons:rss-20-solid' : 'heroicons:usb-20-solid'" />
+                <Icon :name="d.isTcp ? 'heroicons:rss-20-solid' : 'tabler:usb'" />
               </div>
-              <span class="text-[9px] font-black tracking-widest uppercase opacity-60">{{ d.status }}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[9px] font-black tracking-widest uppercase opacity-60">{{ d.status }}</span>
+                <span class="badge badge-ghost text-[9px] uppercase opacity-60">
+                  {{ d.isTcp ? '网络' : 'USB' }}
+                </span>
+              </div>
             </div>
             <div class="font-black text-sm truncate pr-4">{{ d.displayName }}</div>
             <div class="text-[10px] font-mono opacity-40 truncate mt-1 uppercase">{{ d.serial }}</div>
-          </button>
-        </div>
-
-        <!-- 自动发现底部栏 -->
-        <div class="p-4 bg-base-300/30 border-t border-base-content/5">
-          <button @click="smartDiscover" :disabled="isScanning"
-            class="btn btn-primary btn-block rounded-2xl shadow-lg shadow-primary/20 group">
-            <Icon v-if="isScanning" name="heroicons:ellipsis-horizontal" class="animate-bounce" />
-            <Icon v-else name="heroicons:magnifying-glass-20-solid"
-              class="group-hover:scale-125 transition-transform" />
-            {{ isScanning ? `正在探测网段 ${scanProgress.done}/${scanProgress.total}` : '智能自动发现' }}
           </button>
         </div>
       </div>
@@ -278,26 +269,25 @@ onMounted(async () => {
         <div class="flex gap-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-50">
           <div class="flex items-center gap-2">
             <span :class="['w-1.5 h-1.5 rounded-full', adbReady ? 'bg-success' : 'bg-error']"></span>
-            ADB Engine
+            ADB
           </div>
           <div class="flex items-center gap-2">
             <span :class="['w-1.5 h-1.5 rounded-full', scrcpyReady ? 'bg-success' : 'bg-error']"></span>
-            Scrcpy Binary
+            Scrcpy
           </div>
         </div>
         <div class="flex items-center gap-4">
-          <div class="join bg-base-100 rounded-full border border-base-content/10 px-4 py-1">
-            <span class="text-[9px] font-bold opacity-40 uppercase mr-3">Manual Link</span>
+          <div class="join bg-base-100 rounded-full border border-base-content/10 px-4 py-1 flex items-center">
+            <span class="text-[9px] font-bold opacity-40 uppercase mr-3">设备IP</span>
             <input v-model="manualIp" class="bg-transparent text-xs w-28 focus:outline-none" placeholder="192.168..." />
             <input v-model="wifiPort" class="bg-transparent text-xs w-16 focus:outline-none ml-2" placeholder="53301" />
-            <button @click="connectManual"
-              class="hover:text-primary transition-colors">
+            <button @click="connectManual" class="hover:text-primary transition-colors">
               <Icon name="heroicons:paper-airplane-20-solid" />
             </button>
           </div>
-          <button class="btn btn-ghost btn-sm rounded-full" @click="connectSelectedWifi">
+          <!-- <button class="btn btn-ghost btn-sm rounded-full" @click="connectSelectedWifi">
             一键无线连接
-          </button>
+          </button> -->
         </div>
       </header>
 
@@ -417,14 +407,36 @@ onMounted(async () => {
             <Icon name="heroicons:cpu-chip" class="text-6xl" />
           </div>
           <h3 class="text-2xl font-black uppercase tracking-widest">等待端点接入</h3>
-          <p class="text-sm mt-2 max-w-xs">请从左侧面板选择一个活跃的移动端设备，或者使用“智能自动发现”搜索局域网。</p>
+          <p class="text-sm mt-2 max-w-xs">请通过 USB 连接设备或在顶部手动输入 IP 进行连接。</p>
+          <button class="btn btn-ghost btn-sm mt-6 rounded-full" @click="showHelpModal = true">
+            查看 USB 调试指引
+          </button>
         </div>
       </div>
     </main>
 
-    <!-- 背景装饰 -->
-    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full -z-10"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/5 blur-[120px] rounded-full -z-10"></div>
+    <BaseModal v-model="showHelpModal" title="开启 USB 调试" box-class="max-w-lg w-full">
+      <div class="space-y-4 text-sm leading-relaxed">
+        <div class="p-4 rounded-2xl bg-base-200/60 border border-base-content/5">
+          <p class="font-bold">步骤 1：打开开发者选项</p>
+          <p class="text-base-content/70 mt-1">设置 → 关于手机 → 连续点击“版本号”7 次。</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-base-200/60 border border-base-content/5">
+          <p class="font-bold">步骤 2：开启 USB 调试</p>
+          <p class="text-base-content/70 mt-1">设置 → 开发者选项 → 打开“USB 调试”。</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-base-200/60 border border-base-content/5">
+          <p class="font-bold">步骤 3：连接授权</p>
+          <p class="text-base-content/70 mt-1">USB 连接后，手机弹窗请点“允许”。</p>
+        </div>
+        <div class="text-xs text-base-content/50">
+          提示：部分机型需要额外开启“USB 调试（安全设置）”才能支持控制输入。
+        </div>
+      </div>
+      <template #actions="{ close }">
+        <button class="btn btn-ghost rounded-full" @click="close()">我知道了</button>
+      </template>
+    </BaseModal>
   </div>
 </template>
 

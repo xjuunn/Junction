@@ -64,6 +64,17 @@ const buildShellScript = (program: string, args: string[], platform: ShellTarget
   return `${safeProgram} ${safeArgs}`.trim();
 };
 
+const safeDecode = (input: Uint8Array | string | null | undefined): string => {
+  if (input == null) return '';
+  if (typeof input === 'string') return input.trim();
+  try {
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    return decoder.decode(input).trim();
+  } catch {
+    return '';
+  }
+};
+
 const runCommand = async (program: string, args: string[] = []): Promise<ShellResult> => {
   ensureTauri();
   const shellTarget = await getShellTarget();
@@ -71,16 +82,18 @@ const runCommand = async (program: string, args: string[] = []): Promise<ShellRe
   const mod = await import('@tauri-apps/plugin-shell');
   const Command = mod.Command as unknown as {
     create?: (program: string, args?: string[]) => { execute: () => Promise<any>; spawn?: () => Promise<any> };
-    new (program: string, args?: string[]): { execute: () => Promise<any>; spawn?: () => Promise<any> };
+    new(program: string, args?: string[]): { execute: () => Promise<any>; spawn?: () => Promise<any> };
   };
   const command = Command.create
     ? Command.create(shellTarget.name, [...shellTarget.args, script])
     : new Command(shellTarget.name, [...shellTarget.args, script]);
   const output = await command.execute();
+  const stdout = safeDecode(output?.stdout);
+  const stderr = safeDecode(output?.stderr);
   return {
     code: output?.code ?? 0,
-    stdout: (output?.stdout ?? '').trim(),
-    stderr: (output?.stderr ?? '').trim(),
+    stdout,
+    stderr,
     ok: (output?.code ?? 0) === 0,
   };
 };
@@ -92,7 +105,7 @@ const spawnCommand = async (program: string, args: string[] = []): Promise<Shell
   const mod = await import('@tauri-apps/plugin-shell');
   const Command = mod.Command as unknown as {
     create?: (program: string, args?: string[]) => { spawn: () => Promise<any> };
-    new (program: string, args?: string[]): { spawn: () => Promise<any> };
+    new(program: string, args?: string[]): { spawn: () => Promise<any> };
   };
   const command = Command.create
     ? Command.create(shellTarget.name, [...shellTarget.args, script])
@@ -110,26 +123,28 @@ const parseDeviceLine = (line: string): AdbDevice | null => {
   const [serial, status] = tokens;
   const rest = tokens.slice(2).join(' ');
   const meta: Record<string, string> = {};
-  const metaMatches = rest.matchAll(/(\w+):([^\s]+)/g);
+  const metaMatches = Array.from(rest.matchAll(/(\w+):([^\s]+)/g));
   for (const match of metaMatches) {
-    meta[match[1]] = match[2];
+    if (match[1]) {
+      meta[match[1]] = match[2] ?? '';
+    }
   }
-  const model = meta.model?.replace(/_/g, ' ');
-  const displayName = model || meta.device || serial;
+  const model = meta.model?.replace(/_/g, ' ') ?? '';
+  const displayName = model || meta.device || serial || 'Unknown Device';
   return {
-    serial,
-    status,
+    serial: serial ?? '',
+    status: status ?? '',
     product: meta.product,
     model,
     device: meta.device,
     transportId: meta.transport_id,
-    isTcp: serial.includes(':'),
+    isTcp: (serial ?? '').includes(':'),
     displayName,
   };
 };
 
 const parseIpFromText = (text: string): string | null => {
-  const candidates = Array.from(text.matchAll(/inet\s+(\d+\.\d+\.\d+\.\d+)/g)).map(m => m[1]);
+  const candidates = Array.from(text.matchAll(/inet\s+(\d+\.\d+\.\d+\.\d+)/g)).map(m => m[1] ?? '');
   const srcMatch = text.match(/src\s+(\d+\.\d+\.\d+\.\d+)/);
   if (srcMatch?.[1]) return srcMatch[1];
   const preferred = candidates.find(ip => ip.startsWith('192.') || ip.startsWith('10.') || ip.startsWith('172.'));
@@ -183,16 +198,44 @@ export const createAdbClient = (options?: { adbPath?: string; scrcpyPath?: strin
       return runCommand(adbPath, args);
     },
     async listArpIps(): Promise<string[]> {
-      const result = await runCommand('arp', ['-a']);
-      if (!result.ok) {
-        throw new Error(result.stderr || 'arp 命令执行失败');
+      const parseIps = (text: string): string[] => {
+        if (!text) return [];
+        const matches = Array.from(text.matchAll(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/g)).map(m => m[1] ?? '');
+        const filtered = matches.filter((ip): ip is string => {
+          if (ip.startsWith('0.') || ip.startsWith('127.') || ip.startsWith('169.254.')) return false;
+          return true;
+        });
+        return Array.from(new Set(filtered));
+      };
+      try {
+        const shellTarget = await getShellTarget();
+        const results: ShellResult[] = [];
+        if (shellTarget.platform === 'windows') {
+          results.push(await runCommand('$env:SystemRoot\System32\arp.exe', ['-a']));
+          results.push(await runCommand('arp', ['-a']));
+          results.push(
+            await runCommand('powershell', [
+              '-NoProfile',
+              '-Command',
+              'Get-NetNeighbor -AddressFamily IPv4 | Select-Object -ExpandProperty IPAddress',
+            ]),
+          );
+        } else if (shellTarget.platform === 'linux') {
+          results.push(await runCommand('arp', ['-a']));
+          results.push(await runCommand('ip', ['neigh']));
+        } else if (shellTarget.platform === 'macos') {
+          results.push(await runCommand('arp', ['-a']));
+        } else {
+          results.push(await runCommand('arp', ['-a']));
+        }
+        for (const result of results) {
+          const ips = parseIps(result.stdout || result.stderr);
+          if (ips.length) return ips;
+        }
+        return [];
+      } catch {
+        return [];
       }
-      const matches = Array.from(result.stdout.matchAll(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/g)).map(m => m[1]);
-      const filtered = matches.filter(ip => {
-        if (ip.startsWith('0.') || ip.startsWith('127.') || ip.startsWith('169.254.')) return false;
-        return true;
-      });
-      return Array.from(new Set(filtered));
     },
     async keyEvent(serial: string, keyCode: string): Promise<ShellResult> {
       return runCommand(adbPath, ['-s', serial, 'shell', 'input', 'keyevent', keyCode]);
