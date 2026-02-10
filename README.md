@@ -1,8 +1,8 @@
 # Junction
 
 ## 项目简介
-Junction 是一个基于 pnpm workspaces 与 TurboRepo 的一体化协作平台，包含前端（Nuxt 4 + Vue 3 + Tauri）与后端（NestJS + Prisma + Redis），并提供统一的共享类型包 `@junction/types`。  
-当前后端默认使用 SQLite（`apps/backend/prisma/dev.db`）作为开发数据库。
+Junction 是面向即时通信用户的协作平台，聚焦“聊天 + 协作 + 实时通话”的完整体验。  
+它支持从一对一私聊到多人群聊的全场景沟通，并提供丰富消息能力、通知体系与 AI 辅助，让沟通更高效、更可控。
 
 ## 核心功能
 - 即时通讯：支持私聊、群聊、临时会话与系统会话
