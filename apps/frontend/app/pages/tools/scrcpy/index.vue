@@ -64,9 +64,11 @@ const buildScrcpyArgs = () => {
   if (!video.enabled) args.push('--no-video');
   if (video.maxSize.trim()) args.push(`--max-size=${video.maxSize.trim()}`);
   if (video.maxFps.trim()) args.push(`--max-fps=${video.maxFps.trim()}`);
+  if (video.printFps) args.push('--print-fps');
   if (video.videoCodec.trim()) args.push(`--video-codec=${video.videoCodec.trim()}`);
   if (video.videoBitRate.trim()) args.push(`--video-bit-rate=${video.videoBitRate.trim()}`);
   if (video.videoEncoder.trim()) args.push(`--video-encoder=${video.videoEncoder.trim()}`);
+  if (video.videoCodecOptions.trim()) args.push(`--video-codec-options=${video.videoCodecOptions.trim()}`);
   if (video.crop.trim()) args.push(`--crop=${video.crop.trim()}`);
   if (video.captureOrientation.trim()) args.push(`--capture-orientation=${video.captureOrientation.trim()}`);
   if (video.orientation.trim()) args.push(`--orientation=${video.orientation.trim()}`);
@@ -81,10 +83,14 @@ const buildScrcpyArgs = () => {
 
   if (!audio.enabled) args.push('--no-audio');
   if (audio.requireAudio) args.push('--require-audio');
+  if (audio.audioDup) args.push('--audio-dup');
   if (audio.audioSource.trim()) args.push(`--audio-source=${audio.audioSource.trim()}`);
   if (audio.audioCodec.trim()) args.push(`--audio-codec=${audio.audioCodec.trim()}`);
+  if (audio.audioEncoder.trim()) args.push(`--audio-encoder=${audio.audioEncoder.trim()}`);
+  if (audio.audioCodecOptions.trim()) args.push(`--audio-codec-options=${audio.audioCodecOptions.trim()}`);
   if (audio.audioBitRate.trim()) args.push(`--audio-bit-rate=${audio.audioBitRate.trim()}`);
   if (audio.audioBuffer.trim()) args.push(`--audio-buffer=${audio.audioBuffer.trim()}`);
+  if (audio.audioOutputBuffer.trim()) args.push(`--audio-output-buffer=${audio.audioOutputBuffer.trim()}`);
   if (audio.noAudioPlayback) args.push('--no-audio-playback');
 
   if (!control.controlEnabled) args.push('--no-control');
@@ -180,7 +186,7 @@ const refreshDevices = async (silent = false) => {
       deduped.set(key, item);
     }
     devices.value = Array.from(deduped.values());
-    if (devices.value.length > 0 && !selectedSerial.value) {
+    if (devices.value.length > 0 && !selectedSerial.value && devices.value[0]) {
       selectedSerial.value = devices.value[0].serial;
     }
     const currentSerials = new Set(devices.value.map(item => item.serial));
@@ -445,7 +451,7 @@ onBeforeUnmount(() => {
                 <div class="flex flex-col">
                   <span class="text-[10px] font-black opacity-30 uppercase">连接模式</span>
                   <span class="text-sm font-bold uppercase">{{ selectedDevice.isTcp ? 'Wireless' : 'USB Tethered'
-                    }}</span>
+                  }}</span>
                 </div>
                 <div class="flex flex-col">
                   <span class="text-[10px] font-black opacity-30 uppercase">刷新率限制</span>

@@ -77,6 +77,7 @@ export default defineNuxtConfig({
   routeRules: {
     "/": { ssr: false },
     "/auth/**": { ssr: false },
-    "/chat/**": { ssr: false }
+    "/chat/**": { ssr: false },
+    "/tools/**": { ssr: false }
   }
 })

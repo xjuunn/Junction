@@ -46,9 +46,11 @@ export interface ScrcpyConfig {
     enabled: boolean
     maxSize: string
     maxFps: string
+    printFps: boolean
     videoCodec: string
     videoBitRate: string
     videoEncoder: string
+    videoCodecOptions: string
     crop: string
     captureOrientation: string
     orientation: string
@@ -64,10 +66,14 @@ export interface ScrcpyConfig {
   audio: {
     enabled: boolean
     requireAudio: boolean
+    audioDup: boolean
     audioSource: string
     audioCodec: string
+    audioEncoder: string
+    audioCodecOptions: string
     audioBitRate: string
     audioBuffer: string
+    audioOutputBuffer: string
     noAudioPlayback: boolean
   }
   control: {
@@ -196,9 +202,11 @@ export const useSettingsStore = defineStore('settings', () => {
       enabled: true,
       maxSize: '1920',
       maxFps: '60',
+      printFps: false,
       videoCodec: 'h264',
       videoBitRate: '',
       videoEncoder: '',
+      videoCodecOptions: '',
       crop: '',
       captureOrientation: '',
       orientation: '',
@@ -214,10 +222,14 @@ export const useSettingsStore = defineStore('settings', () => {
     audio: {
       enabled: true,
       requireAudio: false,
+      audioDup: false,
       audioSource: '',
       audioCodec: '',
+      audioEncoder: '',
+      audioCodecOptions: '',
       audioBitRate: '',
       audioBuffer: '',
+      audioOutputBuffer: '',
       noAudioPlayback: false,
     },
     control: {
