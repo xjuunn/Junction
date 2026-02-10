@@ -553,6 +553,7 @@ export class AiBotService {
         provider,
         temperature,
         maxTokens,
+        responseMode: bot.responseMode ?? PrismaValues.BotResponseMode.INSTANT,
         results: autoResults
       })
       if (handled) return
@@ -739,6 +740,7 @@ export class AiBotService {
     temperature: number
     maxTokens: number
     tools?: ToolSet
+    toolChoice?: ToolChoice<ToolSet>
     timeoutMs?: number
   }) {
     try {
@@ -750,6 +752,7 @@ export class AiBotService {
         temperature: options.temperature,
         maxTokens: options.maxTokens,
         tools: options.tools,
+        toolChoice: options.toolChoice,
         timeoutMs: options.timeoutMs
       })) {
         yield chunk
@@ -1027,6 +1030,7 @@ export class AiBotService {
     provider: { apiKey: string; baseUrl: string; model: string }
     temperature: number
     maxTokens: number
+    responseMode: PrismaValues.BotResponseMode
     results: McpInvokeRecord[]
   }) {
     const reply = this.buildMcpFactsReply(options.results)
@@ -1067,6 +1071,41 @@ export class AiBotService {
     })
     const safeText = String(text ?? '').trim()
     if (!safeText) return false
+    if (options.responseMode === PrismaValues.BotResponseMode.STREAM) {
+      const created = await this.messageService.create(options.bot.userId, {
+        conversationId: options.conversationId,
+        type: PrismaValues.MessageType.TEXT,
+        content: '',
+        clientMessageId: `bot_${options.bot.userId}_${Date.now()}_mcp`
+      })
+      const memberIds = await this.getConversationMemberIds(options.conversationId)
+      let fullContent = ''
+      for await (const chunk of this.streamChatCompletion({
+        ...options.provider,
+        messages: [
+          { role: 'system', content: '你是企业级助手，请基于事实给出准确回复，不要说“我来帮你查看”。' },
+          { role: 'system', content: `事实：\n${reply}` },
+          { role: 'user', content: options.latestText || '请回答用户问题。' }
+        ],
+        temperature: Math.min(0.4, options.temperature),
+        maxTokens: options.maxTokens,
+        toolChoice: 'none',
+        timeoutMs: 20000
+      })) {
+        if (!this.isGuardActive(options.guard)) return true
+        fullContent += chunk
+        this.messageGateway.broadcastToUsers(memberIds, 'message-stream', {
+          conversationId: options.conversationId,
+          messageId: created.id,
+          delta: chunk,
+          fullContent
+        })
+      }
+      if (this.isGuardActive(options.guard)) {
+        await this.messageService.updateInternal(created.id, { content: fullContent })
+      }
+      return true
+    }
     await this.createMessageWithTimeout(options.bot.userId, {
       conversationId: options.conversationId,
       type: PrismaValues.MessageType.TEXT,
