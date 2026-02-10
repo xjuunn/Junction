@@ -992,23 +992,61 @@ export class AiBotService {
     })
   }
 
-  private buildMcpFactsReply(results: McpInvokeRecord[]) {
+  private buildMcpFactsReply(results: McpInvokeRecord[], queryText: string) {
     const timeResult = results.find(record => record.tool?.id === 'time.now' && record.result?.ok)?.result?.data as any
     const systemResult = results.find(record => record.tool?.id === 'system.info' && record.result?.ok)?.result?.data as any
     const replyParts: string[] = []
+    const q = (queryText || '').toLowerCase()
     if (timeResult) {
-      replyParts.push(`当前时间：${timeResult.localeTime || timeResult.iso || ''}`.trim())
-      if (timeResult.timezone) replyParts.push(`时区：${timeResult.timezone}`)
+      const localeTime: string = timeResult.localeTime || ''
+      const timeOnly = localeTime ? localeTime.split(' ')[localeTime.split(' ').length - 1] : ''
+      const dateOnly = localeTime ? localeTime.split(' ').slice(0, -1).join(' ') : ''
+      const wantsDate = /(日期|几号|几月|哪天|哪一年|年|月|日|今天|明天|昨天)/i.test(q)
+      const wantsWeekday = /(星期|周[一二三四五六日天])/i.test(q)
+      const wantsTime = /(几点|时间|time)/i.test(q)
+      if (wantsTime && timeOnly) replyParts.push(`当前时间：${timeOnly}`)
+      if (wantsDate && dateOnly) replyParts.push(`当前日期：${dateOnly}`)
+      if (wantsWeekday && dateOnly) replyParts.push(`当前日期：${dateOnly}`)
+      if (!wantsTime && !wantsDate && !wantsWeekday && localeTime) {
+        replyParts.push(`当前时间：${localeTime}`)
+      }
+      if (/时区|timezone|time zone/i.test(q) && timeResult.timezone) {
+        replyParts.push(`时区：${timeResult.timezone}`)
+      }
     }
     if (systemResult) {
       const totalMemMb = systemResult.totalMemory ? Math.round(systemResult.totalMemory / 1024 / 1024) : null
       const freeMemMb = systemResult.freeMemory ? Math.round(systemResult.freeMemory / 1024 / 1024) : null
-      replyParts.push(`系统：${systemResult.platform || ''}/${systemResult.arch || ''}`.trim())
-      if (systemResult.cpuCount) replyParts.push(`CPU：${systemResult.cpuCount} 核 ${systemResult.cpuModel || ''}`.trim())
-      if (systemResult.avgCpuUsage !== undefined && systemResult.avgCpuUsage !== null) {
-        replyParts.push(`CPU 平均使用率：${systemResult.avgCpuUsage}%`)
+      const wantsCpu = /(cpu|处理器|核心|核|占用|使用率)/i.test(q)
+      const wantsMemory = /(内存|memory|ram)/i.test(q)
+      const wantsSystem = /(系统|平台|架构|版本|hostname|主机名)/i.test(q)
+      const wantsNetwork = /(网络|ip|网卡|network)/i.test(q)
+      const wantsProcess = /(进程|process|pid|node)/i.test(q)
+      if (wantsSystem) {
+        replyParts.push(`系统：${systemResult.platform || ''}/${systemResult.arch || ''}`.trim())
+        if (systemResult.version) replyParts.push(`系统版本：${systemResult.version}`)
+        if (systemResult.hostname) replyParts.push(`主机名：${systemResult.hostname}`)
       }
-      if (totalMemMb !== null && freeMemMb !== null) replyParts.push(`内存：${freeMemMb}MB 可用 / ${totalMemMb}MB 总量`)
+      if (wantsCpu) {
+        if (systemResult.cpuCount) replyParts.push(`CPU：${systemResult.cpuCount} 核 ${systemResult.cpuModel || ''}`.trim())
+        if (systemResult.avgCpuUsage !== undefined && systemResult.avgCpuUsage !== null) {
+          replyParts.push(`CPU 平均使用率：${systemResult.avgCpuUsage}%`)
+        }
+      }
+      if (wantsMemory && totalMemMb !== null && freeMemMb !== null) {
+        replyParts.push(`内存：${freeMemMb}MB 可用 / ${totalMemMb}MB 总量`)
+      }
+      if (wantsNetwork && systemResult.networkInterfaces) {
+        replyParts.push('网络接口已获取')
+      }
+      if (wantsProcess && systemResult.processInfo) {
+        replyParts.push(`进程：pid ${systemResult.processInfo.pid}，node ${systemResult.processInfo.node}`)
+      }
+      if (!wantsCpu && !wantsMemory && !wantsSystem && !wantsNetwork && !wantsProcess) {
+        replyParts.push(`系统：${systemResult.platform || ''}/${systemResult.arch || ''}`.trim())
+        if (systemResult.cpuCount) replyParts.push(`CPU：${systemResult.cpuCount} 核 ${systemResult.cpuModel || ''}`.trim())
+        if (totalMemMb !== null && freeMemMb !== null) replyParts.push(`内存：${freeMemMb}MB 可用 / ${totalMemMb}MB 总量`)
+      }
     }
     return replyParts.filter(Boolean).join('\n')
   }
@@ -1033,7 +1071,7 @@ export class AiBotService {
     responseMode: PrismaValues.BotResponseMode
     results: McpInvokeRecord[]
   }) {
-    const reply = this.buildMcpFactsReply(options.results)
+    const reply = this.buildMcpFactsReply(options.results, options.latestText)
     if (!reply) return false
     if (options.humanizeEnabled) {
       const humanized = await this.createChatCompletion({
