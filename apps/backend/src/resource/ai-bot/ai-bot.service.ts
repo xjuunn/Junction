@@ -998,12 +998,13 @@ export class AiBotService {
       if (timeResult.timezone) replyParts.push(`时区：${timeResult.timezone}`)
     }
     if (systemResult) {
-      const load = Array.isArray(systemResult.loadAvg) ? systemResult.loadAvg.join(', ') : ''
       const totalMemMb = systemResult.totalMemory ? Math.round(systemResult.totalMemory / 1024 / 1024) : null
       const freeMemMb = systemResult.freeMemory ? Math.round(systemResult.freeMemory / 1024 / 1024) : null
       replyParts.push(`系统：${systemResult.platform || ''}/${systemResult.arch || ''}`.trim())
       if (systemResult.cpuCount) replyParts.push(`CPU：${systemResult.cpuCount} 核 ${systemResult.cpuModel || ''}`.trim())
-      if (load) replyParts.push(`负载：${load}`)
+      if (systemResult.avgCpuUsage !== undefined && systemResult.avgCpuUsage !== null) {
+        replyParts.push(`CPU 平均使用率：${systemResult.avgCpuUsage}%`)
+      }
       if (totalMemMb !== null && freeMemMb !== null) replyParts.push(`内存：${freeMemMb}MB 可用 / ${totalMemMb}MB 总量`)
     }
     return replyParts.filter(Boolean).join('\n')
