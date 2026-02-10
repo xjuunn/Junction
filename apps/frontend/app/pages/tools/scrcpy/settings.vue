@@ -31,6 +31,24 @@ const navItems = [
   { id: 'extra', label: '扩展', icon: 'heroicons:code-bracket-20-solid', desc: '附加参数' },
 ];
 
+type ConnectionKey = keyof typeof scrcpyConfig.connection;
+const connectionOptions: { label: string; key: ConnectionKey }[] = [
+  { label: 'USB 选择器', key: 'selectUsb' },
+  { label: 'TCP/IP 选择器', key: 'selectTcpip' },
+  { label: '自动 TCP/IP', key: 'tcpipAuto' },
+];
+
+type ControlKey = keyof typeof scrcpyConfig.control;
+const controlOptions: { label: string; key: ControlKey }[] = [
+  { label: '允许键鼠控制', key: 'controlEnabled' },
+  { label: '显示触控点', key: 'showTouches' },
+  { label: '保持常亮', key: 'stayAwake' },
+  { label: '启动后熄屏', key: 'turnScreenOff' },
+  { label: '关闭时关机', key: 'powerOffOnClose' },
+  { label: '关闭剪贴板同步', key: 'noClipboardAutosync' },
+  { label: '兼容粘贴模式', key: 'legacyPaste' },
+];
+
 const defaultConfig = {
   connection: {
     serial: '',
@@ -253,12 +271,10 @@ onMounted(() => {
             </div>
 
             <div class="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <label
-                v-for="opt in [['USB 选择器', 'selectUsb'], ['TCP/IP 选择器', 'selectTcpip'], ['自动 TCP/IP', 'tcpipAuto']]"
-                :key="opt[1]"
+              <label v-for="opt in connectionOptions" :key="opt.key"
                 class="flex items-center justify-between rounded-2xl bg-base-200/30 px-5 py-4 ring-1 ring-base-content/5 transition-hover hover:bg-base-200/50">
-                <span class="text-[10px] font-black uppercase opacity-60">{{ opt[0] }}</span>
-                <input type="checkbox" v-model="(scrcpyConfig.connection as any)[opt[1]]"
+                <span class="text-[10px] font-black uppercase opacity-60">{{ opt.label }}</span>
+                <input type="checkbox" v-model="scrcpyConfig.connection[opt.key]"
                   class="toggle toggle-primary toggle-sm" />
               </label>
             </div>
@@ -492,13 +508,10 @@ onMounted(() => {
             <h2 class="text-2xl font-black tracking-tighter">交互</h2>
           </div>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-            <label
-              v-for="opt in [['允许键鼠控制', 'controlEnabled'], ['显示触控点', 'showTouches'], ['保持常亮', 'stayAwake'], ['启动后熄屏', 'turnScreenOff'], ['关闭时关机', 'powerOffOnClose'], ['关闭剪贴板同步', 'noClipboardAutosync'], ['兼容粘贴模式', 'legacyPaste']]"
-              :key="opt[1]"
+            <label v-for="opt in controlOptions" :key="opt.key"
               class="flex items-center justify-between rounded-2xl border border-base-content/5 bg-base-100 px-5 py-4 shadow-sm transition-all hover:bg-base-200/50">
-              <span class="text-[10px] font-black uppercase opacity-60">{{ opt[0] }}</span>
-              <input type="checkbox" v-model="(scrcpyConfig.control as any)[opt[1]]"
-                class="toggle toggle-accent toggle-sm" />
+              <span class="text-[10px] font-black uppercase opacity-60">{{ opt.label }}</span>
+              <input type="checkbox" v-model="scrcpyConfig.control[opt.key]" class="toggle toggle-accent toggle-sm" />
             </label>
           </div>
           <div class="mt-6 flex flex-col gap-2">
