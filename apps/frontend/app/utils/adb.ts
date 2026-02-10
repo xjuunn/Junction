@@ -244,8 +244,9 @@ export const createAdbClient = (options?: { adbPath?: string; scrcpyPath?: strin
       const safeText = normalizeTextInput(text);
       return runCommand(adbPath, ['-s', serial, 'shell', 'input', 'text', safeText]);
     },
-    async launchScrcpy(serial: string, extraArgs: string[] = []): Promise<ShellResult> {
-      return spawnCommand(scrcpyPath, ['-s', serial, ...extraArgs]);
+    async launchScrcpy(serial: string | null, extraArgs: string[] = []): Promise<ShellResult> {
+      const args = serial ? ['-s', serial, ...extraArgs] : [...extraArgs];
+      return spawnCommand(scrcpyPath, args);
     },
   };
 };

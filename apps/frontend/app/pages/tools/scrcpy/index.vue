@@ -8,10 +8,12 @@ definePageMeta({ layout: 'main' });
 const toast = useToast();
 const settings = useSettingsStore();
 const device = useDevice();
+const router = useRouter();
 const isTauriEnv = isTauri();
 const adbClient = computed(() => createAdbClient({
   scrcpyPath: settings.scrcpyPath?.trim() || undefined,
 }));
+const scrcpyConfig = settings.scrcpyConfig;
 
 // --- 状态定义 ---
 const osType = ref<string>('unknown');
@@ -22,33 +24,147 @@ const isLoading = ref(false);
 const selectedSerial = ref<string>('');
 const wifiPort = ref('53301');
 const manualIp = ref('');
-const actionText = ref('');
 const deviceIp = ref('');
 const autoLinkedSerials = new Set<string>();
 const isAutoLinking = ref(false);
 const pollTimer = ref<ReturnType<typeof setInterval> | null>(null);
 const showHelpModal = ref(false);
+const openSettings = () => {
+  navigateTo('/tools/scrcpy/settings');
+};
 
 // --- 计算属性 ---
 const isSupported = computed(() => isTauriEnv && ['windows', 'macos', 'linux', 'darwin'].includes(osType.value.toLowerCase()));
 const selectedDevice = computed(() => devices.value.find(item => item.serial === selectedSerial.value) || null);
 
-// --- 高级设置 ---
-const advanced = reactive({
-  video: { maxSize: '1920', maxFps: '60', videoCodec: 'h264' },
-  control: { turnScreenOff: false, stayAwake: true },
-  audio: { enabled: true }
-});
-
 const buildScrcpyArgs = () => {
-  const args: string[] = [
-    `--max-size=${advanced.video.maxSize}`,
-    `--max-fps=${advanced.video.maxFps}`,
-    `--video-codec=${advanced.video.videoCodec}`,
-  ];
-  if (advanced.control.turnScreenOff) args.push('--turn-screen-off');
-  if (advanced.control.stayAwake) args.push('--stay-awake');
-  if (!advanced.audio.enabled) args.push('--no-audio');
+  const args: string[] = [];
+  const connection = scrcpyConfig.connection;
+  const video = scrcpyConfig.video;
+  const audio = scrcpyConfig.audio;
+  const control = scrcpyConfig.control;
+  const keyboard = scrcpyConfig.keyboard;
+  const mouse = scrcpyConfig.mouse;
+  const gamepad = scrcpyConfig.gamepad;
+  const deviceConfig = scrcpyConfig.device;
+  const windowConfig = scrcpyConfig.window;
+  const recording = scrcpyConfig.recording;
+  const virtualDisplay = scrcpyConfig.virtualDisplay;
+  const tunnels = scrcpyConfig.tunnels;
+  const otg = scrcpyConfig.otg;
+  const camera = scrcpyConfig.camera;
+  const v4l2 = scrcpyConfig.v4l2;
+  const shortcuts = scrcpyConfig.shortcuts;
+
+  if (connection.selectUsb) args.push('--select-usb');
+  if (connection.selectTcpip) args.push('--select-tcpip');
+  if (connection.tcpipAuto) args.push('--tcpip');
+  if (connection.tcpipAddress.trim()) args.push(`--tcpip=${connection.tcpipAddress.trim()}`);
+
+  if (!video.enabled) args.push('--no-video');
+  if (video.maxSize.trim()) args.push(`--max-size=${video.maxSize.trim()}`);
+  if (video.maxFps.trim()) args.push(`--max-fps=${video.maxFps.trim()}`);
+  if (video.videoCodec.trim()) args.push(`--video-codec=${video.videoCodec.trim()}`);
+  if (video.videoBitRate.trim()) args.push(`--video-bit-rate=${video.videoBitRate.trim()}`);
+  if (video.videoEncoder.trim()) args.push(`--video-encoder=${video.videoEncoder.trim()}`);
+  if (video.crop.trim()) args.push(`--crop=${video.crop.trim()}`);
+  if (video.captureOrientation.trim()) args.push(`--capture-orientation=${video.captureOrientation.trim()}`);
+  if (video.orientation.trim()) args.push(`--orientation=${video.orientation.trim()}`);
+  if (video.displayOrientation.trim()) args.push(`--display-orientation=${video.displayOrientation.trim()}`);
+  if (video.recordOrientation.trim()) args.push(`--record-orientation=${video.recordOrientation.trim()}`);
+  if (video.angle.trim()) args.push(`--angle=${video.angle.trim()}`);
+  if (video.displayId.trim()) args.push(`--display-id=${video.displayId.trim()}`);
+  if (video.videoBuffer.trim()) args.push(`--video-buffer=${video.videoBuffer.trim()}`);
+  if (video.noDownsizeOnError) args.push('--no-downsize-on-error');
+  if (video.noPlayback) args.push('--no-playback');
+  if (video.noVideoPlayback) args.push('--no-video-playback');
+
+  if (!audio.enabled) args.push('--no-audio');
+  if (audio.requireAudio) args.push('--require-audio');
+  if (audio.audioSource.trim()) args.push(`--audio-source=${audio.audioSource.trim()}`);
+  if (audio.audioCodec.trim()) args.push(`--audio-codec=${audio.audioCodec.trim()}`);
+  if (audio.audioBitRate.trim()) args.push(`--audio-bit-rate=${audio.audioBitRate.trim()}`);
+  if (audio.audioBuffer.trim()) args.push(`--audio-buffer=${audio.audioBuffer.trim()}`);
+  if (audio.noAudioPlayback) args.push('--no-audio-playback');
+
+  if (!control.controlEnabled) args.push('--no-control');
+  if (control.showTouches) args.push('--show-touches');
+  if (control.stayAwake) args.push('--stay-awake');
+  if (control.turnScreenOff) args.push('--turn-screen-off');
+  if (control.powerOffOnClose) args.push('--power-off-on-close');
+  if (control.noClipboardAutosync) args.push('--no-clipboard-autosync');
+  if (control.legacyPaste) args.push('--legacy-paste');
+  if (control.pushTarget.trim()) args.push(`--push-target=${control.pushTarget.trim()}`);
+
+  if (keyboard.keyboardMode.trim()) args.push(`--keyboard=${keyboard.keyboardMode.trim()}`);
+  if (keyboard.preferText) args.push('--prefer-text');
+  if (keyboard.rawKeyEvents) args.push('--raw-key-events');
+  if (keyboard.noKeyRepeat) args.push('--no-key-repeat');
+
+  if (mouse.mouseMode.trim()) args.push(`--mouse=${mouse.mouseMode.trim()}`);
+  if (mouse.noMouseHover) args.push('--no-mouse-hover');
+  if (mouse.mouseBind.trim()) args.push(`--mouse-bind=${mouse.mouseBind.trim()}`);
+
+  if (gamepad.gamepadMode.trim()) args.push(`--gamepad=${gamepad.gamepadMode.trim()}`);
+
+  if (deviceConfig.screenOffTimeout.trim()) args.push(`--screen-off-timeout=${deviceConfig.screenOffTimeout.trim()}`);
+  if (deviceConfig.noPowerOn) args.push('--no-power-on');
+  if (deviceConfig.startApp.trim()) args.push(`--start-app=${deviceConfig.startApp.trim()}`);
+
+  if (windowConfig.noWindow) args.push('--no-window');
+  if (windowConfig.windowTitle.trim()) args.push(`--window-title=${windowConfig.windowTitle.trim()}`);
+  if (windowConfig.windowX.trim()) args.push(`--window-x=${windowConfig.windowX.trim()}`);
+  if (windowConfig.windowY.trim()) args.push(`--window-y=${windowConfig.windowY.trim()}`);
+  if (windowConfig.windowWidth.trim()) args.push(`--window-width=${windowConfig.windowWidth.trim()}`);
+  if (windowConfig.windowHeight.trim()) args.push(`--window-height=${windowConfig.windowHeight.trim()}`);
+  if (windowConfig.borderless) args.push('--window-borderless');
+  if (windowConfig.alwaysOnTop) args.push('--always-on-top');
+  if (windowConfig.fullscreen) args.push('--fullscreen');
+  if (windowConfig.disableScreensaver) args.push('--disable-screensaver');
+
+  if (recording.recordPath.trim()) args.push(`--record=${recording.recordPath.trim()}`);
+  if (recording.recordFormat.trim()) args.push(`--record-format=${recording.recordFormat.trim()}`);
+  if (recording.timeLimit.trim()) args.push(`--time-limit=${recording.timeLimit.trim()}`);
+  if (recording.noPlayback) args.push('--no-playback');
+
+  if (virtualDisplay.enabled) {
+    args.push(virtualDisplay.newDisplay.trim() ? `--new-display=${virtualDisplay.newDisplay.trim()}` : '--new-display');
+    if (virtualDisplay.noSystemDecorations) args.push('--no-vd-system-decorations');
+    if (virtualDisplay.noDestroyContent) args.push('--no-vd-destroy-content');
+    if (virtualDisplay.displayImePolicy.trim()) {
+      args.push(`--display-ime-policy=${virtualDisplay.displayImePolicy.trim()}`);
+    }
+  }
+
+  if (tunnels.tunnelHost.trim()) args.push(`--tunnel-host=${tunnels.tunnelHost.trim()}`);
+  if (tunnels.tunnelPort.trim()) args.push(`--tunnel-port=${tunnels.tunnelPort.trim()}`);
+  if (tunnels.port.trim()) args.push(`--port=${tunnels.port.trim()}`);
+  if (tunnels.forceAdbForward) args.push('--force-adb-forward');
+
+  if (otg.enabled) {
+    args.push('--otg');
+    if (otg.keyboardDisabled) args.push('--keyboard=disabled');
+    if (otg.mouseDisabled) args.push('--mouse=disabled');
+    if (otg.gamepadEnabled) args.push('--gamepad=aoa');
+  }
+
+  if (camera.videoSource.trim()) args.push(`--video-source=${camera.videoSource.trim()}`);
+  if (camera.cameraId.trim()) args.push(`--camera-id=${camera.cameraId.trim()}`);
+  if (camera.cameraFacing.trim()) args.push(`--camera-facing=${camera.cameraFacing.trim()}`);
+  if (camera.cameraSize.trim()) args.push(`--camera-size=${camera.cameraSize.trim()}`);
+  if (camera.cameraAr.trim()) args.push(`--camera-ar=${camera.cameraAr.trim()}`);
+
+  if (v4l2.v4l2Sink.trim()) args.push(`--v4l2-sink=${v4l2.v4l2Sink.trim()}`);
+  if (v4l2.v4l2Buffer.trim()) args.push(`--v4l2-buffer=${v4l2.v4l2Buffer.trim()}`);
+
+  if (shortcuts.shortcutMod.trim()) args.push(`--shortcut-mod=${shortcuts.shortcutMod.trim()}`);
+
+  const extraArgs = scrcpyConfig.extraArgs
+    .split('\n')
+    .map(item => item.trim())
+    .filter(Boolean);
+  if (extraArgs.length) args.push(...extraArgs);
+
   return args;
 };
 
@@ -124,11 +240,21 @@ const checkEnv = async () => {
 };
 
 const startControl = async () => {
-  if (!selectedDevice.value) return;
+  if (!selectedDevice.value && !scrcpyConfig.connection.serial.trim()) {
+    toast.warning('请先选择设备或填写序列号');
+    return;
+  }
   const args = buildScrcpyArgs();
+  const shouldUseSelector = scrcpyConfig.connection.selectUsb
+    || scrcpyConfig.connection.selectTcpip
+    || scrcpyConfig.connection.tcpipAuto
+    || !!scrcpyConfig.connection.tcpipAddress.trim()
+    || !!scrcpyConfig.connection.serial.trim();
+  const serial = scrcpyConfig.connection.serial.trim()
+    || (shouldUseSelector ? null : selectedDevice.value?.serial ?? null);
 
   try {
-    await adbClient.value.launchScrcpy(selectedDevice.value.serial, args);
+    await adbClient.value.launchScrcpy(serial, args);
   } catch (e: any) {
     toast.error(e.message);
   }
@@ -183,6 +309,11 @@ const sendKey = async (keyCode: string, label: string) => {
 };
 
 onMounted(async () => {
+  if (!isTauriEnv || device.isMobile) {
+    if (window?.history?.length > 1) router.back();
+    else await navigateTo('/');
+    return;
+  }
   await checkEnv();
   if (adbReady.value) {
     await refreshDevices();
@@ -293,7 +424,7 @@ onBeforeUnmount(() => {
 
       <!-- 设备详情卡片 -->
       <div
-        class="main-card flex-1 bg-base-100 rounded-[3rem] border border-base-content/10 shadow-2xl overflow-hidden flex flex-col relative">
+        class="main-card flex-1 bg-base-100 rounded-[3rem] border border-base-content/10 shadow-2xl overflow-y-auto overflow-x-hidden flex flex-col relative">
         <div v-if="selectedDevice" class="flex flex-col h-full">
           <!-- 卡片头部：Hero 区域 -->
           <div
@@ -318,16 +449,22 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex flex-col">
                   <span class="text-[10px] font-black opacity-30 uppercase">刷新率限制</span>
-                  <span class="text-sm font-bold uppercase">{{ advanced.video.maxFps }} FPS</span>
+                  <span class="text-sm font-bold uppercase">{{ scrcpyConfig.video.maxFps }} FPS</span>
                 </div>
               </div>
             </div>
 
-            <button @click="startControl"
-              class="btn btn-primary btn-lg rounded-[2rem] px-12 h-24 shadow-2xl shadow-primary/40 hover:scale-105 transition-all group relative z-10">
-              <Icon name="heroicons:play-20-solid" class="text-2xl group-hover:rotate-12 transition-transform" />
-              <span class="text-lg font-black uppercase tracking-widest">启动远程镜像</span>
-            </button>
+            <div class="flex flex-col items-end gap-3 relative z-10">
+              <button class="btn btn-ghost btn-sm rounded-full border border-base-content/10 bg-base-100/60"
+                @click="openSettings">
+                进入详细设置
+              </button>
+              <button @click="startControl"
+                class="btn btn-primary btn-lg rounded-[2rem] px-12 h-24 shadow-2xl shadow-primary/40 hover:scale-105 transition-all group">
+                <Icon name="heroicons:play-20-solid" class="text-2xl group-hover:rotate-12 transition-transform" />
+                <span class="text-lg font-black uppercase tracking-widest">启动远程镜像</span>
+              </button>
+            </div>
           </div>
 
           <!-- 分隔线 -->
@@ -341,7 +478,7 @@ onBeforeUnmount(() => {
             <div class="col-span-4 space-y-6">
               <h3 class="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] flex items-center gap-2">
                 <Icon name="heroicons:cursor-arrow-ripple" />
-                智能交互控制
+                交互控制
               </h3>
               <div class="grid grid-cols-2 gap-3">
                 <button @click="sendKey('KEYCODE_HOME', '主页')"
@@ -367,7 +504,7 @@ onBeforeUnmount(() => {
                 <div class="space-y-4">
                   <div class="flex flex-col gap-2">
                     <label class="text-[10px] font-black opacity-50 ml-1">分辨率限制</label>
-                    <select v-model="advanced.video.maxSize"
+                    <select v-model="scrcpyConfig.video.maxSize"
                       class="select select-bordered rounded-xl bg-base-100 border-none shadow-sm text-xs">
                       <option value="1920">1080P Full HD</option>
                       <option value="1280">720P Standard</option>
@@ -376,13 +513,14 @@ onBeforeUnmount(() => {
                   </div>
                   <label class="flex items-center justify-between px-1 cursor-pointer">
                     <span class="text-xs font-bold opacity-70">启用音频同步</span>
-                    <input type="checkbox" v-model="advanced.audio.enabled" class="toggle toggle-primary toggle-sm" />
+                    <input type="checkbox" v-model="scrcpyConfig.audio.enabled"
+                      class="toggle toggle-primary toggle-sm" />
                   </label>
                 </div>
                 <div class="space-y-4">
                   <div class="flex flex-col gap-2">
                     <label class="text-[10px] font-black opacity-50 ml-1">最大渲染帧率</label>
-                    <select v-model="advanced.video.maxFps"
+                    <select v-model="scrcpyConfig.video.maxFps"
                       class="select select-bordered rounded-xl bg-base-100 border-none shadow-sm text-xs">
                       <option value="30">30 FPS (省电)</option>
                       <option value="60">60 FPS (流畅)</option>
@@ -391,13 +529,14 @@ onBeforeUnmount(() => {
                   </div>
                   <label class="flex items-center justify-between px-1 cursor-pointer">
                     <span class="text-xs font-bold opacity-70">启动后熄灭屏幕</span>
-                    <input type="checkbox" v-model="advanced.control.turnScreenOff"
+                    <input type="checkbox" v-model="scrcpyConfig.control.turnScreenOff"
                       class="toggle toggle-primary toggle-sm" />
                   </label>
                 </div>
               </div>
             </div>
           </div>
+
         </div>
 
         <!-- 未选择状态 -->

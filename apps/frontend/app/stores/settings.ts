@@ -31,6 +31,126 @@ export interface AppSettings {
   aiBaseUrl: string
   aiDefaultModel: string
   scrcpyPath: string
+  scrcpyConfig: ScrcpyConfig
+}
+
+export interface ScrcpyConfig {
+  connection: {
+    serial: string
+    selectUsb: boolean
+    selectTcpip: boolean
+    tcpipAuto: boolean
+    tcpipAddress: string
+  }
+  video: {
+    enabled: boolean
+    maxSize: string
+    maxFps: string
+    videoCodec: string
+    videoBitRate: string
+    videoEncoder: string
+    crop: string
+    captureOrientation: string
+    orientation: string
+    displayOrientation: string
+    recordOrientation: string
+    angle: string
+    displayId: string
+    videoBuffer: string
+    noDownsizeOnError: boolean
+    noPlayback: boolean
+    noVideoPlayback: boolean
+  }
+  audio: {
+    enabled: boolean
+    requireAudio: boolean
+    audioSource: string
+    audioCodec: string
+    audioBitRate: string
+    audioBuffer: string
+    noAudioPlayback: boolean
+  }
+  control: {
+    controlEnabled: boolean
+    showTouches: boolean
+    stayAwake: boolean
+    turnScreenOff: boolean
+    powerOffOnClose: boolean
+    noClipboardAutosync: boolean
+    legacyPaste: boolean
+    pushTarget: string
+  }
+  keyboard: {
+    keyboardMode: string
+    preferText: boolean
+    rawKeyEvents: boolean
+    noKeyRepeat: boolean
+  }
+  mouse: {
+    mouseMode: string
+    noMouseHover: boolean
+    mouseBind: string
+  }
+  gamepad: {
+    gamepadMode: string
+  }
+  device: {
+    screenOffTimeout: string
+    noPowerOn: boolean
+    startApp: string
+  }
+  window: {
+    noWindow: boolean
+    windowTitle: string
+    windowX: string
+    windowY: string
+    windowWidth: string
+    windowHeight: string
+    borderless: boolean
+    alwaysOnTop: boolean
+    fullscreen: boolean
+    disableScreensaver: boolean
+  }
+  recording: {
+    recordPath: string
+    recordFormat: string
+    timeLimit: string
+    noPlayback: boolean
+  }
+  virtualDisplay: {
+    enabled: boolean
+    newDisplay: string
+    noSystemDecorations: boolean
+    noDestroyContent: boolean
+    displayImePolicy: string
+  }
+  tunnels: {
+    tunnelHost: string
+    tunnelPort: string
+    port: string
+    forceAdbForward: boolean
+  }
+  otg: {
+    enabled: boolean
+    keyboardDisabled: boolean
+    mouseDisabled: boolean
+    gamepadEnabled: boolean
+  }
+  camera: {
+    videoSource: 'display' | 'camera'
+    cameraId: string
+    cameraFacing: string
+    cameraSize: string
+    cameraAr: string
+  }
+  v4l2: {
+    v4l2Sink: string
+    v4l2Buffer: string
+  }
+  shortcuts: {
+    shortcutMod: string
+  }
+  extraArgs: string
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -64,6 +184,124 @@ export const useSettingsStore = defineStore('settings', () => {
   const aiBaseUrl = ref('')
   const aiDefaultModel = ref('')
   const scrcpyPath = ref('')
+  const scrcpyConfig = reactive<ScrcpyConfig>({
+    connection: {
+      serial: '',
+      selectUsb: false,
+      selectTcpip: false,
+      tcpipAuto: false,
+      tcpipAddress: '',
+    },
+    video: {
+      enabled: true,
+      maxSize: '1920',
+      maxFps: '60',
+      videoCodec: 'h264',
+      videoBitRate: '',
+      videoEncoder: '',
+      crop: '',
+      captureOrientation: '',
+      orientation: '',
+      displayOrientation: '',
+      recordOrientation: '',
+      angle: '',
+      displayId: '',
+      videoBuffer: '',
+      noDownsizeOnError: false,
+      noPlayback: false,
+      noVideoPlayback: false,
+    },
+    audio: {
+      enabled: true,
+      requireAudio: false,
+      audioSource: '',
+      audioCodec: '',
+      audioBitRate: '',
+      audioBuffer: '',
+      noAudioPlayback: false,
+    },
+    control: {
+      controlEnabled: true,
+      showTouches: false,
+      stayAwake: false,
+      turnScreenOff: false,
+      powerOffOnClose: false,
+      noClipboardAutosync: false,
+      legacyPaste: false,
+      pushTarget: '',
+    },
+    keyboard: {
+      keyboardMode: 'sdk',
+      preferText: false,
+      rawKeyEvents: false,
+      noKeyRepeat: false,
+    },
+    mouse: {
+      mouseMode: 'sdk',
+      noMouseHover: false,
+      mouseBind: '',
+    },
+    gamepad: {
+      gamepadMode: 'disabled',
+    },
+    device: {
+      screenOffTimeout: '',
+      noPowerOn: false,
+      startApp: '',
+    },
+    window: {
+      noWindow: false,
+      windowTitle: '',
+      windowX: '',
+      windowY: '',
+      windowWidth: '',
+      windowHeight: '',
+      borderless: false,
+      alwaysOnTop: false,
+      fullscreen: false,
+      disableScreensaver: false,
+    },
+    recording: {
+      recordPath: '',
+      recordFormat: '',
+      timeLimit: '',
+      noPlayback: false,
+    },
+    virtualDisplay: {
+      enabled: false,
+      newDisplay: '',
+      noSystemDecorations: false,
+      noDestroyContent: false,
+      displayImePolicy: '',
+    },
+    tunnels: {
+      tunnelHost: '',
+      tunnelPort: '',
+      port: '',
+      forceAdbForward: false,
+    },
+    otg: {
+      enabled: false,
+      keyboardDisabled: false,
+      mouseDisabled: false,
+      gamepadEnabled: false,
+    },
+    camera: {
+      videoSource: 'display',
+      cameraId: '',
+      cameraFacing: '',
+      cameraSize: '',
+      cameraAr: '',
+    },
+    v4l2: {
+      v4l2Sink: '',
+      v4l2Buffer: '',
+    },
+    shortcuts: {
+      shortcutMod: '',
+    },
+    extraArgs: '',
+  })
 
   watch(downloadPath, (val) => {
     setSavedDownloadDir(val || '')
@@ -100,6 +338,7 @@ export const useSettingsStore = defineStore('settings', () => {
     aiBaseUrl: aiBaseUrl.value,
     aiDefaultModel: aiDefaultModel.value,
     scrcpyPath: scrcpyPath.value,
+    scrcpyConfig,
   }))
 
   return {
@@ -133,6 +372,7 @@ export const useSettingsStore = defineStore('settings', () => {
     aiBaseUrl,
     aiDefaultModel,
     scrcpyPath,
+    scrcpyConfig,
     settings,
   }
 }, {
