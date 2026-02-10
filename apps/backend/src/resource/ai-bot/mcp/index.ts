@@ -2,7 +2,6 @@ import { McpRegistry } from './registry'
 import { McpRuntime } from './runtime'
 import { timeTool } from './tools/time'
 import { systemInfoTool } from './tools/system-info'
-import { webFetchTool } from './tools/web'
 import { messageSendTool } from './tools/message-send'
 
 export { McpRegistry } from './registry'
@@ -13,7 +12,6 @@ export const createDefaultMcpRegistry = () => {
   const registry = new McpRegistry()
   registry.register(timeTool)
   registry.register(systemInfoTool)
-  registry.register(webFetchTool)
   registry.register(messageSendTool)
   return registry
 }

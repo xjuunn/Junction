@@ -9,6 +9,7 @@ import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types'
 import { decryptSecret, encryptSecret, maskSecret } from '~/utils/crypto'
 import type { MessageCreatedEvent } from '../events/event-types'
 import { McpRuntime, createDefaultMcpRegistry, type McpConfig, type McpInvokeRecord, type McpToolContext } from './mcp'
+import { PlaywrightMcpClient } from './mcp/playwright-client'
 import { generateAiText, streamAiText } from '~/utils/ai'
 import { tool, jsonSchema, type ToolSet, type ToolChoice } from 'ai'
 
@@ -50,6 +51,7 @@ export class AiBotService {
   private readonly logger = new Logger(AiBotService.name)
   private readonly replyGuards = new Map<string, { token: number }>()
   private readonly mcpRuntime = new McpRuntime(createDefaultMcpRegistry())
+  private readonly playwrightMcp = new PlaywrightMcpClient()
   private readonly timeQueryRegex = /(现在|当前).*(时间|日期)|几点|几号|星期|周[一二三四五六日天]|今天|明天|昨天|日期|时间|time|date/i
   private readonly systemQueryRegex = /(系统|服务器).*(信息|状态|资源)|CPU|内存|负载|磁盘|system info|system status/i
 
@@ -519,7 +521,7 @@ export class AiBotService {
     const provider = this.resolveProvider(bot)
     const mcpConfig = this.resolveMcpConfig(bot)
     const mcpContext = this.buildMcpContext(bot, conversationId, latestStripped, conversationType)
-    const aiSdkTools = this.buildAiSdkTools(mcpContext, mcpConfig)
+    const aiSdkTools = await this.buildAiSdkTools(mcpContext, mcpConfig)
     const humanizeEnabled = !!bot.humanizeEnabled
     const autoResults = await this.mcpRuntime.autoInvoke(latestStripped, mcpContext, mcpConfig)
     const { timeReady: autoTimeReady, systemReady: autoSystemReady } = this.inspectMcpResults(autoResults)
@@ -570,6 +572,32 @@ export class AiBotService {
       if (!item.content && !item.payload) return false
       return true
     })
+
+    const historyText = filteredHistory.map(item => this.extractPlainText(item)).filter(Boolean)
+    const snapshotText = await this.fetchPlaywrightSnapshot([latestStripped, ...historyText], mcpConfig)
+    if (snapshotText) {
+      messages.push({ role: 'system', content: `MCP webpage snapshot:
+${snapshotText}` })
+      messages.push({ role: 'system', content: 'Webpage text is available. Answer directly based on it. Do not say "I will check".' })
+    }
+
+    const isWebQuery = /(webpage|website|url|link|text|content)/i.test(latestStripped)
+    if (snapshotText && isWebQuery) {
+      const replyText = `Webpage text:
+${snapshotText}`
+      if (humanizeEnabled) {
+        await this.sendHumanizedMessages(bot, conversationId, replyText, guard)
+      } else {
+        await this.createMessageWithTimeout(bot.userId, {
+          conversationId,
+          type: PrismaValues.MessageType.TEXT,
+          content: replyText,
+          clientMessageId: `bot_${bot.userId}_${Date.now()}_mcp_snapshot`
+        })
+      }
+      return
+    }
+
 
     if (command && latest) {
       if (command.type === 'summary' && bot.summaryEnabled) {
@@ -861,7 +889,7 @@ export class AiBotService {
     }
   }
 
-  private buildAiSdkTools(context: {
+  private async buildAiSdkTools(context: {
     bot: PrismaTypes.AiBot
     conversationId: string
     latestMessageText: string
@@ -875,12 +903,12 @@ export class AiBotService {
     const canUseTime = !deny.has('time.now') && (allow.size === 0 || allow.has('time.now'))
     if (canUseTime) {
       tools.time_now = tool({
-        description: '获取当前系统时间与时区信息',
+        description: '?????????????',
         inputSchema: jsonSchema({ type: 'object', properties: {} }),
         execute: async () => {
           const results = await this.mcpRuntime.invokeByIds(['time.now'], context, config)
           const result = results[0]?.result
-          if (!result?.ok) throw new Error(result?.error || '获取时间失败')
+          if (!result?.ok) throw new Error(result?.error || '??????')
           return result?.data ?? {}
         }
       })
@@ -889,35 +917,12 @@ export class AiBotService {
     const canUseSystemInfo = !deny.has('system.info') && (allow.size === 0 || allow.has('system.info'))
     if (canUseSystemInfo) {
       tools.system_info = tool({
-        description: '获取服务器系统信息与资源概况',
+        description: '??????????????',
         inputSchema: jsonSchema({ type: 'object', properties: {} }),
         execute: async () => {
           const results = await this.mcpRuntime.invokeByIds(['system.info'], context, config)
           const result = results[0]?.result
-          if (!result?.ok) throw new Error(result?.error || '获取系统信息失败')
-          return result?.data ?? {}
-        }
-      })
-    }
-
-    const canUseWeb = !deny.has('web.fetch') && (allow.size === 0 || allow.has('web.fetch'))
-    if (canUseWeb) {
-      tools.web_fetch = tool({
-        description: '查看网页内容（仅允许白名单域名）',
-        inputSchema: jsonSchema({
-          type: 'object',
-          properties: {
-            url: { type: 'string' },
-            maxChars: { type: 'number' }
-          },
-          required: ['url']
-        }),
-        execute: async (input: { url: string; maxChars?: number }) => {
-          const registry = this.mcpRuntime.getRegistry()
-          const toolImpl = registry.get('web.fetch')
-          if (!toolImpl) throw new Error('网页工具未注册')
-          const result = await toolImpl.invoke(input, context)
-          if (!result?.ok) throw new Error(result?.error || '获取网页失败')
+          if (!result?.ok) throw new Error(result?.error || '????????')
           return result?.data ?? {}
         }
       })
@@ -926,7 +931,7 @@ export class AiBotService {
     const canUseMessageSend = !deny.has('message.send') && (allow.size === 0 || allow.has('message.send'))
     if (canUseMessageSend) {
       tools.message_send = tool({
-        description: '主动发送一条文本消息到当前会话（用于补充说明或后续更新）',
+        description: '????????????????????????????',
         inputSchema: jsonSchema({
           type: 'object',
           properties: {
@@ -938,15 +943,101 @@ export class AiBotService {
         execute: async (input: { content: string; payload?: any }) => {
           const registry = this.mcpRuntime.getRegistry()
           const toolImpl = registry.get('message.send')
-          if (!toolImpl) throw new Error('消息发送工具未注册')
+          if (!toolImpl) throw new Error('?????????')
           const result = await toolImpl.invoke(input, context)
-          if (!result?.ok) throw new Error(result?.error || '消息发送失败')
+          if (!result?.ok) throw new Error(result?.error || '??????')
           return result?.data ?? {}
         }
       })
     }
 
+    try {
+      const remoteTools = await this.playwrightMcp.listTools()
+      remoteTools.forEach(remote => {
+        const toolId = String(remote.name || '').trim()
+        if (!toolId) return
+        if (tools[toolId]) return
+        if (deny.has(toolId)) return
+        if (allow.size > 0 && !allow.has(toolId)) return
+        const schema = remote.inputSchema && typeof remote.inputSchema === 'object'
+          ? remote.inputSchema
+          : { type: 'object', properties: {} }
+        tools[toolId] = tool({
+          description: remote.description || `MCP ?? ${toolId}`,
+          inputSchema: jsonSchema(schema),
+          execute: async (input: any) => {
+            const result = await this.playwrightMcp.callTool(toolId, input)
+            if (!result?.ok) throw new Error(result?.error || 'MCP ????')
+            return result?.data ?? {}
+          }
+        })
+      })
+    } catch (error: any) {
+      this.logger.warn(`Playwright MCP ????: ${error?.message || error}`)
+    }
+
     return Object.keys(tools).length ? tools : undefined
+  }
+
+  private canUseMcpTool(toolId: string, config?: McpConfig) {
+    if (config?.enabled === false) return false
+    const allow = new Set((config?.allow || []).map(item => String(item)))
+    const deny = new Set((config?.deny || []).map(item => String(item)))
+    if (deny.has(toolId)) return false
+    if (allow.size > 0) return allow.has(toolId)
+    return true
+  }
+
+  private findFirstUrl(texts: string[]) {
+    const joined = texts.filter(Boolean).join('\n')
+    const match = joined.match(/https?:\/\/[^\s)]+/i)
+    return match ? match[0] : ''
+  }
+
+  private extractMcpTextContent(data: any) {
+    if (!data) return ''
+    if (typeof data === 'string') return data
+    const content = (data as any).content
+    if (Array.isArray(content)) {
+      return content
+        .filter(item => item && item.type === 'text' && typeof item.text === 'string')
+        .map(item => item.text)
+        .join('\n')
+        .trim()
+    }
+    return ''
+  }
+
+  private async fetchPlaywrightSnapshot(texts: string[], config: McpConfig) {
+    if (!this.canUseMcpTool('browser_navigate', config)) return ''
+    if (!this.canUseMcpTool('browser_snapshot', config)) return ''
+    const url = this.findFirstUrl(texts)
+    if (!url) return ''
+    const navigate = await this.playwrightMcp.callTool('browser_navigate', { url })
+    if (!navigate?.ok) {
+      this.logger.warn(`Playwright MCP 导航失败: ${navigate?.error || 'unknown'}`)
+      return ''
+    }
+    if (this.canUseMcpTool('browser_wait_for', config)) {
+      await this.playwrightMcp.callTool('browser_wait_for', { time: 1 })
+    }
+    const snapshot = await this.playwrightMcp.callTool('browser_snapshot', {})
+    if (!snapshot?.ok) {
+      this.logger.warn(`Playwright MCP 快照失败: ${snapshot?.error || 'unknown'}`)
+      return ''
+    }
+    const text = this.extractMcpTextContent(snapshot.data)
+    if (text) return text.slice(0, 8000)
+    if (!this.canUseMcpTool('browser_evaluate', config)) return ''
+    const evaluated = await this.playwrightMcp.callTool('browser_evaluate', {
+      function: '() => document?.body?.innerText || ""'
+    })
+    if (!evaluated?.ok) {
+      this.logger.warn(`Playwright MCP 读取文本失败: ${evaluated?.error || 'unknown'}`)
+      return ''
+    }
+    const evaluatedText = this.extractMcpTextContent(evaluated.data)
+    return evaluatedText ? evaluatedText.slice(0, 8000) : ''
   }
 
   private buildMcpContext(
