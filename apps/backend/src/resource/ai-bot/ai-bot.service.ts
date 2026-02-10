@@ -8,7 +8,7 @@ import { MessageGateway } from '../message/message.gateway'
 import { PaginationData, PrismaTypes, PrismaValues } from '@junction/types'
 import { decryptSecret, encryptSecret, maskSecret } from '~/utils/crypto'
 import type { MessageCreatedEvent } from '../events/event-types'
-import { McpRuntime, createDefaultMcpRegistry, type McpConfig } from './mcp'
+import { McpRuntime, createDefaultMcpRegistry, type McpConfig, type McpInvokeRecord, type McpToolContext } from './mcp'
 import { generateAiText, streamAiText } from '~/utils/ai'
 import { tool, jsonSchema, type ToolSet, type ToolChoice } from 'ai'
 
@@ -50,6 +50,8 @@ export class AiBotService {
   private readonly logger = new Logger(AiBotService.name)
   private readonly replyGuards = new Map<string, { token: number }>()
   private readonly mcpRuntime = new McpRuntime(createDefaultMcpRegistry())
+  private readonly timeQueryRegex = /(现在|当前).*(时间|日期)|几点|几号|星期|周[一二三四五六日天]|今天|明天|昨天|日期|时间|time|date/i
+  private readonly systemQueryRegex = /(系统|服务器).*(信息|状态|资源)|CPU|内存|负载|磁盘|system info|system status/i
 
   constructor(
     private readonly prisma: PrismaService,
@@ -516,37 +518,12 @@ export class AiBotService {
     const memberMap = await this.getConversationMemberMap(conversationId)
     const provider = this.resolveProvider(bot)
     const mcpConfig = this.resolveMcpConfig(bot)
-    const mcpContext = {
-      bot,
-      conversationId,
-      latestMessageText: latestStripped,
-      conversationType,
-      emitMessage: async (input: { content: string; payload?: any }) => {
-        const text = String(input?.content || '').trim()
-        if (!text) throw new Error('消息内容不能为空')
-        const payload = input?.payload
-        return this.createMessageWithTimeout(bot.userId, {
-          conversationId,
-          type: PrismaValues.MessageType.TEXT,
-          content: text,
-          payload,
-          clientMessageId: `bot_${bot.userId}_${Date.now()}_mcp`
-        })
-      }
-    }
+    const mcpContext = this.buildMcpContext(bot, conversationId, latestStripped, conversationType)
     const aiSdkTools = this.buildAiSdkTools(mcpContext, mcpConfig)
     const humanizeEnabled = !!bot.humanizeEnabled
     const autoResults = await this.mcpRuntime.autoInvoke(latestStripped, mcpContext, mcpConfig)
-    const autoTimeReady = autoResults.some(record => record.tool?.id === 'time.now' && record.result?.ok)
-    const autoSystemReady = autoResults.some(record => record.tool?.id === 'system.info' && record.result?.ok)
-    autoResults.forEach(record => {
-      if (record.result && record.result.ok === false) {
-        this.logger.warn(`MCP 自动调用失败: tool=${record.tool?.id} error=${record.result.error || 'unknown'}`)
-      }
-      const prompt = record.systemPrompt
-        || (record.result?.ok ? `MCP ${record.tool?.name || record.tool?.id} 结果：${JSON.stringify(record.result.data)}` : '')
-      if (prompt) systemMessages.push({ role: 'system', content: prompt })
-    })
+    const { timeReady: autoTimeReady, systemReady: autoSystemReady } = this.inspectMcpResults(autoResults)
+    this.appendMcpSystemPrompts(systemMessages, autoResults)
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [...systemMessages]
     if (aiSdkTools?.time_now && !autoTimeReady) {
@@ -562,59 +539,23 @@ export class AiBotService {
       })
     }
 
-    const isTimeQuery = /(现在|当前).*(时间|日期)|几点|几号|星期|周[一二三四五六日天]|今天|明天|昨天|日期|时间|time|date/i.test(latestStripped)
-    const isSystemQuery = /(系统|服务器).*(信息|状态|资源)|CPU|内存|负载|磁盘|system info|system status/i.test(latestStripped)
+    const isTimeQuery = this.isTimeQuery(latestStripped)
+    const isSystemQuery = this.isSystemQuery(latestStripped)
     const temperature = this.clampNumber(bot.temperature ?? 0.7, 0, 2)
     const maxTokens = this.clampNumber(bot.maxTokens ?? 1024, 1, 4096)
     if ((isTimeQuery || isSystemQuery) && autoResults.length) {
-      const timeResult = autoResults.find(record => record.tool?.id === 'time.now' && record.result?.ok)?.result?.data as any
-      const systemResult = autoResults.find(record => record.tool?.id === 'system.info' && record.result?.ok)?.result?.data as any
-      const replyParts: string[] = []
-      if (timeResult) {
-        replyParts.push(`当前时间：${timeResult.localeTime || timeResult.iso || ''}`.trim())
-        if (timeResult.timezone) replyParts.push(`时区：${timeResult.timezone}`)
-      }
-      if (systemResult) {
-        const load = Array.isArray(systemResult.loadAvg) ? systemResult.loadAvg.join(', ') : ''
-        const totalMemMb = systemResult.totalMemory ? Math.round(systemResult.totalMemory / 1024 / 1024) : null
-        const freeMemMb = systemResult.freeMemory ? Math.round(systemResult.freeMemory / 1024 / 1024) : null
-        replyParts.push(`系统：${systemResult.platform || ''}/${systemResult.arch || ''}`.trim())
-        if (systemResult.cpuCount) replyParts.push(`CPU：${systemResult.cpuCount} 核 ${systemResult.cpuModel || ''}`.trim())
-        if (load) replyParts.push(`负载：${load}`)
-        if (totalMemMb !== null && freeMemMb !== null) replyParts.push(`内存：${freeMemMb}MB 可用 / ${totalMemMb}MB 总量`)
-      }
-      const reply = replyParts.filter(Boolean).join('\n')
-      if (reply && !humanizeEnabled) {
-        await this.createMessageWithTimeout(bot.userId, {
-          conversationId,
-          type: PrismaValues.MessageType.TEXT,
-          content: reply,
-          clientMessageId: `bot_${bot.userId}_${Date.now()}_mcp`
-        })
-        return
-      }
-      if (reply && humanizeEnabled) {
-        const humanized = await this.createChatCompletion({
-          ...provider,
-          messages: [
-            { role: 'system', content: this.buildHumanizeInstruction(bot) },
-            { role: 'system', content: '你只能使用以下事实回答用户问题，不得改动任何时间/数字/名称；不要说“我来帮你查看”。' },
-            { role: 'system', content: `事实：\n${reply}` },
-            { role: 'user', content: latestStripped || '请用自然口语回答。' }
-          ],
-          temperature: Math.min(0.4, temperature),
-          maxTokens,
-          toolChoice: 'none',
-          timeoutMs: 20000
-        })
-        const parsed = this.parseHumanizeResponse(String(humanized ?? ''))
-        if (parsed.messages.length) {
-          await this.sendHumanizedMessages(bot, conversationId, parsed.messages, guard)
-          return
-        }
-        await this.sendHumanizedMessages(bot, conversationId, reply, guard)
-        return
-      }
+      const handled = await this.handleMcpReply({
+        bot,
+        conversationId,
+        guard,
+        latestText: latestStripped,
+        humanizeEnabled,
+        provider,
+        temperature,
+        maxTokens,
+        results: autoResults
+      })
+      if (handled) return
     }
 
     if (humanizeEnabled && autoResults.length) {
@@ -1003,6 +944,135 @@ export class AiBotService {
     }
 
     return Object.keys(tools).length ? tools : undefined
+  }
+
+  private buildMcpContext(
+    bot: PrismaTypes.AiBot,
+    conversationId: string,
+    latestMessageText: string,
+    conversationType?: string | null
+  ): McpToolContext {
+    return {
+      bot,
+      conversationId,
+      latestMessageText,
+      conversationType,
+      emitMessage: async (input: { content: string; payload?: any }) => {
+        const text = String(input?.content || '').trim()
+        if (!text) throw new Error('消息内容不能为空')
+        const payload = input?.payload
+        return this.createMessageWithTimeout(bot.userId, {
+          conversationId,
+          type: PrismaValues.MessageType.TEXT,
+          content: text,
+          payload,
+          clientMessageId: `bot_${bot.userId}_${Date.now()}_mcp`
+        })
+      }
+    }
+  }
+
+  private inspectMcpResults(results: McpInvokeRecord[]) {
+    const timeReady = results.some(record => record.tool?.id === 'time.now' && record.result?.ok)
+    const systemReady = results.some(record => record.tool?.id === 'system.info' && record.result?.ok)
+    return { timeReady, systemReady }
+  }
+
+  private appendMcpSystemPrompts(target: Array<{ role: 'system'; content: string }>, results: McpInvokeRecord[]) {
+    results.forEach(record => {
+      if (record.result && record.result.ok === false) {
+        this.logger.warn(`MCP 自动调用失败: tool=${record.tool?.id} error=${record.result.error || 'unknown'}`)
+      }
+      const prompt = record.systemPrompt
+        || (record.result?.ok ? `MCP ${record.tool?.name || record.tool?.id} 结果：${JSON.stringify(record.result.data)}` : '')
+      if (prompt) target.push({ role: 'system', content: prompt })
+    })
+  }
+
+  private buildMcpFactsReply(results: McpInvokeRecord[]) {
+    const timeResult = results.find(record => record.tool?.id === 'time.now' && record.result?.ok)?.result?.data as any
+    const systemResult = results.find(record => record.tool?.id === 'system.info' && record.result?.ok)?.result?.data as any
+    const replyParts: string[] = []
+    if (timeResult) {
+      replyParts.push(`当前时间：${timeResult.localeTime || timeResult.iso || ''}`.trim())
+      if (timeResult.timezone) replyParts.push(`时区：${timeResult.timezone}`)
+    }
+    if (systemResult) {
+      const load = Array.isArray(systemResult.loadAvg) ? systemResult.loadAvg.join(', ') : ''
+      const totalMemMb = systemResult.totalMemory ? Math.round(systemResult.totalMemory / 1024 / 1024) : null
+      const freeMemMb = systemResult.freeMemory ? Math.round(systemResult.freeMemory / 1024 / 1024) : null
+      replyParts.push(`系统：${systemResult.platform || ''}/${systemResult.arch || ''}`.trim())
+      if (systemResult.cpuCount) replyParts.push(`CPU：${systemResult.cpuCount} 核 ${systemResult.cpuModel || ''}`.trim())
+      if (load) replyParts.push(`负载：${load}`)
+      if (totalMemMb !== null && freeMemMb !== null) replyParts.push(`内存：${freeMemMb}MB 可用 / ${totalMemMb}MB 总量`)
+    }
+    return replyParts.filter(Boolean).join('\n')
+  }
+
+  private isTimeQuery(text: string) {
+    return this.timeQueryRegex.test(text)
+  }
+
+  private isSystemQuery(text: string) {
+    return this.systemQueryRegex.test(text)
+  }
+
+  private async handleMcpReply(options: {
+    bot: PrismaTypes.AiBot
+    conversationId: string
+    guard: { key: string; token: number }
+    latestText: string
+    humanizeEnabled: boolean
+    provider: { apiKey: string; baseUrl: string; model: string }
+    temperature: number
+    maxTokens: number
+    results: McpInvokeRecord[]
+  }) {
+    const reply = this.buildMcpFactsReply(options.results)
+    if (!reply) return false
+    if (options.humanizeEnabled) {
+      const humanized = await this.createChatCompletion({
+        ...options.provider,
+        messages: [
+          { role: 'system', content: this.buildHumanizeInstruction(options.bot) },
+          { role: 'system', content: '你只能使用以下事实回答用户问题，不得改动任何时间/数字/名称；不要说“我来帮你查看”。' },
+          { role: 'system', content: `事实：\n${reply}` },
+          { role: 'user', content: options.latestText || '请用自然口语回答。' }
+        ],
+        temperature: Math.min(0.4, options.temperature),
+        maxTokens: options.maxTokens,
+        toolChoice: 'none',
+        timeoutMs: 20000
+      })
+      const parsed = this.parseHumanizeResponse(String(humanized ?? ''))
+      if (parsed.messages.length) {
+        await this.sendHumanizedMessages(options.bot, options.conversationId, parsed.messages, options.guard)
+        return true
+      }
+      await this.sendHumanizedMessages(options.bot, options.conversationId, reply, options.guard)
+      return true
+    }
+    const text = await this.createChatCompletion({
+      ...options.provider,
+      messages: [
+        { role: 'system', content: '你是企业级助手，请基于事实给出准确回复，不要说“我来帮你查看”。' },
+        { role: 'system', content: `事实：\n${reply}` },
+        { role: 'user', content: options.latestText || '请回答用户问题。' }
+      ],
+      temperature: Math.min(0.4, options.temperature),
+      maxTokens: options.maxTokens,
+      toolChoice: 'none',
+      timeoutMs: 20000
+    })
+    const safeText = String(text ?? '').trim()
+    if (!safeText) return false
+    await this.createMessageWithTimeout(options.bot.userId, {
+      conversationId: options.conversationId,
+      type: PrismaValues.MessageType.TEXT,
+      content: safeText,
+      clientMessageId: `bot_${options.bot.userId}_${Date.now()}_mcp`
+    })
+    return true
   }
 
   private isBotMentioned(content: string, botName: string, botId: string) {
