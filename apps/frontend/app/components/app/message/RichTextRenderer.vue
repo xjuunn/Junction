@@ -2,6 +2,7 @@
 import { EditorContent } from '@tiptap/vue-3'
 import { createReadonlyEditor } from '../../../core/editor'
 import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download'
+import { isExternalHttpUrl, openExternalUrl } from '~/utils/link'
 import { isTauri } from '~/utils/check'
 import { resolveMessageImagePayload } from '~/utils/message'
 
@@ -83,7 +84,7 @@ const handleFileDownload = async (url: string, fileName: string) => {
 /**
  * 处理文件块点击
  */
-const handleClick = (event: MouseEvent) => {
+const handleClick = async (event: MouseEvent) => {
     const target = event.target as HTMLElement | null
     const mention = target?.closest('a.mention[data-mention-id]') as HTMLAnchorElement | null
     if (mention) {
@@ -96,13 +97,22 @@ const handleClick = (event: MouseEvent) => {
         return
     }
     const link = target?.closest('a.file-link, a[data-file], a[href*="/uploads/"]') as HTMLAnchorElement | null
-    if (!link) return
+    if (link) {
+        event.preventDefault()
+        event.stopPropagation()
+        const url = link.getAttribute('href') || ''
+        const fileName = link.getAttribute('title') || link.getAttribute('data-file-name') || link.textContent || '文件'
+        if (!url) return
+        handleFileDownload(url, fileName)
+        return
+    }
+    const normalLink = target?.closest('a[href]') as HTMLAnchorElement | null
+    if (!normalLink) return
+    const href = normalLink.getAttribute('href') || ''
+    if (!isExternalHttpUrl(href)) return
     event.preventDefault()
     event.stopPropagation()
-    const url = link.getAttribute('href') || ''
-    const fileName = link.getAttribute('title') || link.getAttribute('data-file-name') || link.textContent || '文件'
-    if (!url) return
-    handleFileDownload(url, fileName)
+    await openExternalUrl(href)
 }
 </script>
 

@@ -15,6 +15,7 @@ import { defineContextMenu } from '~/composables/useContextMenu';
 import type { PrismaTypes } from '@junction/types';
 import * as MessageApi from '~/api/message';
 import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download';
+import { isExternalHttpUrl, openExternalUrl } from '~/utils/link';
 import { isTauri } from '~/utils/check';
 import RichTextRenderer from './RichTextRenderer.vue';
 
@@ -189,6 +190,20 @@ const markdown = new MarkdownIt({
 });
 const markdownHtml = computed(() => markdown.render(props.message.content || ''));
 const shouldRenderMarkdown = computed(() => isBotSender.value && renderMode.value === 'PLAIN_TEXT' && isMarkdownContent(props.message.content || ''));
+
+/**
+ * Markdown 链接点击统一外部打开
+ */
+const handleMessageLinkClick = async (event: MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    const link = target?.closest('a[href]') as HTMLAnchorElement | null;
+    if (!link) return;
+    const href = link.getAttribute('href') || '';
+    if (!isExternalHttpUrl(href)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    await openExternalUrl(href);
+};
 
 const rootAttrs = computed(() => {
     const { class: _class, ...rest } = attrs;
@@ -518,7 +533,7 @@ const handleDownload = async () => {
 
                 <!-- 场景 5: 普通文本渲染 -->
                 <div v-else class="whitespace-pre-wrap">
-                    <div v-if="shouldRenderMarkdown" class="markdown-content" v-html="markdownHtml"></div>
+                    <div v-if="shouldRenderMarkdown" class="markdown-content" v-html="markdownHtml" @click="handleMessageLinkClick"></div>
                     <template v-else>{{ message.content }}</template>
                 </div>
             </div>
