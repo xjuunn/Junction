@@ -60,6 +60,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: process.env.NUXT_PUBLIC_APP_NAME,
+      charset: 'utf-8',
     },
     layoutTransition: { name: "layout", mode: 'out-in' },
     pageTransition: { name: "page", mode: "out-in" },

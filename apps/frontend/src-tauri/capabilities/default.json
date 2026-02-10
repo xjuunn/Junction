@@ -26,6 +26,36 @@
     "fs:allow-download-write",
     "notification:default",
     {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "run-powershell",
+          "cmd": "powershell",
+          "args": true
+        },
+        {
+          "name": "run-sh",
+          "cmd": "sh",
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "run-powershell",
+          "cmd": "powershell",
+          "args": true
+        },
+        {
+          "name": "run-sh",
+          "cmd": "sh",
+          "args": true
+        }
+      ]
+    },
+    {
       "identifier": "fs:scope",
       "allow": [
         {

@@ -30,6 +30,7 @@ export interface AppSettings {
   aiApiKey: string
   aiBaseUrl: string
   aiDefaultModel: string
+  scrcpyPath: string
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -62,6 +63,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const aiApiKey = ref('')
   const aiBaseUrl = ref('')
   const aiDefaultModel = ref('')
+  const scrcpyPath = ref('')
 
   watch(downloadPath, (val) => {
     setSavedDownloadDir(val || '')
@@ -97,6 +99,7 @@ export const useSettingsStore = defineStore('settings', () => {
     aiApiKey: aiApiKey.value,
     aiBaseUrl: aiBaseUrl.value,
     aiDefaultModel: aiDefaultModel.value,
+    scrcpyPath: scrcpyPath.value,
   }))
 
   return {
@@ -129,6 +132,7 @@ export const useSettingsStore = defineStore('settings', () => {
     aiApiKey,
     aiBaseUrl,
     aiDefaultModel,
+    scrcpyPath,
     settings,
   }
 }, {

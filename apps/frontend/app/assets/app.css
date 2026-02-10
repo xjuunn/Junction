@@ -94,6 +94,15 @@
 body,
 html {
     overflow: hidden;
+    font-family: siyuan, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
+        "Source Han Sans SC", "Hiragino Sans GB", "Heiti SC",
+        "WenQuanYi Micro Hei", sans-serif;
+}
+
+.font-sans {
+    font-family: siyuan, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
+        "Source Han Sans SC", "Hiragino Sans GB", "Heiti SC",
+        "WenQuanYi Micro Hei", sans-serif;
 }
 
 .theme-transition {

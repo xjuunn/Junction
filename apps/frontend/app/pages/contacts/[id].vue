@@ -214,7 +214,7 @@ onMounted(() => {
 
                     <h2 class="mt-4 text-2xl font-black tracking-tight flex items-center gap-2">
                         <span>{{ userInfo.name }}</span>
-                        <span v-if="userInfo.accountType === 'BOT'" class="badge badge-outline badge-xs">???</span>
+                        <span v-if="userInfo.accountType === 'BOT'" class="badge badge-outline badge-xs">机器人</span>
                     </h2>
 
                     <div class="mt-2 flex items-center gap-2 text-sm opacity-50">
@@ -231,7 +231,7 @@ onMounted(() => {
                     <div class="flex items-center justify-between px-4 py-3 bg-base-200/50 rounded-xl">
                         <div class="flex items-center gap-3">
                             <Icon name="mingcute:ai-line" size="18" class="opacity-50" />
-                            <span class="text-sm font-medium">????</span>
+                            <span class="text-sm font-medium">备注</span>
                         </div>
                         <span class="badge badge-ghost badge-sm">{{ userInfo.accountType || 'USER' }}</span>
                     </div>

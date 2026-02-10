@@ -32,6 +32,7 @@ const timeFormatOptions = [
 const isSaving = ref(false)
 const isTauriEnv = isTauri()
 const isSelectingDir = ref(false)
+const isSelectingScrcpy = ref(false)
 
 const selectDownloadDir = async () => {
   if (!isTauriEnv || isSelectingDir.value) return
@@ -50,6 +51,29 @@ const selectDownloadDir = async () => {
     toast.error(err?.message || '选择目录失败')
   } finally {
     isSelectingDir.value = false
+  }
+}
+
+const selectScrcpyPath = async () => {
+  if (!isTauriEnv || isSelectingScrcpy.value) return
+  isSelectingScrcpy.value = true
+  try {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const { type } = await import('@tauri-apps/plugin-os')
+    const osType = await type()
+    const result = await open({
+      title: '选择 scrcpy 可执行文件',
+      multiple: false,
+      filters: osType === 'windows' ? [{ name: 'scrcpy', extensions: ['exe'] }] : undefined,
+    })
+    if (typeof result === 'string' && result.trim()) {
+      settings.scrcpyPath = result.trim()
+      toast.success('scrcpy 路径已更新')
+    }
+  } catch (err: any) {
+    toast.error(err?.message || '选择文件失败')
+  } finally {
+    isSelectingScrcpy.value = false
   }
 }
 
@@ -141,7 +165,24 @@ async function handleSave() {
               </button>
             </div>
           </div>
-        </div>
+        
+            <div class="flex flex-col sm:flex-row sm:items-start gap-4">
+              <div class="flex-1 space-y-2">
+                <div class="text-sm font-bold">Scrcpy 可执行路径</div>
+                <input v-model="settings.scrcpyPath" type="text" class="input input-bordered w-full bg-base-100"
+                  placeholder="例如：D:\Tools\scrcpy\scrcpy.exe" />
+                <div class="text-xs text-base-content/50">
+                  优先使用系统 PATH 中的 scrcpy。不在环境变量时，请在此指定 scrcpy 可执行路径。
+                </div>
+              </div>
+              <div class="flex gap-2 sm:flex-col self-center">
+                <button class="btn btn-ghost btn-sm" @click="selectScrcpyPath" :disabled="isSelectingScrcpy">
+                  <span v-if="isSelectingScrcpy" class="loading loading-spinner loading-xs"></span>
+                  选择文件
+                </button>
+              </div>
+            </div>
+</div>
 
         <div class="divider"></div>
 

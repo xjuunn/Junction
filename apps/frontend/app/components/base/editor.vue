@@ -440,7 +440,7 @@ defineExpose({
     clear,              // 清空
     focus,              // 聚焦
     processAndInsertImage, // 图片插入
-    processAndInsertFile,  // ????
+    processAndInsertFile,  // 处理并插入文件
     insertContent,      // 插入内容
     setContent          // 替换内容
 });
