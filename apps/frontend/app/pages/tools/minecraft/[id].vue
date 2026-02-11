@@ -2,6 +2,7 @@
 import type { McServerPublicConfig, McServerStatus } from '@junction/types'
 import { SocketClient } from '~/core/socket/socket.client'
 import * as mcApi from '~/api/mc-server'
+import { useDialog } from '~/composables/useDialog'
 
 definePageMeta({ layout: 'main' })
 
@@ -9,6 +10,7 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const settings = useSettingsStore()
+const dialog = useDialog()
 
 const serverId = computed(() => String(route.params.id || '').trim())
 
@@ -136,6 +138,13 @@ const handleSave = async () => {
 
 const handleStop = async () => {
   if (!serverId.value) return
+  const confirmed = await dialog.confirm({
+    title: '确定要关闭服务器？',
+    content: '关闭后会断开全部连接，确认继续？',
+    confirmText: '确认关闭',
+    cancelText: '取消'
+  })
+  if (!confirmed) return
   working.value = true
   try {
     await mcApi.stopMcServer(serverId.value)
@@ -445,4 +454,3 @@ watch(serverId, async () => {
     </BaseModal>
   </div>
 </template>
-
