@@ -32,8 +32,9 @@ export class McManagementAdapter implements McServerAdapter {
     // 这里吞掉连接层错误，业务错误由上层 service/controller 返回给前端。
     ;(connection as any).on?.('error', () => { })
     const server = new MinecraftServer(connection)
-
-    return this.buildHandle(connection as NodeWebSocketConnection, server)
+    const handle = this.buildHandle(connection as NodeWebSocketConnection, server)
+    ;(handle as any).__rawConnection = connection
+    return handle
   }
 
   private buildHandle(connection: NodeWebSocketConnection, server: MinecraftServer): McServerClientHandle {

@@ -90,10 +90,19 @@ export class McServerService implements OnModuleDestroy {
     if (!isAdmin) throw new ForbiddenException('仅管理员可访问 Minecraft 服务器管理')
   }
 
+  async assertAdminAccess(userId: string) {
+    await this.assertAdmin(userId)
+  }
+
   private getServerConfigOrThrow(serverId: string) {
     const config = this.serverConfigs.get(serverId)
     if (!config) throw new NotFoundException('服务器不存在')
     return config
+  }
+
+  getServerPublicConfig(serverId: string) {
+    const config = this.getServerConfigOrThrow(serverId)
+    return this.sanitizeConfig(config)
   }
 
   private async getConnection(serverId: string, forceReconnect = false): Promise<McServerRuntimeConnection> {
@@ -117,6 +126,16 @@ export class McServerService implements OnModuleDestroy {
     const connection = { handle, updatedAt: Date.now() }
     this.connectionPool.set(serverId, connection)
     return connection
+  }
+
+  async getStatusForRealtime(serverId: string) {
+    const connection = await this.getConnection(serverId)
+    return connection.handle.getStatus(false)
+  }
+
+  async getRawConnectionForRealtime(serverId: string) {
+    const connection = await this.getConnection(serverId)
+    return (connection.handle as any).__rawConnection as unknown
   }
 
   private formatConnectError(url: string, error: any) {

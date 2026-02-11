@@ -1,4 +1,18 @@
-import type { PrismaTypes, RtcCallCanceled, RtcCallEnded, RtcCallInvite, RtcCallJoined, RtcCallMode, RtcCallParticipantEvent, RtcCallParticipantLeft, RtcCallRejected, RtcCallSignal, RtcCallType } from '@junction/types';
+import type {
+    McServerPublicConfig,
+    McServerStatus,
+    PrismaTypes,
+    RtcCallCanceled,
+    RtcCallEnded,
+    RtcCallInvite,
+    RtcCallJoined,
+    RtcCallMode,
+    RtcCallParticipantEvent,
+    RtcCallParticipantLeft,
+    RtcCallRejected,
+    RtcCallSignal,
+    RtcCallType
+} from '@junction/types';
 
 /**
  * S = Send (发送给后端的数据), A = Ack (后端回调的数据), L = Listen (后端主动推送的数据)
@@ -32,6 +46,11 @@ export interface SocketNamespaces {
         "call-ended": SocketEvent<never, never, RtcCallEnded>;
         "call-rejected": SocketEvent<never, never, RtcCallRejected>;
         "call-canceled": SocketEvent<never, never, RtcCallCanceled>;
+
+        "mc-server:subscribe": SocketEvent<{ serverId: string }, { ok: boolean; serverId?: string; config?: McServerPublicConfig; status?: McServerStatus | null; error?: string; events?: Array<{ serverId: string; receivedAt: string; event: string; data: any }> }, never>;
+        "mc-server:unsubscribe": SocketEvent<{ serverId: string }, { ok: boolean; serverId?: string; error?: string }, never>;
+        "mc-server:status": SocketEvent<never, never, { serverId: string; fetchedAt: string; config: McServerPublicConfig; status: McServerStatus | null; error?: string }>;
+        "mc-server:notification": SocketEvent<never, never, { serverId: string; receivedAt: string; event: string; data: any }>;
     };
 }
 
