@@ -37,13 +37,13 @@ const featureGroups = [
     items: [
       {
         id: 'minecraft',
-        name: '我的世界',
-        desc: '高性能游戏服务端监控与管理看板',
+        name: 'Minecraft服务器管理',
+        desc: '统一管理 Minecraft 服务端状态、玩家与RPC操作',
         icon: 'heroicons:server-stack-20-solid',
-        path: '',
-        isReady: false,
+        path: '/tools/minecraft',
+        isReady: true,
         isDesktopOnly: false,
-        tag: '规划中',
+        tag: '核心',
       }
     ]
   }

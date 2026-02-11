@@ -45,6 +45,7 @@
     "image-size": "^1.2.1",
     "ioredis": "^5.8.2",
     "livekit-server-sdk": "^2.12.0",
+    "mc-server-management": "^3.2.1",
     "nodemailer": "^7.0.9",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

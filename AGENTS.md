@@ -240,3 +240,24 @@ for await (const chunk of stream.textStream) {
 - `7880`（HTTP/WebSocket）
 - `7881`（TCP）
 - `7882/udp`（UDP）
+
+## Minecraft 服务器管理（新增）
+
+### 模块位置
+- 后端模块：`apps/backend/src/resource/mc-server/`
+- 前端入口页面：`apps/frontend/app/pages/tools/minecraft/index.vue`
+- 前端 API 封装：`apps/frontend/app/api/mc-server.ts`
+
+### 默认连接与配置
+- 默认管理地址：`ws://localhost:25566`（可用 `MC_SERVER_DEFAULT_URL` 覆盖）
+- 默认令牌：`MC_SERVER_DEFAULT_TOKEN`（为空时默认服务器以禁用状态创建）
+- 允许的主机白名单：`MC_SERVER_ALLOWED_HOSTS`（默认 `localhost,127.0.0.1`）
+- 原生 RPC 透传：`MC_SERVER_RPC_ENABLED`（默认 `false`，生产环境建议保持关闭）
+
+### 安全约定（必须遵守）
+- **前端不得暴露服务器令牌**：令牌只允许在后端使用；前端仅通过后端 API 管理。
+- **玩家名禁止手动输入**：踢人/白名单/OP/封禁/定向广播必须通过“可选玩家列表”勾选；后端也会强制校验，防止绕过前端。
+- **RPC 透传默认禁用**：仅在受控环境下开启；开启后也应配合网络隔离与最小权限原则使用。
+
+### 可扩展性约定
+- 协议适配层必须收敛到后端 Service（便于未来引入 MCP、RCON、面板 API 等），前端不直接对接协议。

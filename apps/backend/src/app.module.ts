@@ -29,6 +29,7 @@ import { AdminModule } from './resource/admin/admin.module';
 import { AiModule } from './resource/ai/ai.module';
 import { EmojiModule } from './resource/emoji/emoji.module';
 import { CallModule } from './resource/call/call.module';
+import { McServerModule } from './resource/mc-server/mc-server.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { CallModule } from './resource/call/call.module';
     AdminModule,
     AiModule,
     CallModule,
+    McServerModule,
   ],
   controllers: [AppController],
   providers: [
