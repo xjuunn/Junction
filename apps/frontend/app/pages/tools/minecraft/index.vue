@@ -232,8 +232,8 @@ onMounted(async () => {
               <div class="flex items-center gap-2 min-w-0">
                 <div class="font-bold truncate">{{ s.name }}</div>
                 <span class="badge badge-sm badge-ghost">{{ s.protocol }}</span>
-                <span v-if="statusCache[s.id]" class="badge badge-sm" :class="statusCache[s.id].cls">
-                  {{ statusCache[s.id].text }}
+                <span v-if="statusCache[s.id]" class="badge badge-sm" :class="statusCache[s.id]?.cls">
+                  {{ statusCache[s.id]?.text }}
                 </span>
                 <span v-else class="badge badge-sm badge-ghost">未知</span>
               </div>
