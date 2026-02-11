@@ -23,16 +23,6 @@ interface McServerRuntimeConnection {
 
 @Injectable()
 export class McServerService implements OnModuleDestroy {
-  private readonly defaultServerUrl = process.env.MC_SERVER_DEFAULT_URL?.trim() || 'ws://localhost:25566'
-  private readonly defaultServerToken = process.env.MC_SERVER_DEFAULT_TOKEN?.trim() || ''
-  private readonly rpcEnabled = process.env.MC_SERVER_RPC_ENABLED === 'true'
-  private readonly allowedHosts = new Set(
-    (process.env.MC_SERVER_ALLOWED_HOSTS || 'localhost,127.0.0.1')
-      .split(',')
-      .map(item => item.trim().toLowerCase())
-      .filter(Boolean)
-  )
-
   private readonly serverConfigs = new Map<string, McServerConfig>()
   private readonly connectionPool = new Map<string, McServerRuntimeConnection>()
   private readonly audits: McServerAuditRecord[] = []
@@ -42,7 +32,6 @@ export class McServerService implements OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly mcManagementAdapter: McManagementAdapter
   ) {
-    this.bootstrapFromEnv()
   }
 
   async onModuleDestroy() {
@@ -53,45 +42,6 @@ export class McServerService implements OnModuleDestroy {
   private getAdapter(protocol: McServerConfig['protocol']) {
     if (protocol === 'mc-management') return this.mcManagementAdapter
     throw new BadRequestException(`不支持的协议: ${protocol}`)
-  }
-
-  private bootstrapFromEnv() {
-    const raw = process.env.MC_SERVER_ENDPOINTS_JSON?.trim()
-    if (!raw) {
-      this.serverConfigs.set('local-default', {
-        id: 'local-default',
-        name: '本地默认服务器',
-        protocol: 'mc-management',
-        url: this.defaultServerUrl,
-        token: this.defaultServerToken,
-        enabled: !!this.defaultServerToken,
-        tags: ['default', 'local']
-      })
-      return
-    }
-
-    try {
-      const list = JSON.parse(raw)
-      if (!Array.isArray(list)) return
-      list.forEach((item: any, index: number) => {
-        const id = String(item?.id || `env-${index + 1}`).trim()
-        const config: McServerConfig = {
-          id,
-          name: String(item?.name || id).trim(),
-          protocol: item?.protocol === 'mc-management' ? 'mc-management' : 'mc-management',
-          url: String(item?.url || '').trim(),
-          token: String(item?.token || '').trim(),
-          enabled: item?.enabled !== false,
-          tags: Array.isArray(item?.tags) ? item.tags.map((tag: any) => String(tag).trim()).filter(Boolean) : []
-        }
-        if (!config.url) return
-        this.assertValidServerUrl(config.url)
-        if (config.enabled && !config.token) return
-        this.serverConfigs.set(config.id, config)
-      })
-    } catch {
-      // 忽略格式错误，避免启动失败。
-    }
   }
 
   private sanitizeConfig(config: McServerConfig): McServerPublicConfig {
@@ -114,9 +64,6 @@ export class McServerService implements OnModuleDestroy {
     }
     if (!['ws:', 'wss:'].includes(url.protocol)) {
       throw new BadRequestException('服务器地址必须使用 ws:// 或 wss://')
-    }
-    if (this.allowedHosts.size && !this.allowedHosts.has(url.hostname.toLowerCase())) {
-      throw new BadRequestException(`服务器主机不在允许列表中: ${url.hostname}`)
     }
   }
 
@@ -161,10 +108,48 @@ export class McServerService implements OnModuleDestroy {
     }
     this.connectionPool.get(serverId)?.handle.close()
     const adapter = this.getAdapter(config.protocol)
-    const handle = await adapter.connect(config)
+    let handle: McServerClientHandle
+    try {
+      handle = await adapter.connect(config)
+    } catch (error: any) {
+      throw new BadRequestException(this.formatConnectError(config.url, error))
+    }
     const connection = { handle, updatedAt: Date.now() }
     this.connectionPool.set(serverId, connection)
     return connection
+  }
+
+  private formatConnectError(url: string, error: any) {
+    const message = error?.message ? String(error.message) : '未知错误'
+    const code = error?.code ? String(error.code) : ''
+
+    let protocol = ''
+    try {
+      protocol = new URL(url).protocol
+    } catch {
+      protocol = ''
+    }
+
+    const hints: string[] = []
+    if (code === 'ECONNREFUSED') {
+      hints.push('端口未监听或被防火墙拦截')
+    }
+    if (code === 'ECONNRESET' || /socket hang up/i.test(message)) {
+      hints.push('连接被对端断开，常见原因是 ws/wss 协议不匹配或令牌错误')
+    }
+    if (protocol === 'ws:') {
+      hints.push('如果 Minecraft 管理端启用了 TLS，请改用 wss://')
+    }
+    if (
+      protocol === 'wss:' &&
+      /(self signed|unable to verify|certificate|CERT_|tls)/i.test(message) &&
+      !hints.includes('TLS 证书可能未被信任')
+    ) {
+      hints.push('TLS 证书可能未被信任（本地 localhost 已自动跳过校验）')
+    }
+
+    const hintText = hints.length ? `。建议：${hints.join('；')}` : ''
+    return `连接管理服务器失败：${message}${code ? ` (code: ${code})` : ''}${hintText}`
   }
 
   private appendAudit(record: McServerAuditRecord) {
@@ -262,7 +247,7 @@ export class McServerService implements OnModuleDestroy {
     const id = String(payload.id || randomUUID()).trim()
     if (this.serverConfigs.has(id)) throw new BadRequestException('服务器 ID 已存在')
 
-    const url = String(payload.url || this.defaultServerUrl).trim()
+    const url = String(payload.url || 'wss://localhost:25566').trim()
     const token = String(payload.token || '').trim()
     const enabled = payload.enabled !== false
     this.assertValidServerUrl(url)
@@ -519,9 +504,6 @@ export class McServerService implements OnModuleDestroy {
 
   async rpc(userId: string, serverId: string, payload: { method: string; params?: Record<string, any> | any[] }) {
     await this.assertAdmin(userId)
-    if (!this.rpcEnabled) {
-      throw new ForbiddenException('出于安全策略，RPC透传默认关闭。请设置 MC_SERVER_RPC_ENABLED=true 后重试。')
-    }
     if (!payload.method?.trim()) throw new BadRequestException('RPC 方法名不能为空')
     return this.runWithAudit(userId, serverId, 'rpc.call', { method: payload.method, params: payload.params }, async () => {
       const connection = await this.getConnection(serverId)
@@ -544,4 +526,3 @@ export class McServerService implements OnModuleDestroy {
     return { players }
   }
 }
-

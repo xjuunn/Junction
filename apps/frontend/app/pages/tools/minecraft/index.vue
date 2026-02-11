@@ -5,6 +5,17 @@ definePageMeta({ layout: 'main' })
 useHead({ title: 'Minecraft服务器管理' })
 
 const toast = useToast()
+const settings = useSettingsStore()
+
+const MC_DEFAULT_URL = 'wss://localhost:25566'
+const PRESET_SERVERS = [
+  {
+    id: 'local-default',
+    name: '本地默认服务器',
+    url: MC_DEFAULT_URL,
+    tags: ['default', 'local'],
+  },
+] as const
 
 const loading = ref(false)
 const working = ref(false)
@@ -19,7 +30,7 @@ const audits = ref<Awaited<ReturnType<typeof mcApi.listMcAudits>>['data']>([])
 const createForm = reactive({
   id: '',
   name: '',
-  url: 'ws://localhost:25566',
+  url: MC_DEFAULT_URL,
   token: '',
   tags: '',
   enabled: false
@@ -45,6 +56,7 @@ const rpcForm = reactive({
 const rpcResult = ref('')
 
 const selectedServer = computed(() => servers.value?.find(item => item.id === selectedServerId.value) || null)
+const isSelectedServerEnabled = computed(() => !!selectedServer.value?.enabled)
 
 const parseNameList = (value: string) => {
   return value
@@ -87,18 +99,21 @@ const loadServers = async () => {
 
 const loadStatus = async (force = false) => {
   if (!selectedServerId.value) return
+  if (!isSelectedServerEnabled.value) return
   const res = await mcApi.getMcServerStatus(selectedServerId.value, { force })
   selectedServerStatus.value = res.data || null
 }
 
 const loadAllowList = async () => {
   if (!selectedServerId.value) return
+  if (!isSelectedServerEnabled.value) return
   const res = await mcApi.getMcAllowList(selectedServerId.value)
   allowList.value = res.data || null
 }
 
 const loadSelectablePlayers = async () => {
   if (!selectedServerId.value) return
+  if (!isSelectedServerEnabled.value) return
   const res = await mcApi.listMcSelectablePlayers(selectedServerId.value)
   selectablePlayers.value = res.data?.players || []
 }
@@ -123,14 +138,25 @@ watch(selectedServerId, async () => {
   selectedBroadcastPlayers.value = []
   selectedKickPlayers.value = []
   selectedAllowListPlayers.value = []
-  await refreshAll(true)
+  await loadAudits()
+  if (isSelectedServerEnabled.value) {
+    await Promise.all([loadStatus(true), loadAllowList(), loadSelectablePlayers()])
+  }
 })
+
+const assertEnabled = () => {
+  if (!selectedServerId.value) return false
+  if (isSelectedServerEnabled.value) return true
+  toast.warning('该服务器已禁用，请先配置令牌并启用')
+  return false
+}
 
 const withAction = async (action: () => Promise<any>, successText: string) => {
   if (!selectedServerId.value) {
     toast.warning('请先选择服务器')
     return
   }
+  if (!assertEnabled()) return
   working.value = true
   try {
     await action()
@@ -150,7 +176,8 @@ const handleCreateServer = async () => {
     toast.warning('请填写服务器地址')
     return
   }
-  if (createForm.enabled && !createForm.token.trim()) {
+  const token = createForm.token.trim() || settings.mcDefaultToken.trim()
+  if (createForm.enabled && !token) {
     toast.warning('启用服务器前必须配置令牌')
     return
   }
@@ -161,7 +188,7 @@ const handleCreateServer = async () => {
       id: createForm.id.trim() || undefined,
       name: createForm.name.trim(),
       url: createForm.url.trim() || undefined,
-      token: createForm.token.trim() || undefined,
+      token: token || undefined,
       protocol: 'mc-management',
       enabled: createForm.enabled,
       tags: parseNameList(createForm.tags)
@@ -171,7 +198,7 @@ const handleCreateServer = async () => {
     selectedServerId.value = res.data?.id || selectedServerId.value
     createForm.id = ''
     createForm.name = ''
-    createForm.url = 'ws://localhost:25566'
+    createForm.url = MC_DEFAULT_URL
     createForm.token = ''
     createForm.tags = ''
     createForm.enabled = false
@@ -183,10 +210,15 @@ const handleCreateServer = async () => {
 
 const handleRemoveServer = async () => {
   if (!selectedServerId.value) return
-  await withAction(async () => {
+  working.value = true
+  try {
     await mcApi.removeMcServer(selectedServerId.value)
     await loadServers()
-  }, '服务器已删除')
+    toast.success('服务器已删除')
+    if (selectedServerId.value) await refreshAll(true)
+  } finally {
+    working.value = false
+  }
 }
 
 const handleReconnect = async () => {
@@ -263,6 +295,7 @@ const handleRpc = async () => {
     toast.warning('请输入 RPC 方法名')
     return
   }
+  if (!assertEnabled()) return
   working.value = true
   try {
     const params = parseJsonSafe(rpcForm.params)
@@ -279,8 +312,66 @@ const handleRpc = async () => {
 }
 
 onMounted(async () => {
+  const syncPresetServers = async () => {
+    if (!PRESET_SERVERS.length) return
+    try {
+      const existing = new Map((servers.value || []).map(item => [item.id, item]))
+      for (const preset of PRESET_SERVERS) {
+        const token = settings.mcDefaultToken.trim()
+        const enabled = !!token
+        const found = existing.get(preset.id)
+        if (!found) {
+          await mcApi.createMcServer({
+            id: preset.id,
+            name: preset.name,
+            url: preset.url,
+            token: token || undefined,
+            protocol: 'mc-management',
+            enabled,
+            tags: [...preset.tags],
+          })
+          continue
+        }
+        await mcApi.updateMcServer(preset.id, {
+          name: preset.name,
+          url: preset.url,
+          enabled,
+          ...(token ? { token } : {}),
+          tags: [...preset.tags],
+        })
+      }
+    } catch {
+      // 预置同步失败时不阻塞页面加载
+    }
+  }
+
+  // 预置服务器列表与默认令牌由前端页面定义与持久化。
+  // 后端不再从环境变量读取任何 mc-server 配置。
   await loadServers()
-  if (selectedServerId.value) await refreshAll(true)
+  await syncPresetServers()
+  await loadServers()
+
+  const firstEnabled = (servers.value || []).find(item => item.enabled)
+  if (firstEnabled) selectedServerId.value = firstEnabled.id
+
+  if (selectedServerId.value) {
+    await loadAudits()
+    if (isSelectedServerEnabled.value) {
+      await Promise.all([loadStatus(true), loadAllowList(), loadSelectablePlayers()])
+    }
+  }
+
+  watch(() => settings.mcDefaultToken, async () => {
+    await loadServers()
+    await syncPresetServers()
+    await loadServers()
+    if (selectedServerId.value) {
+      await loadAudits()
+      if (isSelectedServerEnabled.value) {
+        await Promise.all([loadStatus(true), loadAllowList(), loadSelectablePlayers()])
+      }
+    }
+  })
 })
 </script>
 
@@ -291,7 +382,7 @@ onMounted(async () => {
         <div>
           <h1 class="text-3xl font-black tracking-tight">Minecraft服务器管理</h1>
           <p class="text-sm text-base-content/60 mt-1">
-            支持多服务器管理。默认地址为 <code>ws://localhost:25566</code>，玩家操作仅允许从服务器返回的可选列表中勾选。
+            支持多服务器管理。默认地址为 <code>{{ MC_DEFAULT_URL }}</code>，管理令牌在本地持久化；玩家操作仅允许从服务器返回的可选列表中勾选。
           </p>
         </div>
         <button class="btn btn-ghost btn-sm" :disabled="loading || working" @click="loadServers">
@@ -302,6 +393,14 @@ onMounted(async () => {
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
         <aside class="lg:col-span-4 space-y-4">
+          <div class="rounded-2xl border border-base-content/5 bg-base-200/40 p-4 space-y-3">
+            <div class="text-xs uppercase tracking-widest text-base-content/40">默认管理令牌（本地持久化）</div>
+            <input v-model="settings.mcDefaultToken" class="input input-sm input-bordered w-full bg-base-100" placeholder="管理令牌（会持久化在本地）">
+            <div class="text-xs text-base-content/50">
+              注意：该令牌会保存在本地设置中，并在创建/同步预置服务器时发送到后端。
+            </div>
+          </div>
+
           <div class="rounded-2xl border border-base-content/5 bg-base-200/40 p-4">
             <div class="text-xs uppercase tracking-widest text-base-content/40 mb-3">服务器列表</div>
             <div class="space-y-2 max-h-80 overflow-y-auto">
@@ -330,8 +429,8 @@ onMounted(async () => {
             <div class="text-xs uppercase tracking-widest text-base-content/40">新增服务器</div>
             <input v-model="createForm.id" class="input input-sm input-bordered w-full bg-base-100" placeholder="ID（可选）">
             <input v-model="createForm.name" class="input input-sm input-bordered w-full bg-base-100" placeholder="名称">
-            <input v-model="createForm.url" class="input input-sm input-bordered w-full bg-base-100" placeholder="ws://localhost:25566">
-            <input v-model="createForm.token" class="input input-sm input-bordered w-full bg-base-100" placeholder="管理令牌（启用时必填）">
+            <input v-model="createForm.url" class="input input-sm input-bordered w-full bg-base-100" placeholder="wss://localhost:25566">
+            <input v-model="createForm.token" class="input input-sm input-bordered w-full bg-base-100" placeholder="管理令牌（可选，默认使用上方令牌）">
             <input v-model="createForm.tags" class="input input-sm input-bordered w-full bg-base-100" placeholder="标签，逗号分隔">
             <label class="label cursor-pointer justify-start gap-2">
               <input v-model="createForm.enabled" type="checkbox" class="checkbox checkbox-sm">
@@ -356,6 +455,10 @@ onMounted(async () => {
                 <button class="btn btn-error btn-soft btn-sm" :disabled="working || !selectedServerId" @click="handleStop">停止</button>
                 <button class="btn btn-error btn-ghost btn-sm" :disabled="working || !selectedServerId" @click="handleRemoveServer">删除</button>
               </div>
+            </div>
+            <div v-if="selectedServer && !selectedServer.enabled" class="mt-3 rounded-xl border border-warning/20 bg-warning/10 p-3 text-sm">
+              <div class="font-semibold">该服务器已禁用</div>
+              <div class="text-xs text-base-content/60 mt-1">请先在左侧配置“默认管理令牌”，再启用服务器（预置服务器会自动同步启用）。</div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
               <div class="rounded-xl bg-base-100 border border-base-content/5 p-3">
@@ -463,7 +566,7 @@ onMounted(async () => {
           </div>
 
           <div class="rounded-2xl border border-base-content/5 bg-base-200/40 p-4 space-y-3">
-            <div class="text-sm font-semibold">原生 RPC 透传（默认关闭，需后端开启）</div>
+            <div class="text-sm font-semibold">原生 RPC 透传</div>
             <input v-model="rpcForm.method" class="input input-sm input-bordered w-full bg-base-100" placeholder="minecraft:server/status">
             <textarea v-model="rpcForm.params" class="textarea textarea-bordered w-full h-24 bg-base-100 font-mono text-xs" />
             <button class="btn btn-sm btn-ghost" :disabled="working || !selectedServerId" @click="handleRpc">执行 RPC</button>
@@ -497,4 +600,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-

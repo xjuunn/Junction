@@ -13,7 +13,24 @@ export class McManagementAdapter implements McServerAdapter {
   readonly protocol = 'mc-management' as const
 
   async connect(config: McServerConfig): Promise<McServerClientHandle> {
-    const connection = await WebSocketConnection.connect(config.url, config.token)
+    const url = new URL(config.url)
+
+    // Minecraft 管理端常见为本地自签证书；仅对 localhost 放行证书校验，避免误伤远端安全性。
+    const wsOptions =
+      url.protocol === 'wss:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+        ? { rejectUnauthorized: false }
+        : undefined
+
+    const connection = await WebSocketConnection.connect(config.url, config.token, {
+      // 后端接口是“按需连接”，默认不做自动重连，避免后台无限重试刷屏。
+      reconnect: false,
+      max_reconnects: 0,
+      ...(wsOptions || {})
+    })
+
+    // mc-server-management 会在没有 error 监听器时打印 “Unhandled connection error”。
+    // 这里吞掉连接层错误，业务错误由上层 service/controller 返回给前端。
+    ;(connection as any).on?.('error', () => { })
     const server = new MinecraftServer(connection)
 
     return this.buildHandle(connection as NodeWebSocketConnection, server)

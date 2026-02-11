@@ -32,6 +32,7 @@ export interface AppSettings {
   aiDefaultModel: string
   scrcpyPath: string
   scrcpyConfig: ScrcpyConfig
+  mcDefaultToken: string
 }
 
 export interface ScrcpyConfig {
@@ -190,6 +191,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const aiBaseUrl = ref('')
   const aiDefaultModel = ref('')
   const scrcpyPath = ref('')
+  const mcDefaultToken = ref('')
   const scrcpyConfig = reactive<ScrcpyConfig>({
     connection: {
       serial: '',
@@ -351,6 +353,7 @@ export const useSettingsStore = defineStore('settings', () => {
     aiDefaultModel: aiDefaultModel.value,
     scrcpyPath: scrcpyPath.value,
     scrcpyConfig,
+    mcDefaultToken: mcDefaultToken.value,
   }))
 
   return {
@@ -385,6 +388,7 @@ export const useSettingsStore = defineStore('settings', () => {
     aiDefaultModel,
     scrcpyPath,
     scrcpyConfig,
+    mcDefaultToken,
     settings,
   }
 }, {
