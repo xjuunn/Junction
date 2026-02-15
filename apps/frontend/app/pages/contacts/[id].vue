@@ -199,87 +199,162 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-base-100">
-        <div class="flex-1 overflow-y-auto">
-            <div v-if="loading" class="flex flex-col items-center justify-center h-[60vh] space-y-6">
-                <div class="w-24 h-24 rounded-full bg-base-200 animate-pulse"></div>
-                <div class="h-6 w-32 bg-base-200 rounded animate-pulse"></div>
-                <div class="h-4 w-48 bg-base-200 rounded animate-pulse"></div>
+    <div class="h-full w-full overflow-y-auto custom-scrollbar">
+        <!-- Loading State -->
+        <div v-if="loading" class="flex flex-col items-center justify-center h-full min-h-[400px] space-y-8 animate-pulse">
+            <div class="w-32 h-32 rounded-full bg-base-content/10"></div>
+            <div class="flex flex-col items-center gap-3 w-full max-w-xs">
+                <div class="h-8 w-3/4 bg-base-content/10 rounded-lg"></div>
+                <div class="h-4 w-1/2 bg-base-content/10 rounded-lg"></div>
+            </div>
+            <div class="w-full max-w-md px-8 space-y-4">
+                <div class="h-12 w-full bg-base-content/10 rounded-xl"></div>
+                <div class="h-12 w-full bg-base-content/10 rounded-xl"></div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="!userInfo" v-motion-fade class="flex flex-col items-center justify-center h-full min-h-[400px] text-base-content/50 gap-6">
+            <div class="p-6 bg-base-200/50 rounded-full">
+                <Icon name="mingcute:user-x-line" size="48" />
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg font-bold text-base-content">未找到用户</h3>
+                <p class="text-sm mt-1">该用户可能已被删除或不存在</p>
+            </div>
+            <button @click="router.back()" class="btn btn-ghost btn-sm">
+                返回上一页
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div v-else class="min-h-full w-full max-w-3xl mx-auto p-4 sm:p-6 lg:p-10 flex flex-col gap-6" v-motion-slide-bottom>
+            <!-- Header Card -->
+            <div class="relative overflow-hidden rounded-3xl bg-base-100 backdrop-blur-xl border border-base-content/5 shadow-sm">
+                <!-- Decorative Background -->
+                <div class="absolute top-0 left-0 w-full h-32"></div>
+                
+                <div class="relative px-6 pt-12 pb-8 flex flex-col items-center text-center">
+                    <!-- Avatar with Status Ring -->
+                    <div class="relative group">
+                        <BaseAvatar 
+                            :text="userInfo.name" 
+                            :src="userInfo.image || undefined"
+                            :alt="userInfo.name" 
+                            :width="120" 
+                            :height="120"
+                            :radius="40" 
+                            :placeholder-length="2" 
+                            class="shadow-xl ring-4 ring-base-100/50 backdrop-blur-sm transition-transform duration-300 group-hover:scale-105" 
+                        />
+                        <div v-if="userInfo.accountType === 'BOT'" 
+                            class="absolute -bottom-1 -right-1 bg-primary text-primary-content text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm border-2 border-base-100">
+                            BOT
+                        </div>
+                    </div>
+
+                    <!-- Name & Identity -->
+                    <div class="mt-5 space-y-1">
+                        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-base-content flex items-center justify-center gap-2">
+                            {{ userInfo.name }}
+                            <Icon v-if="userInfo.role === 'ADMIN'" name="mingcute:badge-fill" class="text-warning text-xl" title="管理员" />
+                        </h1>
+                        <div class="flex items-center justify-center gap-2 text-sm text-base-content/60">
+                            <span>ID: {{ userInfo.id.slice(0, 8) }}...</span>
+                            <button @click="useClipboard().copy(userInfo.id); toast.success('ID已复制')" class="hover:text-primary transition-colors">
+                                <Icon name="mingcute:copy-2-line" size="14" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tags/Badges -->
+                    <div class="mt-4 flex flex-wrap gap-2 justify-center">
+                        <div class="badge badge-lg badge-ghost gap-1.5 pl-1.5 pr-3 h-8">
+                            <div class="w-1.5 h-1.5 rounded-full bg-success"></div>
+                            {{ userInfo.accountType || '用户' }}
+                        </div>
+                        <div class="badge badge-lg badge-ghost gap-1.5 pl-1.5 pr-3 h-8">
+                            <Icon name="mingcute:user-3-line" size="14" />
+                            {{ userInfo.role }}
+                        </div>
+                    </div>
+
+                    <!-- Note Display -->
+                    <div v-if="friendshipInfo?.note" class="mt-6 max-w-sm w-full">
+                        <div class="bg-base-200/50 backdrop-blur-sm rounded-xl px-4 py-3 text-sm text-base-content/70 border border-base-content/5 flex items-start gap-3 text-left">
+                            <Icon name="mingcute:edit-2-line" class="shrink-0 mt-0.5 opacity-50" size="16" />
+                            <div class="flex-1 min-w-0 break-words">
+                                <span class="block text-xs font-bold text-base-content/40 mb-0.5">备注</span>
+                                {{ friendshipInfo.note }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div v-else-if="userInfo" class="flex flex-col">
-                <div class="p-8 pb-4 flex flex-col items-center">
-                    <BaseAvatar :text="userInfo.name" :height="100" :width="100" :radius="20" :src="userInfo.image || undefined"
-                        :alt="userInfo.name" :placeholder-length="2" class="ring-2 ring-base-200" />
-
-                    <h2 class="mt-4 text-2xl font-black tracking-tight flex items-center gap-2">
-                        <span>{{ userInfo.name }}</span>
-                        <span v-if="userInfo.accountType === 'BOT'" class="badge badge-outline badge-xs">机器人</span>
-                    </h2>
-
-                    <div class="mt-2 flex items-center gap-2 text-sm opacity-50">
-                        <Icon name="mingcute:mail-line" size="14" />
-                        <span>{{ userInfo.email }}</span>
-                    </div>
-
-                    <div v-if="friendshipInfo?.note" class="mt-4 px-4 py-2 bg-base-200 rounded-xl text-sm opacity-70">
-                        备注：{{ friendshipInfo.note }}
-                    </div>
-                </div>
-
-                <div class="px-6 py-4 space-y-2">
-                    <div class="flex items-center justify-between px-4 py-3 bg-base-200/50 rounded-xl">
-                        <div class="flex items-center gap-3">
-                            <Icon name="mingcute:ai-line" size="18" class="opacity-50" />
-                            <span class="text-sm font-medium">备注</span>
-                        </div>
-                        <span class="badge badge-ghost badge-sm">{{ userInfo.accountType || 'USER' }}</span>
-                    </div>
-
-
-                    <div class="flex items-center justify-between px-4 py-3 bg-base-200/50 rounded-xl">
-                        <div class="flex items-center gap-3">
-                            <Icon name="mingcute:calendar-line" size="18" class="opacity-50" />
-                            <span class="text-sm font-medium">添加时间</span>
-                        </div>
-                        <span class="text-sm opacity-50">{{ formatTimeAgo(userInfo.createdAt) }}</span>
-                    </div>
-
-                    <div class="flex items-center justify-between px-4 py-3 bg-base-200/50 rounded-xl">
-                        <div class="flex items-center gap-3">
-                            <Icon name="mingcute:star-line" size="18" class="opacity-50" />
-                            <span class="text-sm font-medium">用户角色</span>
-                        </div>
-                        <span class="badge badge-ghost badge-sm">{{ userInfo.role }}</span>
-                    </div>
-                </div>
-
-                <div class="px-6 py-4 space-y-3">
-                    <button @click="handleSendMessage" :disabled="isActionLoading"
-                        class="btn btn-primary w-full shadow-lg shadow-primary/20">
-                        <span v-if="isActionLoading" class="loading loading-spinner loading-sm"></span>
-                        <Icon v-else name="mingcute:chat-4-line" size="18" />
-                        发送消息
+            <!-- Main Actions -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button @click="handleSendMessage" :disabled="isActionLoading"
+                    class="btn btn-primary btn-lg w-full shadow-lg shadow-primary/10 border-none transform active:scale-[0.98] transition-all">
+                    <span v-if="isActionLoading" class="loading loading-spinner loading-md"></span>
+                    <template v-else>
+                        <Icon name="mingcute:chat-4-fill" size="22" />
+                        <span class="font-bold">发送消息</span>
+                    </template>
+                </button>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button @click="handleBlock" :disabled="isActionLoading"
+                        class="btn btn-lg w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-base-200 hover:border-base-content/20 transform active:scale-[0.98] transition-all">
+                        <Icon :name="isBlocked ? 'mingcute:eye-line' : 'mingcute:eye-close-line'" size="20" 
+                            :class="isBlocked ? 'text-base-content' : 'text-warning'" />
+                        <span class="text-sm font-medium">{{ isBlocked ? '取消拉黑' : '拉黑' }}</span>
                     </button>
+                    
+                    <button @click="handleDeleteFriend" :disabled="isActionLoading"
+                        class="btn btn-lg w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-error/10 hover:border-error/30 hover:text-error transform active:scale-[0.98] transition-all">
+                        <Icon name="mingcute:delete-2-line" size="20" />
+                        <span class="text-sm font-medium">删除</span>
+                    </button>
+                </div>
+            </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <button @click="handleBlock" :disabled="isActionLoading"
-                            class="btn btn-warning btn-outline">
-                            <Icon :name="isBlocked ? 'mingcute:eye-line' : 'mingcute:eye-close-line'" size="18" />
-                            {{ isBlocked ? '取消拉黑' : '拉黑' }}
-                        </button>
-                        <button @click="handleDeleteFriend" :disabled="isActionLoading"
-                            class="btn btn-error btn-outline">
-                            <Icon name="mingcute:close-circle-line" size="18" />
-                            删除
-                        </button>
+            <!-- Information Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Info Card: Contact -->
+                <div class="bg-base-100/60 backdrop-blur-md rounded-2xl p-5 border border-base-content/5 flex flex-col gap-4 hover:bg-base-100/80 transition-colors">
+                    <h3 class="text-sm font-bold text-base-content/40 uppercase tracking-wider">联系信息</h3>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Icon name="mingcute:mail-line" size="20" />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-base-content/50 mb-0.5">电子邮箱</div>
+                            <div class="text-sm font-medium truncate select-all">{{ userInfo.email }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Card: Meta -->
+                <div class="bg-base-100/60 backdrop-blur-md rounded-2xl p-5 border border-base-content/5 flex flex-col gap-4 hover:bg-base-100/80 transition-colors">
+                    <h3 class="text-sm font-bold text-base-content/40 uppercase tracking-wider">数据档案</h3>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+                            <Icon name="mingcute:time-line" size="20" />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-base-content/50 mb-0.5">注册时间</div>
+                            <div class="text-sm font-medium">{{ formatTimeAgo(userInfo.createdAt) }}</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div v-else class="flex flex-col items-center justify-center h-[60vh] text-base-content/30 gap-4">
-                <Icon name="mingcute:error-line" size="48" />
-                <p class="text-sm font-medium">用户信息加载失败</p>
+            <!-- Footer Info -->
+            <div class="text-center pb-8 opacity-30 text-xs">
+                Junction Contact Profile
             </div>
         </div>
     </div>

@@ -248,3 +248,193 @@ for await (const chunk of stream.textStream) {
 - 管理令牌在前端设置中持久化（`useSettingsStore()`）。
 - 后端不做 host 白名单限制；RPC 透传默认允许（但接口仍受管理员权限控制）。
 
+## 封装组件与能力总表（必须复用）
+
+本节用于避免 AI 在项目内重复造轮子。**已有封装优先级高于新实现**。
+
+### 全局挂载（禁止重复挂载）
+
+全局已在 `apps/frontend/app/app.vue` 挂载：
+- `<BaseToast />`
+- `<BaseDialog />`
+- `<BaseContextMenu />`
+
+主布局 `apps/frontend/app/layouts/main.vue` 已挂载：
+- `<AppCallOverlay />`
+
+规则：
+- 新页面/组件中**不要再次挂载**上述全局组件。
+
+### Base 组件用法（统一入口）
+
+#### `BaseToast` + `useToast`
+- 文件：`apps/frontend/app/components/base/toast.vue`、`apps/frontend/app/composables/useToast.ts`
+- 调用：
+  ```ts
+  const toast = useToast()
+  toast.success('操作成功')
+  toast.error('操作失败')
+  toast.info('提示信息')
+  toast.warning('警告信息')
+  ```
+
+#### `BaseDialog` + `useDialog`
+- 文件：`apps/frontend/app/components/base/dialog.vue`、`apps/frontend/app/composables/useDialog.ts`
+- 调用：
+  ```ts
+  const dialog = useDialog()
+  const ok = await dialog.confirm({ title: '确认', content: '是否继续？', type: 'warning' })
+  const text = await dialog.prompt({ title: '输入', content: '请输入名称', required: true })
+  await dialog.alert('保存完成')
+  ```
+- 说明：`BaseDialog` 由 `useDialogStore` 驱动，统一走 Promise 结果，不要手写重复确认框。
+
+#### `BaseModal`
+- 文件：`apps/frontend/app/components/base/modal.vue`
+- 关键 props：`modelValue`、`title`、`boxClass`、`persistent`、`hideCloseButton`
+- 事件：`update:modelValue`、`open`、`close`
+- 用法：
+  ```vue
+  <BaseModal v-model="show" title="标题" box-class="max-w-lg">
+    <template #default>内容</template>
+    <template #actions="{ close }">
+      <button class="btn" @click="close()">关闭</button>
+    </template>
+  </BaseModal>
+  ```
+
+#### `BaseContextMenu` + `v-context-menu` + `useContextMenu`
+- 文件：`apps/frontend/app/components/base/context-menu.vue`、`apps/frontend/app/plugins/context-menu.client.ts`、`apps/frontend/app/composables/useContextMenu.ts`
+- 定义菜单：
+  ```ts
+  const menu = defineContextMenu([{ id: 'copy', label: '复制', handler: () => {} }])
+  ```
+- 绑定：
+  ```vue
+  <div v-context-menu="{ items: menu, context: row }" />
+  ```
+- 规则：右键菜单统一使用该封装；不要自建分散式右键层。
+
+#### `BaseEditor`
+- 文件：`apps/frontend/app/components/base/editor.vue`
+- 关键能力：
+  - 富文本（Tiptap）输入
+  - 图片/文件粘贴与拖拽上传（内部走 `uploadFiles`）
+  - `@mention` 支持（`enableMention` + `mentionItems`）
+  - 文件下载链路（内部走 `downloadFile` / `openLocalPath`）
+- 事件：`update:modelValue`、`send`、`textChange`
+- 暴露方法：`clear`、`focus`、`insertContent`、`setContent`、`editor`
+
+#### `BaseAvatar`
+- 文件：`apps/frontend/app/components/base/avatar.vue`
+- 支持：`src`、`text`、`size`、`width`、`height`、`radius`、`placeholderLength`
+- 规则：头像展示统一使用该组件，不要重复写占位逻辑。
+
+#### `ListDetail`（列表-详情双栏容器）
+- 文件：`apps/frontend/app/components/layout/ListDetail.vue`
+- props：`showDetail`、`listWidth`、`breakpoint`
+- 事件：`back`
+- 用于移动端/桌面端一体化列表详情布局。
+
+### 业务封装组件（优先复用）
+
+#### 聊天域（`components/app/chat/**`）
+- `AppChatList`：会话列表、搜索、分组、会话流式预览更新
+- `AppChatItem`：单个会话项（含右键菜单）
+- `AppChatContent`：完整会话页（消息流、上传、引用、表情、通话入口）
+- `AppChatDialogChatSettings`：聊天设置总入口（内部切换私聊/群聊）
+- `AppChatDialogPrivateSettings`：私聊设置
+- `AppChatDialogGroupSettings`：群聊设置
+
+#### 消息域（`components/app/message/**`）
+- `AppMessageList`：消息滚动容器 + 顶部加载更多
+- `AppMessageItem`：消息单元（文本/富文本/图片/文件/表情/撤回）
+- `RichTextRenderer`：富文本只读渲染，含外链/文件点击处理
+
+#### 群聊对话框（`components/app/dialog/**`）
+- `AppDialogCreateGroup`：创建群聊（两步流程）
+- `AppDialogGroupInfo`：群信息管理（名称/头像/成员）
+- `AppDialogInviteMembers`：邀请成员
+
+#### 音视频域（`components/app/call/**`）
+- `AppCallOverlay`：通话总浮层（已在 `main` 布局挂载）
+- `AppCallVideoTile`：单个参与者音视频瓦片
+
+#### 其他
+- `AppSidebar` / `AppBottomNav`：统一菜单入口（基于 `menuService`）
+- `AppWindowController`：Tauri 窗口控制按钮
+- `DebugLogger`：调试日志浮层（默认未挂载，仅调试时启用）
+
+### API 封装（前端唯一 HTTP 入口）
+
+总规则：
+- 页面与组件只能调用 `apps/frontend/app/api/*`。
+- 不允许在业务层直接写 `fetch`/`axios`（AI 流式场景除现有封装 `streamAiText` 之外，新增同类能力也应在 `api` 层统一封装）。
+- 基础请求实例：`apps/frontend/app/utils/api.ts`（自动注入 `Authorization`、统一错误 toast、401 自动跳转）。
+
+已存在 API 模块：
+- `~/api/app`：`getHello`
+- `~/api/user`：`me`、`isAuthenticated`、`search`、`findOne`
+- `~/api/upload`：`uploadFiles`
+- `~/api/friendship`：好友申请/通过/拒绝/拉黑/备注/删除等
+- `~/api/conversation`：会话创建、成员管理、设置、群信息、转让群主
+- `~/api/message`：发送、分页、编辑、撤回、已读、搜索、上下文
+- `~/api/notification`：通知列表、已读、删除
+- `~/api/emoji`：分类/表情 CRUD、置顶、排序
+- `~/api/ai`：`generateAiText`、`streamAiText`
+- `~/api/ai-bot`：机器人 CRUD
+- `~/api/call`：`getLiveKitToken`
+- `~/api/admin`：管理后台与数据库治理接口
+- `~/api/mc-server`：Minecraft 管理全套接口
+
+### composables 封装（统一调用）
+
+- `useToast`：全局消息提示
+- `useDialog`：确认/提示/输入对话框
+- `useContextMenu` + `defineContextMenu`：右键菜单定义与状态管理
+- `useCall`：通话统一控制（底层 `CallManager`）
+- `useAdminAccess`：管理员判定
+- `useEmitt`：全局事件总线
+- `useTailwindBreakpoints`：Tailwind 断点工具
+
+### stores 封装（禁止重复本地状态）
+
+- `useSettingsStore`：全局设置（含 AI、下载目录、通知、scrcpy、Minecraft token）
+- `useUserStore`：用户与 token
+- `useCallStore`：通话状态
+- `useDialogStore`：全局 Dialog 状态
+- `useLoggerStore`：调试日志状态
+
+规则：
+- 读取全局偏好统一从 store 获取，不要在页面中重复维护同构配置对象。
+
+### core 能力（禁止重复实现）
+
+- `~/core/socket/socket.client`：Socket.io 封装，统一 `useSocket(namespace)`。
+- `~/core/rtc/call-manager`：LiveKit 通话核心状态机，禁止新建并行 RTC 管理器。
+- `~/core/menu`：侧边栏/底部导航菜单注册中心，新增菜单走 `menuService.add`。
+- `~/core/theme`：主题与云母控制（`AppTheme`）。
+- `~/core/auth`：`useAuthClient()`（better-auth 客户端）。
+- `~/core/editor`：Tiptap 统一扩展、上传插件、组合式封装。
+
+### 工具函数封装（常用）
+
+- 下载：`~/utils/download`（`downloadFile`、`findExistingDownloadPath`、`openLocalPath`）
+- 外链：`~/utils/link`（`openExternalUrl`）
+- 通知：`~/utils/notification`（`notify`、`createNotifier`）
+- 消息 payload：`~/utils/message`（`normalizeMessageImagePayload`、`resolveMessageImagePayload`）
+- ADB/scrcpy：`~/utils/adb`（`createAdbClient`）
+- 时间与资源：`~/utils/format`
+- 运行环境：`~/utils/check`（`isTauri`）
+
+## AI 开发执行清单（新增）
+
+每次改动前先检查：
+1. 是否已有同类组件/封装（`components/base`、`composables`、`utils`、`api`、`core`）。
+2. 是否可以直接扩展既有封装，而不是创建新实现。
+3. 是否复用了 `@junction/types`，避免重复定义类型。
+4. 是否遵守全局 UI 约定（弹窗/提示/右键菜单/下载/通话/外链）。
+
+若必须新增封装：
+1. 先在对应领域目录扩展（例如 API 放 `app/api`，通用逻辑放 `utils`/`composables`）。
+2. 在本文件补充“位置 + 用法 + 注意事项”，确保后续 AI 可复用。
