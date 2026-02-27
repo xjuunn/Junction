@@ -472,7 +472,7 @@ const handleDownload = async () => {
             ]">
             <div class="break-words max-w-[70vw] sm:max-w-md">
                 <button v-if="quotedMessage" type="button"
-                    class="w-full mb-2 rounded-lg border border-base-content/10 bg-base-100/80 backdrop-blur-md px-3 py-2 text-left text-xs hover:bg-base-200/70 transition-colors"
+                    class="w-full mb-2 rounded-lg border border-base-content/10 bg-base-100/80 backdrop-blur-md px-3 py-2 text-left text-xs hover:bg-base-200/70 transition-colors text-base-content"
                     @click="handleQuoteJump">
                     <div class="font-bold opacity-70 truncate">{{ quotedMessage.senderName || '消息引用' }}</div>
                     <div class="opacity-60 truncate">{{ quotedMessage.content || '...' }}</div>
