@@ -118,18 +118,18 @@ onUnmounted(() => {
         <div class="relative mx-auto flex h-full w-full max-w-3xl flex-col">
           <header class="shrink-0 space-y-4">
             <div class="flex items-center justify-between">
-              <div class="inline-flex items-center gap-2 text-base-content/70">
-                <Icon name="mingcute:chat-1-line" size="16" class="text-primary/80" />
-                <span class="text-sm font-medium">Junction</span>
+              <div class="inline-flex items-center gap-2 text-base-content/20">
+                <Icon name="mingcute:asterisk-fill" size="2.5rem"/>
+                <span class="text-3xl font-custom">Junction</span>
               </div>
               <div class="inline-flex items-center gap-2 text-xs text-base-content/55">
                 <span class="h-2 w-2 rounded-full bg-success"></span>
-                <span>在线服务</span>
+                <span>在线</span>
               </div>
             </div>
 
             <div class="text-center">
-              <h2 class="text-3xl font-semibold tracking-tight text-base-content lg:text-4xl">企业协作平台</h2>
+              <h2 class="text-3xl font-semibold tracking-tight text-base-content lg:text-4xl">统一协作平台</h2>
               <p class="mt-2 text-sm text-base-content/60">通信、通话与治理一体化</p>
             </div>
 
@@ -368,5 +368,9 @@ onUnmounted(() => {
     transform: translate(-50%, 12px);
     opacity: 1;
   }
+}
+
+.font-custom {
+  font-family: 'Franklin Gothic Medium','Lucida Sans',Geneva,Verdana, sans-serif;
 }
 </style>
