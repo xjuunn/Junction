@@ -1,90 +1,124 @@
 <script setup lang="ts">
-const authClient = useAuthClient();
-const userStore = useUserStore();
-const toast = useToast();
-const isLoading = ref(false);
+const authClient = useAuthClient()
+const userStore = useUserStore()
+const toast = useToast()
+const isSubmitting = ref(false)
 
 const formData = reactive({
-    name: '',
-    email: ''
-});
+  name: '',
+  email: '',
+})
 
 watchEffect(() => {
-    if (userStore.user.value) {
-        formData.name = userStore.user.value.name || '';
-        formData.email = userStore.user.value.email || '';
-    }
-});
+  const user = userStore.user.value
+  if (!user) return
+  formData.name = user.name || ''
+  formData.email = user.email || ''
+})
 
-async function handleUpdateProfile() {
-    if (!userStore.user.value) return;
-    isLoading.value = true;
-    try {
-        if (formData.name !== userStore.user.value.name) {
-            await authClient.updateUser({ name: formData.name });
-        }
+const isChanged = computed(() => {
+  const user = userStore.user.value
+  if (!user) return false
+  return formData.name.trim() !== (user.name || '') || formData.email.trim() !== (user.email || '')
+})
 
-        if (formData.email !== userStore.user.value.email) {
-            await authClient.changeEmail({
-                newEmail: formData.email,
-                callbackURL: window.location.href
-            });
-            toast.success('验证邮件已发送，请查收');
-        } else {
-            toast.success('个人信息已保存');
-        }
-        await userStore.refresh();
-    } catch (error) {
-        toast.error('保存失败');
-    } finally {
-        isLoading.value = false;
+const resetForm = () => {
+  const user = userStore.user.value
+  if (!user) return
+  formData.name = user.name || ''
+  formData.email = user.email || ''
+  toast.info('已恢复为当前资料')
+}
+
+const handleUpdateProfile = async () => {
+  const user = userStore.user.value
+  if (!user) return
+
+  const nextName = formData.name.trim()
+  const nextEmail = formData.email.trim()
+  if (!nextName) {
+    toast.warning('显示名称不能为空')
+    return
+  }
+
+  isSubmitting.value = true
+  try {
+    if (nextName !== (user.name || '')) {
+      await authClient.updateUser({ name: nextName })
     }
+
+    if (nextEmail !== (user.email || '')) {
+      await authClient.changeEmail({
+        newEmail: nextEmail,
+        callbackURL: window.location.href,
+      })
+      toast.success('验证邮件已发送，请前往邮箱完成验证')
+    } else {
+      toast.success('个人信息已更新')
+    }
+
+    await userStore.refresh()
+  } catch {
+    toast.error('保存失败，请稍后重试')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
 <template>
-    <div
-        class="card bg-base-100 shadow-sm border border-base-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div class="card-body p-6 md:p-8">
-            <h2 class="card-title text-lg border-b border-base-200 pb-4 mb-6 flex items-center gap-2">
-                <Icon name="mingcute:user-edit-line" class="text-primary" />
-                基本信息
-            </h2>
+  <div class="card border border-base-content/10 bg-base-100/20 shadow-none backdrop-blur-xl">
+    <div class="card-body p-5 md:p-7">
+      <h2 class="card-title mb-4 flex items-center gap-2 border-b border-base-content/10 pb-4 text-lg">
+        <Icon name="mingcute:user-edit-line" class="text-primary" />
+        基本信息
+      </h2>
 
-            <div class="grid gap-8 max-w-2xl">
-                <div class="form-control w-full">
-                    <label class="label">
-                        <span class="label-text font-bold">显示名称</span>
-                    </label>
-                    <input v-model="formData.name" type="text"
-                        class="input input-bordered w-full focus:input-primary bg-base-100" placeholder="设置您的昵称" />
-                    <label class="label">
-                        <span class="label-text-alt text-base-content/50">这将是其他用户看到的名称</span>
-                    </label>
-                </div>
-
-                <div class="form-control w-full">
-                    <label class="label">
-                        <span class="label-text font-bold">电子邮箱</span>
-                    </label>
-                    <input v-model="formData.email" type="email"
-                        class="input input-bordered w-full focus:input-primary bg-base-100"
-                        placeholder="your@email.com" />
-                    <div v-if="formData.email !== userStore.user.value?.email"
-                        class="alert alert-warning mt-4 py-2 text-sm shadow-sm">
-                        <Icon name="mingcute:alert-line" />
-                        <span>修改邮箱需要重新验证，验证通过前将保留原邮箱。</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-actions justify-end mt-10 pt-6 border-t border-base-200">
-                <button class="btn btn-primary px-8 rounded-xl min-w-[120px]" @click="handleUpdateProfile"
-                    :disabled="isLoading">
-                    <span v-if="isLoading" class="loading loading-spinner loading-xs"></span>
-                    保存更改
-                </button>
-            </div>
+      <div class="grid gap-5 md:grid-cols-2">
+        <div class="form-control md:col-span-1">
+          <label class="label">
+            <span class="label-text font-medium">显示名称</span>
+            <span class="label-text-alt text-base-content/60">{{ formData.name.length }}/32</span>
+          </label>
+          <input
+            v-model="formData.name"
+            type="text"
+            maxlength="32"
+            class="input input-bordered w-full border-base-content/10 bg-base-100/25 backdrop-blur-xl focus:border-primary/40"
+            placeholder="请输入显示名称" />
+          <label class="label">
+            <span class="label-text-alt text-base-content/60">该名称会显示在会话、资料卡和搜索结果中</span>
+          </label>
         </div>
+
+        <div class="form-control md:col-span-1">
+          <label class="label">
+            <span class="label-text font-medium">电子邮箱</span>
+          </label>
+          <input
+            v-model="formData.email"
+            type="email"
+            class="input input-bordered w-full border-base-content/10 bg-base-100/25 backdrop-blur-xl focus:border-primary/40"
+            placeholder="name@example.com" />
+          <label class="label">
+            <span class="label-text-alt text-base-content/60">修改邮箱后需要重新验证</span>
+          </label>
+        </div>
+      </div>
+
+      <div v-if="formData.email.trim() !== (userStore.user.value?.email || '')"
+        class="alert alert-warning mt-4 border border-warning/20 bg-warning/10 text-warning-content/90">
+        <Icon name="mingcute:warning-line" />
+        <span>邮箱变更后，验证通过前将继续使用当前邮箱作为登录凭据。</span>
+      </div>
+
+      <div class="mt-6 flex flex-wrap justify-end gap-2 border-t border-base-content/10 pt-5">
+        <button class="btn btn-ghost" :disabled="isSubmitting || !isChanged" @click="resetForm">重置更改</button>
+        <button class="btn btn-soft" :disabled="isSubmitting || !isChanged" @click="handleUpdateProfile">
+          <span v-if="isSubmitting" class="loading loading-spinner loading-xs"></span>
+          保存更改
+        </button>
+      </div>
     </div>
+  </div>
 </template>
