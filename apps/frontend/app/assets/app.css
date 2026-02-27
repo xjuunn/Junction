@@ -191,3 +191,70 @@ html {
     border: 1px solid hsl(var(--bc) / 0.1);
     backdrop-filter: blur(12px);
 }
+
+/* 全局浮层磨砂兜底：不依赖 base-100，避免主题被透明化后下拉穿透 */
+:root {
+    --glass-surface: oklch(22% 0.02 260 / 0.88);
+    --glass-border: oklch(92% 0.01 260 / 0.14);
+}
+
+[data-theme="light"] {
+    --glass-surface: oklch(98% 0.005 260 / 0.82);
+    --glass-border: oklch(25% 0.02 260 / 0.1);
+}
+
+/* 下拉触发按钮：统一半透明 + 模糊 */
+.dropdown > .btn,
+.dropdown > .btn.btn-ghost,
+.dropdown > .btn.btn-soft,
+.dropdown > [role="button"].btn {
+    background-color: var(--glass-surface) !important;
+    border-color: var(--glass-border) !important;
+    backdrop-filter: blur(10px);
+}
+
+/* 下拉面板与菜单：统一半透明 + 模糊，防止与内容重叠 */
+.dropdown-content,
+.dropdown-content.menu,
+.menu.dropdown-content {
+    background-color: var(--glass-surface) !important;
+    border: 1px solid var(--glass-border) !important;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.14);
+}
+
+/* 统一 main/admin 的下拉样式（触发器 + 面板 + 选项） */
+.select,
+.select.select-bordered {
+    background-color: var(--glass-surface) !important;
+    border-color: var(--glass-border) !important;
+    backdrop-filter: blur(12px);
+}
+
+.select:focus,
+.select:focus-visible,
+.dropdown > .btn:focus,
+.dropdown > .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--p) / 0.2);
+}
+
+.dropdown-content.menu li > * {
+    border-radius: 0.65rem;
+    background-color: transparent;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dropdown-content.menu li > *:hover,
+.dropdown-content.menu li > *:focus-visible,
+.dropdown-content.menu li > *.active,
+.dropdown-content.menu li > *.router-link-active {
+    background-color: hsl(var(--bc) / 0.1) !important;
+}
+
+/* 原生 select 的 option 由系统控件绘制，无法做真正 blur；统一底色与文本确保一致性 */
+select option,
+select optgroup {
+    background-color: hsl(var(--b1)) !important;
+    color: hsl(var(--bc)) !important;
+}

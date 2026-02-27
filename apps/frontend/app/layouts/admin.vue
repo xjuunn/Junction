@@ -4,6 +4,7 @@ import * as adminApi from '~/api/admin'
 const route = useRoute()
 const appTheme = AppTheme.getInstance()
 const isMicaActive = computed(() => isTauri() && appTheme.getIsBgTransparent().value)
+const frontendPath = '/chat'
 
 const menuGroups = [
   {
@@ -71,6 +72,15 @@ onMounted(verifyAdmin)
             <span v-else class="badge badge-success badge-soft badge-sm">已认证</span>
             <span v-if="verifyError" class="badge badge-error badge-soft badge-sm">{{ verifyError }}</span>
           </div>
+        </div>
+        <div class="px-4 pt-4">
+          <NuxtLink
+            :to="frontendPath"
+            class="btn btn-soft btn-sm w-full justify-start gap-2 rounded-xl border border-base-content/10"
+          >
+            <Icon name="mingcute:left-line" size="16" />
+            <span>返回前台</span>
+          </NuxtLink>
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-5">
           <div v-for="group in menuGroups" :key="group.title">

@@ -20,6 +20,7 @@ const pagination = reactive({
   limit: 20,
   total: 0
 })
+const limitOptions = [10, 20, 50]
 const rows = ref<Array<Record<string, any>>>([])
 
 const drawerOpen = ref(false)
@@ -262,6 +263,11 @@ const handleSearch = () => {
   loadRows()
 }
 
+const setPaginationLimit = (limit: number) => {
+  pagination.limit = limit
+  handleSearch()
+}
+
 const goPage = (next: number) => {
   pagination.page = Math.min(Math.max(1, next), totalPages.value)
   loadRows()
@@ -305,11 +311,31 @@ onMounted(async () => {
           <label class="label">
             <span class="label-text">每页数量</span>
           </label>
-          <select v-model.number="pagination.limit" class="select select-bordered w-full" @change="handleSearch">
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-          </select>
+          <div class="dropdown w-full">
+            <div
+              tabindex="0"
+              role="button"
+              class="btn btn-soft w-full justify-between border border-base-content/10 bg-base-100/70 backdrop-blur-xl"
+            >
+              <span>{{ pagination.limit }}</span>
+              <Icon name="mingcute:down-line" size="16" class="text-base-content/60" />
+            </div>
+            <ul
+              tabindex="0"
+              class="dropdown-content menu z-[120] mt-2 w-full rounded-xl border border-base-content/10 bg-base-100/70 p-1 shadow-xl backdrop-blur-2xl"
+            >
+              <li v-for="item in limitOptions" :key="item">
+                <button
+                  class="justify-between rounded-lg"
+                  :class="pagination.limit === item ? 'bg-base-content/10 font-semibold' : ''"
+                  @click="setPaginationLimit(item)"
+                >
+                  <span>{{ item }}</span>
+                  <Icon v-if="pagination.limit === item" name="mingcute:check-line" size="14" />
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
         <div class="form-control">
           <label class="label">
