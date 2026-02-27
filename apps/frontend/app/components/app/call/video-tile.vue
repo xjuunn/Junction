@@ -72,7 +72,7 @@ watchEffect(() => {
 
 <template>
   <div class="relative w-full h-full rounded-2xl overflow-hidden bg-base-200/60 border border-base-content/5">
-    <audio ref="audioRef" autoplay playsinline muted class="hidden" />
+    <audio ref="audioRef" autoplay playsinline :muted="muted" class="hidden" />
     <video
       ref="videoRef"
       class="w-full h-full object-contain bg-black/90"

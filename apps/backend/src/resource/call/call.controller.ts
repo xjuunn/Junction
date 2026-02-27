@@ -1,8 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { CallService } from './call.service';
-import { authFactory } from '~/utils/auth';
 
 @ApiTags('通话')
 @Controller('call')
@@ -16,12 +15,15 @@ export class CallController {
   async getLiveKitToken(
     @Body() body: { callId: string; conversationId: string },
     @Session() session: UserSession,
+    @Headers('x-forwarded-host') forwardedHost?: string,
+    @Headers('host') host?: string,
   ) {
     return this.callService.createLiveKitToken({
       callId: body.callId,
       conversationId: body.conversationId,
       userId: session.user.id,
       name: session.user.name ?? undefined,
+      requestHost: forwardedHost || host,
     });
   }
 }

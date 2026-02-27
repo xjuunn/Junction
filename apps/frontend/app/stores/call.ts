@@ -145,5 +145,11 @@ export const useCallStore = defineStore('call', {
     setError(message: string | null) {
       this.error = message
     }
+  },
+  persist: false,
+  tauri: {
+    autoStart: false,
+    save: false,
+    sync: false
   }
 })

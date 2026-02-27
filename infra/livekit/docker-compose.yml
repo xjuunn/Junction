@@ -2,7 +2,7 @@ version: "3.9"
 services:
   livekit:
     image: livekit/livekit-server:latest
-    command: --config /etc/livekit.yaml
+    command: --config /etc/livekit.yaml --node-ip 10.26.250.133
     restart: unless-stopped
     ports:
       - "7880:7880"

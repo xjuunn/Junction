@@ -44,6 +44,8 @@ export class CallManager {
   private store = useCallStore()
   private userStore = useUserStore()
   private toast = useToast()
+  private dialog = useDialog()
+  private runtimeConfig = useRuntimeConfig()
   private initialized = false
 
   private localStream: Ref<MediaStream | null> = ref(null)
@@ -63,6 +65,7 @@ export class CallManager {
   private lastQuality: ConnectionQualityLevel = 'unknown'
   private lastQualityToastAt = 0
   private activeSpeakerIds = new Set<string>()
+  private permissionDialogOpening = false
 
   private disposers: Array<() => void> = []
 
@@ -76,6 +79,9 @@ export class CallManager {
   init() {
     if (this.initialized || process.server) return
     this.initialized = true
+    if (this.store.status !== 'idle' || this.store.callId || this.store.conversationId) {
+      this.cleanup()
+    }
     this.disposers.push(
       this.socket.on('call-incoming', payload => this.handleIncoming(payload)),
       this.socket.on('call-joined', payload => this.handleJoined(payload)),
@@ -133,20 +139,23 @@ export class CallManager {
   }
 
   rejectCall() {
-    if (!this.store.callId) return
-    this.socket.emit('call-reject', { callId: this.store.callId })
+    if (this.store.callId) {
+      this.socket.emit('call-reject', { callId: this.store.callId })
+    }
     this.cleanup()
   }
 
   cancelCall() {
-    if (!this.store.callId) return
-    this.socket.emit('call-cancel', { callId: this.store.callId })
+    if (this.store.callId) {
+      this.socket.emit('call-cancel', { callId: this.store.callId })
+    }
     this.cleanup()
   }
 
   leaveCall() {
-    if (!this.store.callId) return
-    this.socket.emit('call-leave', { callId: this.store.callId })
+    if (this.store.callId) {
+      this.socket.emit('call-leave', { callId: this.store.callId })
+    }
     this.cleanup()
   }
 
@@ -243,13 +252,78 @@ export class CallManager {
       if (!res?.data?.url || !res?.data?.token) {
         throw new Error('invalid livekit token')
       }
-      await room.connect(res.data.url, res.data.token, { autoSubscribe: true })
-      await this.refreshDevices()
+      const livekitUrls = this.resolveLiveKitUrls(res.data.url)
+      let lastError: unknown = null
+      for (const livekitUrl of livekitUrls) {
+        try {
+          await room.connect(livekitUrl, res.data.token, { autoSubscribe: true })
+          await this.refreshDevices()
+          return
+        } catch (error) {
+          lastError = error
+          console.warn('[RTC] livekit connect retry with next url', { livekitUrl, error })
+        }
+      }
+      throw lastError || new Error('livekit connect failed')
     } catch (error) {
       console.error('[RTC] livekit connect failed', error)
       this.store.setStatus('error')
-      this.toast.error('通话连接失败')
+      this.toast.error('通话连接失败，请确认 LiveKit 地址可被当前设备访问')
     }
+  }
+
+  private resolveLiveKitUrls(inputUrl: string) {
+    const candidates: string[] = []
+    const runtimeLivekitUrl = String(this.runtimeConfig.public.livekitUrl || '').trim()
+    const tauriServerHost = String(this.runtimeConfig.public.tauriServerHost || '').trim()
+    const serverHost = String(this.runtimeConfig.public.serverHost || '').trim()
+    const apiUrl = String(this.runtimeConfig.public.apiUrl || '').trim()
+    const locationHost = typeof window !== 'undefined' ? window.location.hostname : ''
+    const fallbackHosts = [tauriServerHost, serverHost, this.extractHostname(apiUrl), locationHost]
+      .map(host => String(host || '').trim())
+      .filter(Boolean)
+
+    for (const raw of [runtimeLivekitUrl, inputUrl]) {
+      const value = String(raw || '').trim()
+      if (!value) continue
+      try {
+        const parsed = new URL(value)
+        candidates.push(this.normalizeLiveKitProtocol(parsed))
+        if (this.isLoopbackHost(parsed.hostname)) {
+          for (const host of fallbackHosts) {
+            if (!host) continue
+            const next = new URL(parsed.toString())
+            next.hostname = host
+            candidates.push(this.normalizeLiveKitProtocol(next))
+          }
+        }
+      } catch {
+        candidates.push(value)
+      }
+    }
+
+    return Array.from(new Set(candidates))
+  }
+
+  private extractHostname(urlText: string) {
+    try {
+      return new URL(urlText).hostname
+    } catch {
+      return ''
+    }
+  }
+
+  private normalizeLiveKitProtocol(url: URL) {
+    if (url.protocol === 'http:') {
+      url.protocol = 'ws:'
+    } else if (url.protocol === 'https:') {
+      url.protocol = 'wss:'
+    }
+    return url.toString()
+  }
+
+  private isLoopbackHost(host: string) {
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1'
   }
 
   private ensureRoom() {
@@ -439,13 +513,86 @@ export class CallManager {
     this.remoteStreams.value = {}
   }
 
+  private isTauriEnv() {
+    if (typeof window === 'undefined') return false
+    const win = window as any
+    return !!(win.__TAURI__ || win.__TAURI_IPC__ || win.__TAURI_INTERNALS__)
+  }
+
+  private isSecureMediaContext() {
+    if (typeof window === 'undefined') return true
+    if (window.isSecureContext) return true
+    if (this.isTauriEnv()) return true
+    const host = window.location.hostname
+    return this.isLoopbackHost(host)
+  }
+
+  private async ensureMediaPermission(kind: 'audio' | 'video'): Promise<boolean> {
+    if (!navigator?.mediaDevices?.getUserMedia) return true
+    if (!this.isSecureMediaContext()) {
+      this.toast.error('当前页面不是安全上下文，请使用 HTTPS 或 localhost 访问后再开启通话权限')
+      return false
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(
+        kind === 'audio'
+          ? { audio: true, video: false }
+          : { audio: false, video: true }
+      )
+      stopMediaStream(stream)
+      return true
+    } catch (error: any) {
+      const name = error?.name as string | undefined
+      if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        this.toast.warning(kind === 'audio' ? '未检测到麦克风设备' : '未检测到摄像头设备')
+        return false
+      }
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
+        await this.showPermissionGuide(kind)
+        return false
+      }
+      this.toast.error(kind === 'audio' ? '无法获取麦克风权限' : '无法获取摄像头权限')
+      return false
+    }
+  }
+
+  private async showPermissionGuide(kind: 'audio' | 'video') {
+    if (this.permissionDialogOpening) return
+    this.permissionDialogOpening = true
+    try {
+      const deviceName = kind === 'audio' ? '麦克风' : '摄像头'
+      const confirmed = await this.dialog.confirm({
+        title: `${deviceName}权限未开启`,
+        type: 'warning',
+        confirmText: '我已开启，重试',
+        cancelText: '稍后处理',
+        content: `请在系统设置中开启 Junction 的${deviceName}权限。\nAndroid 路径：设置 -> 应用 -> Junction -> 权限 -> 允许${deviceName}。\n开启后点击“我已开启，重试”。`
+      })
+      if (!confirmed) return
+      const granted = await this.ensureMediaPermission(kind)
+      if (!granted) {
+        this.toast.warning(`仍未获得${deviceName}权限，请检查系统权限设置`)
+      }
+    } finally {
+      this.permissionDialogOpening = false
+    }
+  }
+
   private async enableAudioTrack() {
+    const granted = await this.ensureMediaPermission('audio')
+    if (!granted) return
     try {
       const constraints: any = {}
       if (this.store.selectedAudioInputId) {
         constraints.deviceId = { exact: this.store.selectedAudioInputId }
       }
-      const track = await createLocalAudioTrack(constraints)
+      let track: LocalAudioTrack
+      try {
+        track = await createLocalAudioTrack(constraints)
+      } catch {
+        // 设备切换后 deviceId 可能失效，自动回退默认设备
+        track = await createLocalAudioTrack()
+      }
       if (track.mediaStreamTrack) {
         track.mediaStreamTrack.enabled = true
       }
@@ -485,6 +632,8 @@ export class CallManager {
   }
 
   private async enableVideoTrack() {
+    const granted = await this.ensureMediaPermission('video')
+    if (!granted) return
     try {
       const profile = this.getProfile(this.bandwidthLevel)
       const constraints: any = {
@@ -494,7 +643,16 @@ export class CallManager {
       if (this.store.selectedVideoInputId) {
         constraints.deviceId = { exact: this.store.selectedVideoInputId }
       }
-      const track = await createLocalVideoTrack(constraints)
+      let track: LocalVideoTrack
+      try {
+        track = await createLocalVideoTrack(constraints)
+      } catch {
+        // 设备切换后 deviceId 可能失效，自动回退默认设备
+        track = await createLocalVideoTrack({
+          resolution: profile.resolution,
+          frameRate: profile.frameRate
+        } as any)
+      }
       if (track.mediaStreamTrack) {
         track.mediaStreamTrack.enabled = true
       }
