@@ -95,11 +95,18 @@ onMounted(() => {
               [&_.input]:!border-base-content/10
               [&_.select]:!border-base-content/10
               [&_.textarea]:!border-base-content/10
-              [&_.input]:!bg-base-100/20
-              [&_.select]:!bg-base-100/20
-              [&_.textarea]:!bg-base-100/20
+              [&_.input]:!bg-base-100/85
+              [&_.select]:!bg-base-100/85
+              [&_.textarea]:!bg-base-100/85
+              [&_.input]:backdrop-blur-md
+              [&_.select]:backdrop-blur-md
+              [&_.textarea]:backdrop-blur-md
+              [&_.dropdown-content]:!bg-base-100/75
+              [&_.dropdown-content]:!border
+              [&_.dropdown-content]:!border-base-content/10
+              [&_.dropdown-content]:backdrop-blur-md
+              [&_.menu]:backdrop-blur-md
               [&_.border-base-200]:!border-base-content/10
-              [&_.bg-base-100]:!bg-base-100/20
               [&_.max-w-2xl]:!max-w-none">
               <NuxtPage />
             </div>

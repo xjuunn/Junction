@@ -146,8 +146,48 @@ html {
     filter: grayscale(1);
 }
 
-.mica-active .bg-base-100,
-.mica-active .bg-base-200,
-.mica-active .bg-base-300 {
+/* 仅让页面容器透明，不影响表单与浮层组件 */
+.mica-active .bg-base-100:not(.select):not(.input):not(.textarea):not(.dropdown-content):not(.menu):not(.modal-box):not(.popover):not(.btn),
+.mica-active .bg-base-200:not(.select):not(.input):not(.textarea):not(.dropdown-content):not(.menu):not(.modal-box):not(.popover):not(.btn),
+.mica-active .bg-base-300:not(.select):not(.input):not(.textarea):not(.dropdown-content):not(.menu):not(.modal-box):not(.popover):not(.btn) {
     background-color: transparent !important;
+}
+
+/* 云母模式下，浮层与表单控件必须保持可读背景，避免与内容重叠 */
+.mica-active .select,
+.mica-active .input,
+.mica-active .textarea {
+    background-color: hsl(var(--b1) / 0.82) !important;
+    border-color: hsl(var(--bc) / 0.12) !important;
+    backdrop-filter: blur(10px);
+}
+
+/* 针对带 bg-base-100 的表单控件做强制兜底，避免继续透明 */
+.mica-active .select.bg-base-100,
+.mica-active .input.bg-base-100,
+.mica-active .textarea.bg-base-100,
+.mica-active .select.bg-base-200,
+.mica-active .input.bg-base-200,
+.mica-active .textarea.bg-base-200,
+.mica-active .select.bg-base-300,
+.mica-active .input.bg-base-300,
+.mica-active .textarea.bg-base-300 {
+    background-color: hsl(var(--b1) / 0.9) !important;
+}
+
+.mica-active select option,
+.mica-active select optgroup {
+    background-color: hsl(var(--b1)) !important;
+    color: hsl(var(--bc)) !important;
+}
+
+.mica-active .dropdown-content,
+.mica-active .menu,
+.mica-active .popover,
+.mica-active .modal-box,
+.mica-active .drawer-side > *,
+.mica-active .toast > * {
+    background-color: hsl(var(--b1) / 0.9) !important;
+    border: 1px solid hsl(var(--bc) / 0.1);
+    backdrop-filter: blur(12px);
 }
