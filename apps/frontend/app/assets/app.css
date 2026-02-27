@@ -157,8 +157,9 @@ html {
 .mica-active .select,
 .mica-active .input,
 .mica-active .textarea {
-    background-color: hsl(var(--b1) / 0.82) !important;
-    border-color: hsl(var(--bc) / 0.12) !important;
+    background-color: color-mix(in oklab, var(--color-base-100) 82%, transparent) !important;
+    border-color: color-mix(in oklab, var(--color-base-content) 12%, transparent) !important;
+    box-shadow: none !important;
     backdrop-filter: blur(10px);
 }
 
@@ -172,13 +173,13 @@ html {
 .mica-active .select.bg-base-300,
 .mica-active .input.bg-base-300,
 .mica-active .textarea.bg-base-300 {
-    background-color: hsl(var(--b1) / 0.9) !important;
+    background-color: color-mix(in oklab, var(--color-base-100) 90%, transparent) !important;
 }
 
 .mica-active select option,
 .mica-active select optgroup {
-    background-color: hsl(var(--b1)) !important;
-    color: hsl(var(--bc)) !important;
+    background-color: color-mix(in oklab, var(--color-base-100) 95%, transparent) !important;
+    color: var(--color-base-content) !important;
 }
 
 .mica-active .dropdown-content,
@@ -187,9 +188,17 @@ html {
 .mica-active .modal-box,
 .mica-active .drawer-side > *,
 .mica-active .toast > * {
-    background-color: hsl(var(--b1) / 0.9) !important;
-    border: 1px solid hsl(var(--bc) / 0.1);
+    background-color: color-mix(in oklab, var(--color-base-100) 90%, transparent) !important;
+    border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent);
     backdrop-filter: blur(12px);
+}
+
+.mica-active .input:focus,
+.mica-active .input:focus-within,
+.mica-active .select:focus,
+.mica-active .textarea:focus {
+    border-color: color-mix(in oklab, var(--color-primary) 32%, transparent) !important;
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-primary) 24%, transparent) !important;
 }
 
 /* 鍏ㄥ眬娴眰纾ㄧ爞鍏滃簳锛氫笉渚濊禆 base-100锛岄伩鍏嶄富棰樿閫忔槑鍖栧悗涓嬫媺绌块€?*/
