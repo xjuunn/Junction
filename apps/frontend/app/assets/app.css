@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @plugin "daisyui" {
     theme: dark --default;
@@ -146,14 +146,14 @@ html {
     filter: grayscale(1);
 }
 
-/* 仅让页面容器透明，不影响表单与浮层组件 */
+/* 浠呰椤甸潰瀹瑰櫒閫忔槑锛屼笉褰卞搷琛ㄥ崟涓庢诞灞傜粍浠?*/
 .mica-active .bg-base-100:not(.select):not(.input):not(.textarea):not(.dropdown-content):not(.menu):not(.modal-box):not(.popover):not(.btn),
 .mica-active .bg-base-200:not(.select):not(.input):not(.textarea):not(.dropdown-content):not(.menu):not(.modal-box):not(.popover):not(.btn),
 .mica-active .bg-base-300:not(.select):not(.input):not(.textarea):not(.dropdown-content):not(.menu):not(.modal-box):not(.popover):not(.btn) {
     background-color: transparent !important;
 }
 
-/* 云母模式下，浮层与表单控件必须保持可读背景，避免与内容重叠 */
+/* 浜戞瘝妯″紡涓嬶紝娴眰涓庤〃鍗曟帶浠跺繀椤讳繚鎸佸彲璇昏儗鏅紝閬垮厤涓庡唴瀹归噸鍙?*/
 .mica-active .select,
 .mica-active .input,
 .mica-active .textarea {
@@ -162,7 +162,7 @@ html {
     backdrop-filter: blur(10px);
 }
 
-/* 针对带 bg-base-100 的表单控件做强制兜底，避免继续透明 */
+/* 閽堝甯?bg-base-100 鐨勮〃鍗曟帶浠跺仛寮哄埗鍏滃簳锛岄伩鍏嶇户缁€忔槑 */
 .mica-active .select.bg-base-100,
 .mica-active .input.bg-base-100,
 .mica-active .textarea.bg-base-100,
@@ -192,7 +192,7 @@ html {
     backdrop-filter: blur(12px);
 }
 
-/* 全局浮层磨砂兜底：不依赖 base-100，避免主题被透明化后下拉穿透 */
+/* 鍏ㄥ眬娴眰纾ㄧ爞鍏滃簳锛氫笉渚濊禆 base-100锛岄伩鍏嶄富棰樿閫忔槑鍖栧悗涓嬫媺绌块€?*/
 :root {
     --glass-surface: oklch(22% 0.02 260 / 0.88);
     --glass-border: oklch(92% 0.01 260 / 0.14);
@@ -203,7 +203,7 @@ html {
     --glass-border: oklch(25% 0.02 260 / 0.1);
 }
 
-/* 下拉触发按钮：统一半透明 + 模糊 */
+/* 涓嬫媺瑙﹀彂鎸夐挳锛氱粺涓€鍗婇€忔槑 + 妯＄硦 */
 .dropdown > .btn,
 .dropdown > .btn.btn-ghost,
 .dropdown > .btn.btn-soft,
@@ -213,7 +213,7 @@ html {
     backdrop-filter: blur(10px);
 }
 
-/* 下拉面板与菜单：统一半透明 + 模糊，防止与内容重叠 */
+/* 涓嬫媺闈㈡澘涓庤彍鍗曪細缁熶竴鍗婇€忔槑 + 妯＄硦锛岄槻姝笌鍐呭閲嶅彔 */
 .dropdown-content,
 .dropdown-content.menu,
 .menu.dropdown-content {
@@ -223,7 +223,7 @@ html {
     box-shadow: 0 8px 28px rgb(0 0 0 / 0.14);
 }
 
-/* 统一 main/admin 的下拉样式（触发器 + 面板 + 选项） */
+/* 缁熶竴 main/admin 鐨勪笅鎷夋牱寮忥紙瑙﹀彂鍣?+ 闈㈡澘 + 閫夐」锛?*/
 .select,
 .select.select-bordered {
     background-color: var(--glass-surface) !important;
@@ -252,9 +252,64 @@ html {
     background-color: hsl(var(--bc) / 0.1) !important;
 }
 
-/* 原生 select 的 option 由系统控件绘制，无法做真正 blur；统一底色与文本确保一致性 */
+/* 鍙抽敭鑿滃崟缁熶竴浣跨敤鐜荤拑灞傦紝閬垮厤浜戞瘝涓婚涓嬮€忔槑绌块€?*/
+.context-menu-panel,
+.context-menu-panel.menu,
+.mica-active .context-menu-panel,
+.mica-active .context-menu-panel.menu {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background-color: transparent !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 16px 42px rgb(0 0 0 / 0.24);
+}
+
+.context-menu-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-color: rgba(26, 27, 31, 0.72);
+    backdrop-filter: blur(56px) saturate(165%);
+    -webkit-backdrop-filter: blur(56px) saturate(165%);
+    pointer-events: none;
+}
+
+.context-menu-panel li > * {
+    background-color: transparent !important;
+}
+
+.context-menu-panel li > *:hover,
+.context-menu-panel li > *:focus-visible,
+.context-menu-panel li > *.active {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="light"] .context-menu-panel li > *:hover,
+[data-theme="light"] .context-menu-panel li > *:focus-visible,
+[data-theme="light"] .context-menu-panel li > *.active {
+    background-color: rgba(28, 31, 38, 0.08) !important;
+}
+
+[data-theme="light"] .context-menu-panel,
+[data-theme="light"] .context-menu-panel.menu,
+[data-theme="light"].mica-active .context-menu-panel,
+[data-theme="light"].mica-active .context-menu-panel.menu {
+    border-color: rgba(28, 31, 38, 0.14) !important;
+}
+
+[data-theme="light"] .context-menu-panel::before,
+[data-theme="light"].mica-active .context-menu-panel::before {
+    background-color: rgba(255, 255, 255, 0.72);
+}
+
+/* 鍘熺敓 select 鐨?option 鐢辩郴缁熸帶浠剁粯鍒讹紝鏃犳硶鍋氱湡姝?blur锛涚粺涓€搴曡壊涓庢枃鏈‘淇濅竴鑷存€?*/
 select option,
 select optgroup {
     background-color: hsl(var(--b1)) !important;
     color: hsl(var(--bc)) !important;
 }
+
+

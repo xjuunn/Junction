@@ -11,6 +11,8 @@ const menuStyle = computed(() => ({
   top: `${position.value.y}px`,
   minWidth: `${state.value.minWidth}px`,
   maxHeight: `${state.value.maxHeight}px`,
+  backdropFilter: 'blur(56px) saturate(165%)',
+  WebkitBackdropFilter: 'blur(56px) saturate(165%)',
 }))
 
 const items = computed<ResolvedContextMenuEntry[]>(() => state.value.items)
@@ -98,7 +100,7 @@ function getItemClass(item: ResolvedContextMenuItem) {
   <div v-if="state.visible" class="fixed inset-0 z-[200]" @mousedown="closeContextMenu" @contextmenu.prevent>
     <ul
       ref="menuRef"
-      class="menu bg-base-100/80 backdrop-blur-md border border-base-200 rounded-xl shadow-xl p-2 fixed"
+      class="context-menu-panel menu fixed rounded-xl border p-2 shadow-xl backdrop-blur-2xl"
       :style="menuStyle"
       @mousedown.stop
     >
