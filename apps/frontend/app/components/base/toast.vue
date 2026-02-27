@@ -28,11 +28,11 @@ const { toasts, remove } = useToast()
 
 const getAlertClass = (type: ToastType) => {
     switch (type) {
-        case 'success': return 'alert-success border-l-success-content/20 text-success-content'
-        case 'error': return 'alert-error border-l-error-content/20 text-error-content'
-        case 'warning': return 'alert-warning border-l-warning-content/20 text-warning-content'
-        case 'info': return 'alert-info border-l-info-content/20 text-info-content'
-        default: return 'alert-info'
+        case 'success': return 'alert-success !bg-success text-success-content border-l-success backdrop-blur-none'
+        case 'error': return 'alert-error !bg-error text-error-content border-l-error backdrop-blur-none'
+        case 'warning': return 'alert-warning !bg-warning text-warning-content border-l-warning backdrop-blur-none'
+        case 'info': return 'alert-info !bg-info text-info-content border-l-info backdrop-blur-none'
+        default: return 'alert-info !bg-info text-info-content border-l-info backdrop-blur-none'
     }
 }
 

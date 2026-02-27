@@ -1012,7 +1012,7 @@ watch(serverId, async () => {
             </div>
 
             <div v-if="!config.enabled" class="mt-3">
-              <div class="alert bg-base-100/80 backdrop-blur-md border border-base-content/5">
+              <div class="alert bg-base-100 border border-base-content/10">
                 <Icon name="mingcute:warning-line" class="text-xl" />
                 <div>
                   <div class="font-bold">该服务器已禁用</div>
@@ -1025,7 +1025,7 @@ watch(serverId, async () => {
             </div>
 
             <div v-else-if="connectError" class="mt-3">
-              <div class="alert alert-error bg-base-100/80 backdrop-blur-md border border-base-content/5">
+              <div class="alert alert-error bg-error border border-error/30">
                 <Icon name="mingcute:close-circle-line" class="text-xl" />
                 <div>
                   <div class="font-bold">连接异常</div>

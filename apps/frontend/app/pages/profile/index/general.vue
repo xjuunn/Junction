@@ -107,7 +107,7 @@ const handleUpdateProfile = async () => {
       </div>
 
       <div v-if="formData.email.trim() !== (userStore.user.value?.email || '')"
-        class="alert alert-warning mt-4 border border-warning/20 bg-warning/10 text-warning-content/90">
+        class="alert alert-warning mt-4 border border-warning/30">
         <Icon name="mingcute:warning-line" />
         <span>邮箱变更后，验证通过前将继续使用当前邮箱作为登录凭据。</span>
       </div>
