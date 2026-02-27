@@ -201,8 +201,8 @@ onMounted(() => {
 <template>
     <div class="h-full w-full overflow-y-auto custom-scrollbar">
         <!-- Loading State -->
-        <div v-if="loading" class="flex flex-col items-center justify-center h-full min-h-[400px] space-y-8 animate-pulse">
-            <div class="w-32 h-32 rounded-full bg-base-content/10"></div>
+        <div v-if="loading" class="flex flex-col items-center justify-center h-full min-h-[400px] space-y-6 animate-pulse">
+            <div class="w-24 h-24 rounded-full bg-base-content/10"></div>
             <div class="flex flex-col items-center gap-3 w-full max-w-xs">
                 <div class="h-8 w-3/4 bg-base-content/10 rounded-lg"></div>
                 <div class="h-4 w-1/2 bg-base-content/10 rounded-lg"></div>
@@ -228,22 +228,22 @@ onMounted(() => {
         </div>
 
         <!-- Content -->
-        <div v-else class="min-h-full w-full max-w-3xl mx-auto p-4 sm:p-6 lg:p-10 flex flex-col gap-6" v-motion-slide-bottom>
+        <div v-else class="min-h-full w-full max-w-2xl mx-auto p-3 sm:p-4 lg:p-6 flex flex-col gap-4" v-motion-slide-bottom>
             <!-- Header Card -->
-            <div class="relative overflow-hidden rounded-3xl bg-base-100 backdrop-blur-xl border border-base-content/5 shadow-sm">
+            <div class="relative overflow-hidden rounded-2xl bg-base-100 backdrop-blur-xl border border-base-content/5 shadow-sm">
                 <!-- Decorative Background -->
                 <div class="absolute top-0 left-0 w-full h-32"></div>
                 
-                <div class="relative px-6 pt-12 pb-8 flex flex-col items-center text-center">
+                <div class="relative px-4 pt-8 pb-6 flex flex-col items-center text-center">
                     <!-- Avatar with Status Ring -->
                     <div class="relative group">
                         <BaseAvatar 
                             :text="userInfo.name" 
                             :src="userInfo.image || undefined"
                             :alt="userInfo.name" 
-                            :width="120" 
-                            :height="120"
-                            :radius="40" 
+                            :width="96" 
+                            :height="96"
+                            :radius="30" 
                             :placeholder-length="2" 
                             class="shadow-xl ring-4 ring-base-100/50 backdrop-blur-sm transition-transform duration-300 group-hover:scale-105" 
                         />
@@ -254,8 +254,8 @@ onMounted(() => {
                     </div>
 
                     <!-- Name & Identity -->
-                    <div class="mt-5 space-y-1">
-                        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-base-content flex items-center justify-center gap-2">
+                    <div class="mt-4 space-y-1">
+                        <h1 class="text-xl sm:text-2xl font-black tracking-tight text-base-content flex items-center justify-center gap-2">
                             {{ userInfo.name }}
                             <Icon v-if="userInfo.role === 'ADMIN'" name="mingcute:badge-fill" class="text-warning text-xl" title="管理员" />
                         </h1>
@@ -268,20 +268,20 @@ onMounted(() => {
                     </div>
 
                     <!-- Tags/Badges -->
-                    <div class="mt-4 flex flex-wrap gap-2 justify-center">
-                        <div class="badge badge-lg badge-ghost gap-1.5 pl-1.5 pr-3 h-8">
+                    <div class="mt-3 flex flex-wrap gap-1.5 justify-center">
+                        <div class="badge badge-md badge-ghost gap-1.5 pl-1.5 pr-2.5 h-7">
                             <div class="w-1.5 h-1.5 rounded-full bg-success"></div>
                             {{ userInfo.accountType || '用户' }}
                         </div>
-                        <div class="badge badge-lg badge-ghost gap-1.5 pl-1.5 pr-3 h-8">
+                        <div class="badge badge-md badge-ghost gap-1.5 pl-1.5 pr-2.5 h-7">
                             <Icon name="mingcute:user-3-line" size="14" />
                             {{ userInfo.role }}
                         </div>
                     </div>
 
                     <!-- Note Display -->
-                    <div v-if="friendshipInfo?.note" class="mt-6 max-w-sm w-full">
-                        <div class="bg-base-200/50 backdrop-blur-sm rounded-xl px-4 py-3 text-sm text-base-content/70 border border-base-content/5 flex items-start gap-3 text-left">
+                    <div v-if="friendshipInfo?.note" class="mt-4 max-w-sm w-full">
+                        <div class="bg-base-200/50 backdrop-blur-sm rounded-lg px-3 py-2.5 text-sm text-base-content/70 border border-base-content/5 flex items-start gap-2.5 text-left">
                             <Icon name="mingcute:edit-2-line" class="shrink-0 mt-0.5 opacity-50" size="16" />
                             <div class="flex-1 min-w-0 break-words">
                                 <span class="block text-xs font-bold text-base-content/40 mb-0.5">备注</span>
@@ -293,41 +293,41 @@ onMounted(() => {
             </div>
 
             <!-- Main Actions -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button @click="handleSendMessage" :disabled="isActionLoading"
-                    class="btn btn-primary btn-lg w-full shadow-lg shadow-primary/10 border-none transform active:scale-[0.98] transition-all">
+                    class="btn btn-primary btn-md w-full shadow-lg shadow-primary/10 border-none transform active:scale-[0.98] transition-all">
                     <span v-if="isActionLoading" class="loading loading-spinner loading-md"></span>
                     <template v-else>
-                        <Icon name="mingcute:chat-4-fill" size="22" />
+                        <Icon name="mingcute:chat-4-fill" size="18" />
                         <span class="font-bold">发送消息</span>
                     </template>
                 </button>
                 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-2.5">
                     <button @click="handleBlock" :disabled="isActionLoading"
-                        class="btn btn-lg w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-base-200 hover:border-base-content/20 transform active:scale-[0.98] transition-all">
-                        <Icon :name="isBlocked ? 'mingcute:eye-line' : 'mingcute:eye-close-line'" size="20" 
+                        class="btn btn-md w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-base-200 hover:border-base-content/20 transform active:scale-[0.98] transition-all">
+                        <Icon :name="isBlocked ? 'mingcute:eye-line' : 'mingcute:eye-close-line'" size="16" 
                             :class="isBlocked ? 'text-base-content' : 'text-warning'" />
                         <span class="text-sm font-medium">{{ isBlocked ? '取消拉黑' : '拉黑' }}</span>
                     </button>
                     
                     <button @click="handleDeleteFriend" :disabled="isActionLoading"
-                        class="btn btn-lg w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-error/10 hover:border-error/30 hover:text-error transform active:scale-[0.98] transition-all">
-                        <Icon name="mingcute:delete-2-line" size="20" />
+                        class="btn btn-md w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-error/10 hover:border-error/30 hover:text-error transform active:scale-[0.98] transition-all">
+                        <Icon name="mingcute:delete-2-line" size="16" />
                         <span class="text-sm font-medium">删除</span>
                     </button>
                 </div>
             </div>
 
             <!-- Information Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <!-- Info Card: Contact -->
-                <div class="bg-base-100/60 backdrop-blur-md rounded-2xl p-5 border border-base-content/5 flex flex-col gap-4 hover:bg-base-100/80 transition-colors">
+                <div class="bg-base-100/60 backdrop-blur-md rounded-xl p-4 border border-base-content/5 flex flex-col gap-3 hover:bg-base-100/80 transition-colors">
                     <h3 class="text-sm font-bold text-base-content/40 uppercase tracking-wider">联系信息</h3>
                     
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <Icon name="mingcute:mail-line" size="20" />
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Icon name="mingcute:mail-line" size="18" />
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-base-content/50 mb-0.5">电子邮箱</div>
@@ -337,12 +337,12 @@ onMounted(() => {
                 </div>
 
                 <!-- Info Card: Meta -->
-                <div class="bg-base-100/60 backdrop-blur-md rounded-2xl p-5 border border-base-content/5 flex flex-col gap-4 hover:bg-base-100/80 transition-colors">
+                <div class="bg-base-100/60 backdrop-blur-md rounded-xl p-4 border border-base-content/5 flex flex-col gap-3 hover:bg-base-100/80 transition-colors">
                     <h3 class="text-sm font-bold text-base-content/40 uppercase tracking-wider">数据档案</h3>
                     
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
-                            <Icon name="mingcute:time-line" size="20" />
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+                            <Icon name="mingcute:time-line" size="18" />
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-base-content/50 mb-0.5">注册时间</div>

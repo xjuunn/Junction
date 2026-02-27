@@ -278,10 +278,10 @@ defineExpose({
             <div class="flex flex-col h-full bg-base-100 select-none border-r border-base-content/2 overflow-hidden relative">
                 <div class="absolute -top-20 -left-20 w-40 h-40 bg-primary/5 blur-[80px] pointer-events-none"></div>
 
-                <header class="p-6 pb-2 space-y-5 relative z-10">
+                <header class="p-4 pb-2 space-y-4 relative z-10">
                     <div class="flex items-center justify-between">
                         <div class="flex flex-col">
-                            <h1 class="text-2xl font-black tracking-tight flex items-center gap-2">
+                            <h1 class="text-xl font-black tracking-tight flex items-center gap-2">
                                 通讯录
                                 <div v-if="filteredList.length > 0 && activeTab !== 'blocked'"
                                     class="badge badge-ghost badge-sm font-bold opacity-50">
@@ -302,16 +302,16 @@ defineExpose({
 
                     <div class="relative group">
                         <div
-                            class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-base-content/30 group-focus-within:text-primary transition-colors">
+                            class="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-base-content/30 group-focus-within:text-primary transition-colors">
                             <Icon name="mingcute:search-line" size="18" />
                         </div>
                         <input v-model="searchQuery" type="text" placeholder="搜索联系人..."
-                            class="input input-sm h-11 w-full pl-11 bg-base-200/50 border-none focus:bg-base-100 rounded-2xl font-medium transition-all focus:ring-4 focus:ring-primary/10" />
+                            class="input input-sm h-10 w-full pl-10 bg-base-200/50 border-none focus:bg-base-100 rounded-xl font-medium transition-all focus:ring-4 focus:ring-primary/10" />
                     </div>
 
-                    <div class="tabs tabs-boxed bg-transparent p-0 gap-2">
+                    <div class="tabs tabs-boxed bg-transparent p-0 gap-1.5">
                         <button v-for="tab in tabs" :key="tab.key" :value="tab.key"
-                            class="flex-1 btn btn-sm h-9 border-none rounded-xl font-bold transition-all no-animation"
+                            class="flex-1 btn btn-xs h-8 border-none rounded-lg font-bold transition-all no-animation"
                             :class="activeTab === tab.key
                                 ? tab.key === 'blocked'
                                     ? 'bg-error text-error-content'
@@ -323,7 +323,7 @@ defineExpose({
                     </div>
                 </header>
 
-                <main class="flex-1 overflow-y-auto no-scrollbar py-2 px-3">
+                <main class="flex-1 overflow-y-auto no-scrollbar py-2 px-2">
                     <div v-if="loading && !allContacts.length && activeTab !== 'blocked'" class="space-y-3">
                         <div v-for="i in 6" :key="i" class="flex items-center gap-4 animate-pulse">
                             <div class="w-12 h-12 bg-base-300 rounded-full"></div>
@@ -344,9 +344,9 @@ defineExpose({
                         </p>
                     </div>
 
-                    <div v-else class="flex flex-col space-y-1">
+                    <div v-else class="flex flex-col space-y-0.5">
                         <div v-for="item in filteredList" :key="item.id" @click="handleItemClick(item)"
-                            class="group relative flex items-center gap-4 px-3 py-3 cursor-pointer transition-all duration-200 rounded-2xl"
+                            class="group relative flex items-center gap-3 px-2.5 py-2.5 cursor-pointer transition-all duration-200 rounded-xl"
                             :class="[
                                 item.type === 'friend' && activeContactId === item.friendId
                                     ? 'bg-base-200/80'
@@ -355,14 +355,14 @@ defineExpose({
                                         : 'hover:bg-base-200/40 active:scale-[0.98]'
                             ]">
                             <div class="relative shrink-0">
-                                <BaseAvatar v-if="item.type === 'friend'" :text="item.friend?.name || ''" :height="46"
-                                    :width="46" :radius="12" :src="item.friend?.image || undefined"
+                                <BaseAvatar v-if="item.type === 'friend'" :text="item.friend?.name || ''" :height="40"
+                                    :width="40" :radius="10" :src="item.friend?.image || undefined"
                                     :alt="item.friend?.name" :placeholder-length="2" :class="[
                                         item.type === 'friend' && activeContactId === item.friendId
                                             ? 'ring-2 ring-primary/20'
                                             : 'ring-1 ring-base-content/5'
                                     ]" />
-                                <BaseAvatar v-else :text="item.title" :height="46" :width="46" :radius="12"
+                                <BaseAvatar v-else :text="item.title" :height="40" :width="40" :radius="10"
                                     :src="item.avatar" :alt="item.title" :placeholder-length="2"
                                     class="ring-1 ring-base-content/5" />
                                 <div v-if="item.type === 'friend' && item.isBlocked"
@@ -373,25 +373,25 @@ defineExpose({
 
                             <div class="flex-1 min-w-0 flex flex-col gap-0">
                                 <div class="flex items-center justify-between gap-2">
-                                    <h3 class="font-bold text-[14px] truncate tracking-tight flex items-center gap-2">
+                                    <h3 class="font-bold text-[13px] truncate tracking-tight flex items-center gap-1.5">
                                         <span>{{ item.type === 'friend' ? item.friend?.name : item.title }}</span>
                                         <span v-if="item.type === 'friend' && isBotFriend(item.friend)"
-                                            class="badge badge-outline badge-xs">机器人</span>
+                                            class="badge badge-soft badge-secondary badge-xs">机器人</span>
                                     </h3>
-                                    <span class="text-[10px] font-bold tabular-nums tracking-wider opacity-40 shrink-0">
+                                    <span class="text-[9px] font-bold tabular-nums tracking-wider opacity-40 shrink-0">
                                         {{ formatTimeAgo(item.updatedAt) }}
                                     </span>
                                 </div>
                                 <div v-if="item.type === 'friend' && item.note"
-                                    class="text-[13px] truncate opacity-50 leading-tight font-medium">
+                                    class="text-[12px] truncate opacity-50 leading-tight font-medium">
                                     {{ item.note }}
                                 </div>
                                 <div v-else-if="item.type === 'group'"
-                                    class="text-[13px] truncate opacity-40 leading-tight">
+                                    class="text-[12px] truncate opacity-40 leading-tight">
                                     {{ item.memberCount }} 位成员
                                 </div>
                                 <div v-else-if="item.type === 'friend' && item.friend?.email"
-                                    class="text-[13px] truncate opacity-40 leading-tight">
+                                    class="text-[12px] truncate opacity-40 leading-tight">
                                     {{ item.friend?.email }}
                                 </div>
                             </div>

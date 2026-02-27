@@ -123,8 +123,8 @@ onMounted(() => {
     <div class="h-full w-full overflow-y-auto hidden-scrollbar">
         <!-- Loading State -->
         <div v-if="loading"
-            class="flex flex-col items-center justify-center h-full min-h-[400px] space-y-8 animate-pulse">
-            <div class="w-32 h-32 rounded-full bg-base-content/10"></div>
+            class="flex flex-col items-center justify-center h-full min-h-[400px] space-y-6 animate-pulse">
+            <div class="w-24 h-24 rounded-full bg-base-content/10"></div>
             <div class="flex flex-col items-center gap-3 w-full max-w-xs">
                 <div class="h-8 w-3/4 bg-base-content/10 rounded-lg"></div>
                 <div class="h-4 w-1/2 bg-base-content/10 rounded-lg"></div>
@@ -151,18 +151,18 @@ onMounted(() => {
         </div>
 
         <!-- Content -->
-        <div v-else class="min-h-full w-full max-w-3xl mx-auto p-4 sm:p-6 lg:p-10 flex flex-col gap-6"
+        <div v-else class="min-h-full w-full max-w-2xl mx-auto p-3 sm:p-4 lg:p-6 flex flex-col gap-4"
             v-motion-slide-bottom>
             <!-- Header Card -->
-            <div class="relative overflow-hidden rounded-3xl backdrop-blur-xl border border-base-content/5 shadow-sm">
+            <div class="relative overflow-hidden rounded-2xl backdrop-blur-xl border border-base-content/5 shadow-sm">
                 <!-- Decorative Background -->
                 <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/5 to-transparent"></div>
 
-                <div class="relative px-6 pt-12 pb-8 flex flex-col items-center text-center">
+                <div class="relative px-4 pt-8 pb-6 flex flex-col items-center text-center">
                     <!-- Avatar with Status Ring -->
                     <div class="relative group">
                         <BaseAvatar :text="groupInfo.title" :src="groupInfo.avatar || undefined" :alt="groupInfo.title"
-                            :width="120" :height="120" :radius="40" :placeholder-length="2"
+                            :width="96" :height="96" :radius="30" :placeholder-length="2"
                             class="shadow-xl ring-4 ring-base-100/50 backdrop-blur-sm transition-transform duration-300 group-hover:scale-105" />
                         <div
                             class="absolute -bottom-1 -right-1 bg-base-100 rounded-full p-1 shadow-sm border border-base-content/5">
@@ -173,9 +173,9 @@ onMounted(() => {
                     </div>
 
                     <!-- Title & ID -->
-                    <div class="mt-5 space-y-1">
+                    <div class="mt-4 space-y-1">
                         <h1
-                            class="text-2xl sm:text-3xl font-black tracking-tight text-base-content flex items-center justify-center gap-2">
+                            class="text-xl sm:text-2xl font-black tracking-tight text-base-content flex items-center justify-center gap-2">
                             {{ groupInfo.title }}
                         </h1>
                         <div class="flex items-center justify-center gap-2 text-sm text-base-content/60">
@@ -188,12 +188,12 @@ onMounted(() => {
                     </div>
 
                     <!-- Tags/Badges -->
-                    <div class="mt-4 flex flex-wrap gap-2 justify-center">
-                        <div class="badge badge-lg badge-ghost gap-1.5 pl-1.5 pr-3 h-8">
+                    <div class="mt-3 flex flex-wrap gap-1.5 justify-center">
+                        <div class="badge badge-md badge-ghost gap-1.5 pl-1.5 pr-2.5 h-7">
                             <Icon name="mingcute:user-3-line" size="14" />
                             {{ groupInfo.memberCount }} 成员
                         </div>
-                        <div v-if="isOwner" class="badge badge-lg badge-primary badge-outline gap-1.5 pl-1.5 pr-3 h-8">
+                        <div v-if="isOwner" class="badge badge-md badge-primary badge-soft gap-1.5 pl-1.5 pr-2.5 h-7">
                             <Icon name="mingcute:crown-line" size="14" />
                             我是群主
                         </div>
@@ -202,33 +202,33 @@ onMounted(() => {
             </div>
 
             <!-- Main Actions -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button @click="handleSendMessage" :disabled="isActionLoading"
-                    class="btn btn-primary btn-lg w-full shadow-lg shadow-primary/10 border-none transform active:scale-[0.98] transition-all">
+                    class="btn btn-primary btn-md w-full shadow-lg shadow-primary/10 border-none transform active:scale-[0.98] transition-all">
                     <span v-if="isActionLoading" class="loading loading-spinner loading-md"></span>
                     <template v-else>
-                        <Icon name="mingcute:chat-4-fill" size="22" />
+                        <Icon name="mingcute:chat-4-fill" size="18" />
                         <span class="font-bold">发送消息</span>
                     </template>
                 </button>
 
                 <button @click="handleLeaveGroup" :disabled="isActionLoading"
-                    class="btn btn-lg w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-error/10 hover:border-error/30 hover:text-error transform active:scale-[0.98] transition-all">
-                    <Icon name="mingcute:exit-line" size="20" />
+                    class="btn btn-md w-full bg-base-100/80 backdrop-blur-md border border-base-content/10 hover:bg-error/10 hover:border-error/30 hover:text-error transform active:scale-[0.98] transition-all">
+                    <Icon name="mingcute:exit-line" size="16" />
                     <span class="text-sm font-medium">退出群组</span>
                 </button>
             </div>
 
             <!-- Information Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div
-                    class="bg-base-100/30 backdrop-blur-md rounded-2xl p-5 border border-base-content/5 flex flex-col gap-4 hover:bg-base-100/50 transition-colors">
+                    class="bg-base-100/30 backdrop-blur-md rounded-xl p-4 border border-base-content/5 flex flex-col gap-3 hover:bg-base-100/50 transition-colors">
                     <h3 class="text-sm font-bold text-base-content/40 uppercase tracking-wider">群组信息</h3>
 
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-3">
                         <div
-                            class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <Icon name="mingcute:calendar-line" size="20" />
+                            class="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Icon name="mingcute:calendar-line" size="18" />
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-base-content/50 mb-0.5">创建时间</div>
@@ -238,13 +238,13 @@ onMounted(() => {
                 </div>
 
                 <div
-                    class="bg-base-100/30 backdrop-blur-md rounded-2xl p-5 border border-base-content/5 flex flex-col gap-4 hover:bg-base-100/50 transition-colors">
+                    class="bg-base-100/30 backdrop-blur-md rounded-xl p-4 border border-base-content/5 flex flex-col gap-3 hover:bg-base-100/50 transition-colors">
                     <h3 class="text-sm font-bold text-base-content/40 uppercase tracking-wider">活跃状态</h3>
 
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-3">
                         <div
-                            class="w-10 h-10 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
-                            <Icon name="mingcute:history-line" size="20" />
+                            class="w-9 h-9 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+                            <Icon name="mingcute:history-line" size="18" />
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="text-xs text-base-content/50 mb-0.5">最近活跃</div>
@@ -255,36 +255,36 @@ onMounted(() => {
             </div>
 
             <!-- Members Preview -->
-            <div class="bg-base-100/30 backdrop-blur-md rounded-3xl border border-base-content/5 overflow-hidden">
-                <div class="px-6 py-5 border-b border-base-content/5 flex items-center justify-between">
-                    <h3 class="font-bold text-lg flex items-center gap-2">
+            <div class="bg-base-100/30 backdrop-blur-md rounded-2xl border border-base-content/5 overflow-hidden">
+                <div class="px-4 py-4 border-b border-base-content/5 flex items-center justify-between">
+                    <h3 class="font-bold text-base flex items-center gap-2">
                         群成员
                         <span class="badge badge-sm badge-ghost">{{ members.length }}</span>
                     </h3>
                 </div>
 
-                <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div v-for="member in members.slice(0, 10)" :key="member.userId"
-                        class="flex items-center gap-3 p-3 rounded-2xl hover:bg-base-200/50 transition-colors border border-transparent hover:border-base-content/5">
-                        <BaseAvatar :text="member.user?.name" :height="40" :width="40" :radius="14"
+                        class="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-base-200/50 transition-colors border border-transparent hover:border-base-content/5">
+                        <BaseAvatar :text="member.user?.name" :height="36" :width="36" :radius="12"
                             :src="member.user?.image" :alt="member.user?.name" :placeholder-length="2" />
 
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-1.5">
-                                <span class="font-bold text-sm truncate">{{ member.user?.name }}</span>
+                                <span class="font-bold text-[13px] truncate">{{ member.user?.name }}</span>
                                 <Icon v-if="member.role === 'OWNER'" name="mingcute:crown-fill" size="14"
                                     class="text-warning" title="群主" />
                                 <Icon v-else-if="member.role === 'ADMIN'" name="mingcute:shield-fill" size="14"
                                     class="text-info" title="管理员" />
                             </div>
-                            <div class="text-xs text-base-content/40 truncate">
+                            <div class="text-[11px] text-base-content/40 truncate">
                                 {{ formatTimeAgo(member.joinedAt) }}加入
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="members.length > 10" class="px-6 pb-5 pt-2 text-center">
+                <div v-if="members.length > 10" class="px-4 pb-4 pt-1.5 text-center">
                     <button class="btn btn-ghost btn-sm btn-block text-base-content/50 hover:text-base-content">
                         查看全部 {{ members.length }} 位成员
                         <Icon name="mingcute:arrow-right-line" />
