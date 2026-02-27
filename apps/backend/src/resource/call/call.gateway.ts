@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { ConnectedSocket, MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsUser } from '~/decorators/ws-user.decorator';
@@ -48,6 +48,7 @@ export class CallGateway implements OnGatewayDisconnect {
   @SubscribeMessage('call-start')
   async handleCallStart(
     @WsUser('id') userId: string,
+    @ConnectedSocket() client: Socket,
     @MessageBody() payload: { callId: string; conversationId: string; callType: CallType; mode: CallMode; targetUserIds?: string[] }
   ) {
     if (!userId) return;
@@ -96,7 +97,7 @@ export class CallGateway implements OnGatewayDisconnect {
     this.sessions.set(callId, session);
     this.trackUserSession(userId, callId);
 
-    this.server.to(`user-${userId}`).emit('call-joined', {
+    client.emit('call-joined', {
       callId,
       participants: [...participants.values()]
     });
@@ -119,6 +120,7 @@ export class CallGateway implements OnGatewayDisconnect {
   @SubscribeMessage('call-accept')
   async handleCallAccept(
     @WsUser('id') userId: string,
+    @ConnectedSocket() client: Socket,
     @MessageBody() payload: { callId: string }
   ) {
     const { callId } = payload;
@@ -140,10 +142,11 @@ export class CallGateway implements OnGatewayDisconnect {
     session.ringing.delete(userId);
     this.trackUserSession(userId, callId);
 
-    this.server.to(`user-${userId}`).emit('call-joined', {
+    client.emit('call-joined', {
       callId,
       participants: [...session.participants.values()]
     });
+    await this.emitToUserExceptSocket(userId, client.id, 'call-canceled', { callId });
 
     this.broadcastToParticipants(session, 'call-participant-joined', {
       callId,
@@ -253,6 +256,14 @@ export class CallGateway implements OnGatewayDisconnect {
     session.participants.forEach(participant => {
       if (participant.userId === excludeUserId) return;
       this.server.to(`user-${participant.userId}`).emit(event, payload);
+    });
+  }
+
+  private async emitToUserExceptSocket(userId: string, socketId: string, event: string, payload: any) {
+    const sockets = await this.server.in(`user-${userId}`).fetchSockets();
+    sockets.forEach(socket => {
+      if (socket.id === socketId) return;
+      this.server.to(socket.id).emit(event, payload);
     });
   }
 

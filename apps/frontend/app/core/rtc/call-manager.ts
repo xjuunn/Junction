@@ -253,10 +253,17 @@ export class CallManager {
         throw new Error('invalid livekit token')
       }
       const livekitUrls = this.resolveLiveKitUrls(res.data.url)
+      const connectOptions: any = { autoSubscribe: true }
+      const iceServers = this.resolveRtcIceServers()
+      if (iceServers.length) {
+        connectOptions.rtcConfig = {
+          iceServers
+        }
+      }
       let lastError: unknown = null
       for (const livekitUrl of livekitUrls) {
         try {
-          await room.connect(livekitUrl, res.data.token, { autoSubscribe: true })
+          await room.connect(livekitUrl, res.data.token, connectOptions)
           await this.refreshDevices()
           return
         } catch (error) {
@@ -311,6 +318,28 @@ export class CallManager {
     } catch {
       return ''
     }
+  }
+
+  private resolveRtcIceServers() {
+    const raw = String(this.runtimeConfig.public.rtcIceServers || '').trim()
+    if (!raw) return [] as RTCIceServer[]
+    try {
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return [] as RTCIceServer[]
+      return parsed.filter((item: any) => {
+        if (!item || typeof item !== 'object') return false
+        if (!('urls' in item)) return false
+        return true
+      }) as RTCIceServer[]
+    } catch {
+      console.warn('[RTC] invalid NUXT_PUBLIC_RTC_ICE_SERVERS config')
+      return [] as RTCIceServer[]
+    }
+  }
+
+  private isAndroidPlatform() {
+    if (typeof navigator === 'undefined') return false
+    return /Android/i.test(navigator.userAgent)
   }
 
   private normalizeLiveKitProtocol(url: URL) {
@@ -696,6 +725,14 @@ export class CallManager {
   }
 
   private async startScreenShare() {
+    if (!navigator?.mediaDevices?.getDisplayMedia) {
+      this.toast.warning('当前设备不支持屏幕共享')
+      return
+    }
+    if (this.isAndroidPlatform()) {
+      this.toast.warning('Android 端暂不支持屏幕共享')
+      return
+    }
     try {
       const tracks = await createLocalScreenTracks({ audio: false })
       const screen = tracks.find(t => t.kind === Track.Kind.Video) as LocalVideoTrack | undefined

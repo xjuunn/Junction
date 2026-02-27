@@ -31,6 +31,9 @@ async function bootstrap() {
     `${NUXT_PUBLIC_HTTP_TYPE}://127.0.0.1:${NUXT_PUBLIC_BACKEND_PORT}`,
     `${NUXT_PUBLIC_HTTP_TYPE}://${NUXT_PUBLIC_SERVER_HOST}:${NUXT_PUBLIC_BACKEND_PORT}`,
     'http://tauri.localhost',
+    'http://app.junct.dpdns.org',
+    'https://app.junct.dpdns.org',
+    'http://junct.dpdns.org',
     "https://junct.dpdns.org",
     'tauri://localhost',
   ];
