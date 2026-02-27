@@ -1,7 +1,6 @@
 import { emit, listen } from '@tauri-apps/api/event'
 import { Window } from '@tauri-apps/api/window'
 import { createTimeline } from 'animejs'
-import { type } from '@tauri-apps/plugin-os';
 
 export class AppTheme {
     private static instance: AppTheme | null = null
@@ -92,7 +91,7 @@ export class AppTheme {
 
     public setBgTransparent(trans: boolean) {
         const html = document.documentElement
-        if (!(html && isTauri() && (type() === 'windows' || type() === 'macos'))) return;
+        if (!(html && isTauri())) return;
         html.style.background = (trans ? 'transparent' : '');
         if (document.body) document.body.style.background = (trans ? 'transparent' : '');
         html.classList.toggle('mica-active', trans);
@@ -149,3 +148,4 @@ export class AppTheme {
         tl.call(() => ripple.remove())
     }
 }
+
