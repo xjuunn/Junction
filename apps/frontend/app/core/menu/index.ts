@@ -1,335 +1,190 @@
-/**
- * 菜单上下文类型
- */
-export type MenuClickContext = any;
+export type MenuClickContext = any
 
-/**
- * 菜单项配置接口
- */
 export interface MenuOptions<Ctx = MenuClickContext> {
-    /** 唯一标识 */
-    id: string | number;
-    /** 显示名称 */
-    name: string;
-    /** 图标代码 (Iconify) */
-    icon: string;
-    /** 路由路径 */
-    path?: string;
-    /** 分组标识 (默认 'default') */
-    group?: string;
-    /** 扩展元数据 (权限、标签等) */
-    meta?: Record<string, any>;
-    /** 额外的自定义 CSS 类名，用于样式定制 */
-    extraClass?: string;
-    /** 
-     * 跳转模式配置 
-     * - boolean: 强制指定 (true=replace, false=push)
-     * - function: 运行时动态计算
-     */
-    replace?: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
-    /**
-     * 显示状态配置 (支持响应式数据)
-     * - boolean: 固定显示或隐藏
-     * - Ref<boolean> | ComputedRef<boolean>: 响应式数据控制
-     * - function: 运行时动态判断
-     * @default true
-     */
-    show?: boolean | Ref<boolean> | ComputedRef<boolean> | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
-    /** 
-     * 自定义点击事件 
-     * 若存在，将优先执行此回调，不再自动触发 path 跳转(除非回调内手动处理)
-     */
-    handler?: (item: MenuItem<Ctx>, context?: Ctx) => void;
+  id: string | number
+  name: string
+  icon: string
+  path?: string
+  group?: string
+  meta?: Record<string, any>
+  extraClass?: string
+  replace?: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean)
+  show?: boolean | Ref<boolean> | ComputedRef<boolean> | ((item: MenuItem<Ctx>, context?: Ctx) => boolean)
+  handler?: (item: MenuItem<Ctx>, context?: Ctx) => void | Promise<void>
 }
 
-/**
- * 菜单项类
- * 实现了数据与行为的封装
- */
 export class MenuItem<Ctx = MenuClickContext> {
-    /** 唯一标识 (只读) */
-    public readonly id: string | number;
-    /** 菜单名称 */
-    public name: string;
-    /** 图标 */
-    public icon: string;
-    /** 跳转路径 */
-    public path?: string;
-    /** 分组 */
-    public group: string;
-    /** 元数据 */
-    public meta: Record<string, any>;
-    /** 自定义类名 */
-    public extraClass?: string;
+  public readonly id: string | number
+  public name: string
+  public icon: string
+  public path?: string
+  public group: string
+  public meta: Record<string, any>
+  public extraClass?: string
 
-    /**
-     * @internal
-     * 内部存储 replace 配置
-     */
-    protected _replaceOption: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
+  protected _replaceOption: boolean | ((item: MenuItem<Ctx>, context?: Ctx) => boolean)
+  protected _showOption: boolean | Ref<boolean> | ComputedRef<boolean> | ((item: MenuItem<Ctx>, context?: Ctx) => boolean)
+  protected _handler?: (item: MenuItem<Ctx>, context?: Ctx) => void | Promise<void>
 
-    /**
-     * @internal
-     * 内部存储 show 配置
-     */
-    protected _showOption: boolean | Ref<boolean> | ComputedRef<boolean> | ((item: MenuItem<Ctx>, context?: Ctx) => boolean);
+  constructor(options: MenuOptions<Ctx>) {
+    this.id = options.id
+    this.name = options.name
+    this.icon = options.icon
+    this.path = options.path
+    this.group = options.group || 'default'
+    this.meta = options.meta || {}
+    this.extraClass = options.extraClass
+    this._replaceOption = options.replace ?? false
+    this._showOption = options.show ?? true
+    this._handler = options.handler
+  }
 
-    /**
-     * @internal
-     * 内部存储 handler 配置
-     */
-    protected _handler?: (item: MenuItem<Ctx>, context?: Ctx) => void;
+  public getShouldReplace(context?: Ctx): boolean {
+    if (typeof this._replaceOption === 'function') return this._replaceOption(this, context)
+    return this._replaceOption
+  }
 
-    /**
-     * 创建菜单项实例
-     * @param options 配置对象
-     */
-    constructor(options: MenuOptions<Ctx>) {
-        this.id = options.id;
-        this.name = options.name;
-        this.icon = options.icon;
-        this.path = options.path;
-        this.group = options.group || 'default';
-        this.meta = options.meta || {};
-        this.extraClass = options.extraClass;
+  public getShouldShow(context?: Ctx): boolean {
+    if (isRef(this._showOption)) return this._showOption.value
+    if (typeof this._showOption === 'function') return this._showOption(this, context)
+    return !!this._showOption
+  }
 
-        // 初始化内部状态
-        this._replaceOption = options.replace ?? false;
-        this._showOption = options.show ?? true;
-        this._handler = options.handler;
+  public click(context?: Ctx): void {
+    if (this._handler) {
+      void this._handler(this, context)
+      return
     }
-
-    /**
-     * 计算当前是否需要 Replace 跳转
-     * @param context 运行时上下文
-     */
-    public getShouldReplace(context?: Ctx): boolean {
-        if (typeof this._replaceOption === 'function') {
-            return this._replaceOption(this, context);
-        }
-        return this._replaceOption;
+    if (this.path) {
+      void navigateTo(this.path, { replace: this.getShouldReplace(context) })
     }
-
-    /**
-     * 计算当前菜单项是否应该显示
-     * 支持 Boolean、Ref、Function
-     * @param context 运行时上下文
-     */
-    public getShouldShow(context?: Ctx): boolean {
-        // 1. 优先检查响应式 Ref/Computed
-        if (isRef(this._showOption)) {
-            return this._showOption.value;
-        }
-
-        // 2. 检查函数 (回调)
-        if (typeof this._showOption === 'function') {
-            return this._showOption(this, context);
-        }
-
-        // 3. 返回基础布尔值
-        return !!this._showOption;
-    }
-
-    /**
-     * 触发菜单点击行为
-     * 组件层应调用此方法，而非直接跳转
-     * @param context 运行时上下文
-     */
-    public click(context?: Ctx): void {
-        // 1. 优先执行自定义 Handler
-        if (this._handler) {
-            this._handler(this, context);
-            return;
-        }
-
-        // 2. 执行默认路由跳转
-        if (this.path) {
-            const isReplace = this.getShouldReplace(context);
-            navigateTo(this.path, { replace: isReplace });
-        }
-    }
+  }
 }
 
-/**
- * 菜单管理器
- * 全局单例，管理菜单的生命周期与响应式状态
- */
 export class MenuService {
-    private static instance: MenuService;
+  private static instance: MenuService
+  private menuList: Ref<MenuItem[]>
 
-    /* 菜单列表 */
-    private menuList: Ref<MenuItem[]>;
+  private constructor() {
+    this.menuList = ref([])
+    this.initDefault()
+  }
 
-    private constructor() {
-        // 初始化为空数组
-        this.menuList = ref([]);
-        this.initDefault();
-    }
+  public static getInstance(): MenuService {
+    if (!MenuService.instance) MenuService.instance = new MenuService()
+    return MenuService.instance
+  }
 
-    /**
-     * 获取全局单例
-     */
-    public static getInstance(): MenuService {
-        if (!MenuService.instance) {
-            MenuService.instance = new MenuService();
-        }
-        return MenuService.instance;
-    }
+  private initDefault() {
+    this.add({
+      id: 'chat',
+      name: '会话',
+      icon: 'mingcute:chat-4-line',
+      path: '/chat',
+      group: 'main',
+    })
 
-    /**
-     * 初始化默认菜单
-     */
-    private initDefault() {
-        this.add({
-            id: 'chat',
-            name: '会话',
-            icon: 'mingcute:chat-4-line',
-            path: '/chat',
-            group: 'main'
-        });
+    this.add({
+      id: 'contacts',
+      name: '通讯录',
+      icon: 'mingcute:contacts-3-line',
+      path: '/contacts',
+      group: 'main',
+      replace: true,
+    })
 
-        this.add({
-            id: 'contacts',
-            name: '通讯录',
-            icon: 'mingcute:contacts-3-line',
-            path: '/contacts',
-            group: 'main',
-            replace: true
-        });
+    this.add({
+      id: 'features',
+      name: '功能',
+      icon: 'mingcute:classify-2-line',
+      path: '/dashboard',
+      group: 'main',
+      replace: true,
+    })
 
-        this.add({
-            id: 'features',
-            name: '功能',
-            icon: 'mingcute:classify-2-line',
-            path: '/dashboard',
-            group: 'main',
-            replace: true,
-        });
+    this.add({
+      id: 'profile',
+      name: '个人资料',
+      icon: 'mingcute:profile-line',
+      path: '/profile',
+      group: 'main',
+      replace: true,
+    })
 
-        this.add({
-            id: 'profile',
-            name: "档案",
-            icon: "mingcute:profile-line",
-            path: "/profile",
-            group: 'main',
-            replace: true
-        });
+    this.addBatch([
+      {
+        id: 'notification',
+        name: '通知',
+        icon: 'mingcute:notification-line',
+        path: '/notification',
+        group: 'system',
+        extraClass: 'xl:hidden',
+      },
+      {
+        id: 'settings',
+        name: '设置',
+        icon: 'mingcute:settings-3-line',
+        path: '/settings',
+        group: 'system',
+      },
+      {
+        id: 'theme',
+        name: '主题',
+        icon: 'mingcute:sun-line',
+        handler: async (item, context: any) => {
+          const isDark = await AppTheme.getInstance().toggleTheme({
+            x: context?.clientX ?? 0,
+            y: context?.clientY ?? 0,
+          })
+          if (isDark) {
+            item.icon = 'mingcute:sun-line'
+            item.name = '浅色模式'
+          } else {
+            item.icon = 'mingcute:moon-line'
+            item.name = '深色模式'
+          }
+        },
+        group: 'system',
+      },
+    ])
+  }
 
-        this.addBatch([
-            {
-                id: 'notification',
-                name: '通知',
-                icon: 'mingcute:notification-line',
-                path: '/notification',
-                group: 'system',
-                extraClass: 'xl:hidden'
-            },
-            {
-                id: 'settings',
-                name: '设置',
-                icon: 'mingcute:settings-3-line',
-                path: '/settings',
-                group: 'system'
-            },
-            {
-                id: 'theme',
-                name: '主题',
-                icon: 'mingcute:sun-line',
-                handler: async (item, context) => {
-                    const isDark = await AppTheme.getInstance().toggleTheme({
-                        x: context.clientX,
-                        y: context.clientY
-                    })
-                    if (isDark) {
-                        item.icon = 'mingcute:sun-line'
-                        item.name = "浅色模式"
-                    } else {
-                        item.icon = 'mingcute:moon-line'
-                        item.name = "深色模式"
-                    }
+  public add(options: MenuOptions): MenuItem {
+    const existingItem = this.menuList.value.find(item => item.id === options.id)
+    if (existingItem) return existingItem
+    const item = new MenuItem(options)
+    this.menuList.value.push(item)
+    return item
+  }
 
-                },
-                group: 'system',
-            }
-        ]);
-    }
+  public addBatch(optionsList: MenuOptions[]): void {
+    optionsList.forEach(option => this.add(option))
+  }
 
-    /**
-     * 添加菜单项
-     * @param options 菜单配置
-     * @returns 新创建的菜单项实例
-     */
-    public add(options: MenuOptions): MenuItem {
-        // 查重：避免重复添加
-        const existingItem = this.menuList.value.find(i => i.id === options.id);
-        if (existingItem) {
-            console.warn(`[MenuService] 重复菜单ID: ${options.id}`);
-            return existingItem;
-        }
+  public remove(id: string | number): void {
+    const index = this.menuList.value.findIndex(item => item.id === id)
+    if (index > -1) this.menuList.value.splice(index, 1)
+  }
 
-        const newItem = new MenuItem(options);
-        this.menuList.value.push(newItem);
-        return newItem;
-    }
+  public getMenus(): MenuItem[] {
+    return this.menuList.value
+  }
 
-    /**
-     * 批量添加菜单
-     * @param optionsList 配置数组
-     */
-    public addBatch(optionsList: MenuOptions[]): void {
-        optionsList.forEach(opt => this.add(opt));
-    }
+  public getGroupedMenus(): ComputedRef<Record<string, MenuItem[]>> {
+    return computed(() => {
+      const groups: Record<string, MenuItem[]> = {}
+      this.menuList.value.forEach((item) => {
+        if (!item.getShouldShow()) return
+        if (!groups[item.group]) groups[item.group] = []
+        groups[item.group].push(item)
+      })
+      return groups
+    })
+  }
 
-    /**
-     * 移除菜单项
-     * @param id 菜单 ID
-     */
-    public remove(id: string | number): void {
-        const index = this.menuList.value.findIndex(item => item.id === id);
-        if (index > -1) {
-            this.menuList.value.splice(index, 1);
-        }
-    }
-
-    /**
-     * 获取所有菜单列表 (响应式)
-     * @returns MenuItem 数组
-     */
-    public getMenus(): MenuItem[] {
-        return this.menuList.value;
-    }
-
-    /**
-     * 获取分组后的菜单
-     * 自动过滤掉 show 为 false 的项，并保持响应式更新
-     * @returns 计算属性：按 group 分组的菜单对象
-     */
-    public getGroupedMenus(): ComputedRef<Record<string, MenuItem[]>> {
-        return computed(() => {
-            const groups: Record<string, MenuItem[]> = {};
-
-            this.menuList.value.forEach((item) => {
-                // 在此进行显隐判断，确保 computed 收集到 item 内部 Ref 的依赖
-                if (!item.getShouldShow()) return;
-
-                const groupName = item.group;
-                if (!groups[groupName]) {
-                    groups[groupName] = [];
-                }
-                groups[groupName].push(item);
-            });
-
-            return groups;
-        });
-    }
-
-    /**
-     * 清空菜单
-     */
-    public clear(): void {
-        this.menuList.value = [];
-    }
+  public clear(): void {
+    this.menuList.value = []
+  }
 }
 
-// 导出单例实例
-export const menuService = MenuService.getInstance();
+export const menuService = MenuService.getInstance()

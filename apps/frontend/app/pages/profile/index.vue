@@ -1,15 +1,16 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
 import { uploadFiles } from '~/api/upload'
 import { isTauri } from '~/utils/check'
 
 definePageMeta({ layout: 'main' })
 
-const authClient = useAuthClient()
+const authClient = useAuthClient() as any
 const userStore = useUserStore()
-const { copy } = useClipboard()
+const dialog = useDialog()
 const toast = useToast()
 const route = useRoute()
+const { copy } = useClipboard()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isUploading = ref(false)
@@ -30,6 +31,7 @@ const initOsInfo = async () => {
     osName.value = 'Web'
     return
   }
+
   try {
     const { type } = await import('@tauri-apps/plugin-os')
     const value = await type()
@@ -57,6 +59,29 @@ const handleCopyEmail = async () => {
   toast.success('邮箱已复制')
 }
 
+const handleLogout = async () => {
+  const confirmed = await dialog.confirm({
+    title: '退出登录',
+    content: '确认退出当前账号吗？',
+    type: 'warning',
+    confirmText: '退出',
+    cancelText: '取消',
+  })
+  if (!confirmed) return
+
+  try {
+    if (typeof authClient?.signOut === 'function') {
+      await authClient.signOut()
+    }
+  } catch (error) {
+    console.error('[Profile] signOut failed:', error)
+  } finally {
+    userStore.clearAuth()
+    toast.success('已退出登录')
+    await navigateTo('/auth/sign-in', { replace: true })
+  }
+}
+
 const handleFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -67,6 +92,7 @@ const handleFileChange = async (event: Event) => {
     input.value = ''
     return
   }
+
   if (file.size > 5 * 1024 * 1024) {
     toast.warning('图片大小不能超过 5MB')
     input.value = ''
@@ -81,6 +107,7 @@ const handleFileChange = async (event: Event) => {
       toast.error('头像上传失败')
       return
     }
+
     await authClient.updateUser({ image: avatarUrl })
     await userStore.refresh()
     toast.success('头像已更新')
@@ -104,16 +131,13 @@ onMounted(initOsInfo)
             <div class="relative">
               <div class="avatar">
                 <div class="h-20 w-20 rounded-2xl border border-base-content/10 bg-base-100/20 md:h-24 md:w-24">
-                  <img v-if="userStore.user.value?.image" :src="resolveAssetUrl(userStore.user.value.image)" class="object-cover" />
+                  <img v-if="userStore.user.value?.image" :src="resolveAssetUrl(userStore.user.value.image)" class="object-cover">
                   <div v-else class="grid h-full w-full place-items-center text-2xl font-bold text-base-content/70">
                     {{ userStore.user.value?.name?.charAt(0).toUpperCase() || 'U' }}
                   </div>
                 </div>
               </div>
-              <button
-                class="btn btn-soft btn-xs absolute -right-1 -bottom-1 rounded-lg"
-                :disabled="isUploading"
-                @click="triggerFileInput">
+              <button class="btn btn-soft btn-xs absolute -bottom-1 -right-1 rounded-lg" :disabled="isUploading" @click="triggerFileInput">
                 <span v-if="isUploading" class="loading loading-spinner loading-xs"></span>
                 <Icon v-else name="mingcute:camera-line" size="14" />
               </button>
@@ -122,7 +146,8 @@ onMounted(initOsInfo)
                 type="file"
                 class="hidden"
                 accept="image/png, image/jpeg, image/webp"
-                @change="handleFileChange" />
+                @change="handleFileChange"
+              >
             </div>
 
             <div class="min-w-0 space-y-2">
@@ -147,10 +172,14 @@ onMounted(initOsInfo)
             </div>
           </div>
 
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap items-center justify-end gap-2">
             <span class="badge badge-soft border border-base-content/10">模块：{{ activeLabel }}</span>
             <span class="badge badge-soft border border-base-content/10">{{ isTauri() ? 'Tauri' : 'Web' }}</span>
             <span class="badge badge-soft border border-base-content/10">{{ osName }}</span>
+            <button class="btn btn-soft btn-sm text-error hover:bg-error/10 hover:text-error" @click="handleLogout">
+              <Icon name="mingcute:exit-door-line" size="16" />
+              退出登录
+            </button>
           </div>
         </div>
       </section>
@@ -163,7 +192,8 @@ onMounted(initOsInfo)
                 <NuxtLink
                   :to="item.to"
                   active-class="!bg-base-content !text-base-100 font-semibold"
-                  class="rounded-xl px-4 py-3 text-sm text-base-content/70 transition hover:bg-base-200/70 hover:text-base-content">
+                  class="rounded-xl px-4 py-3 text-sm text-base-content/70 transition hover:bg-base-200/70 hover:text-base-content"
+                >
                   <Icon :name="item.icon" size="18" />
                   {{ item.label }}
                 </NuxtLink>
@@ -179,7 +209,8 @@ onMounted(initOsInfo)
               :key="item.to"
               :to="item.to"
               active-class="!bg-base-content !text-base-100"
-              class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs text-base-content/70 transition hover:bg-base-200/70 hover:text-base-content">
+              class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs text-base-content/70 transition hover:bg-base-200/70 hover:text-base-content"
+            >
               <Icon :name="item.icon" size="16" />
               <span>{{ item.label }}</span>
             </NuxtLink>
@@ -191,3 +222,4 @@ onMounted(initOsInfo)
     </div>
   </div>
 </template>
+
