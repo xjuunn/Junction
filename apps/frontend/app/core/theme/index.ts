@@ -44,6 +44,20 @@ export class AppTheme {
                 const { dark } = event.payload as { dark: boolean }
                 this.setTheme(dark, false)
             })
+        if (isTauri())
+            await listen('theme-colors-changed', (event) => {
+                const payload = event.payload as { primary?: string; secondary?: string; accent?: string }
+                this.setBrandColors(payload, false)
+            })
+
+        const savedPrimary = localStorage.getItem('theme-primary')
+        const savedSecondary = localStorage.getItem('theme-secondary')
+        const savedAccent = localStorage.getItem('theme-accent')
+        this.setBrandColors({
+            primary: savedPrimary || '',
+            secondary: savedSecondary || '',
+            accent: savedAccent || '',
+        }, false)
     }
 
     public async setTheme(dark: boolean, broadcast = true, clickPos?: { x: number; y: number }) {
@@ -102,6 +116,70 @@ export class AppTheme {
 
     public getIsBgTransparent() {
         return this.isBgTransparent;
+    }
+
+    public setBrandColors(
+        colors: { primary?: string; secondary?: string; accent?: string },
+        broadcast = true
+    ) {
+        const html = document.documentElement
+        if (!html) return
+
+        const primary = this.normalizeColor(colors.primary)
+        const secondary = this.normalizeColor(colors.secondary)
+        const accent = this.normalizeColor(colors.accent)
+
+        if (primary) {
+            html.style.setProperty('--color-primary', primary)
+            html.style.setProperty('--color-primary-content', this.getReadableContentColor(primary))
+            localStorage.setItem('theme-primary', primary)
+        }
+        if (secondary) {
+            html.style.setProperty('--color-secondary', secondary)
+            html.style.setProperty('--color-secondary-content', this.getReadableContentColor(secondary))
+            localStorage.setItem('theme-secondary', secondary)
+        }
+        if (accent) {
+            html.style.setProperty('--color-accent', accent)
+            html.style.setProperty('--color-accent-content', this.getReadableContentColor(accent))
+            localStorage.setItem('theme-accent', accent)
+        }
+
+        if (isTauri() && broadcast) {
+            emit('theme-colors-changed', { primary, secondary, accent })
+        }
+    }
+
+    private normalizeColor(color?: string) {
+        if (!color) return ''
+        const trimmed = color.trim()
+        if (!trimmed) return ''
+        const isHex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(trimmed)
+        const isOklch = /^oklch\(.+\)$/i.test(trimmed)
+        const isRgb = /^rgb(a)?\(.+\)$/i.test(trimmed)
+        const isHsl = /^hsl(a)?\(.+\)$/i.test(trimmed)
+        return isHex || isOklch || isRgb || isHsl ? trimmed : ''
+    }
+
+    private getReadableContentColor(bg: string) {
+        const hex = this.toHex(bg)
+        if (!hex) return 'oklch(98% 0.01 260)'
+        const rgb = hex.replace('#', '')
+        const r = Number.parseInt(rgb.slice(0, 2), 16)
+        const g = Number.parseInt(rgb.slice(2, 4), 16)
+        const b = Number.parseInt(rgb.slice(4, 6), 16)
+        const luminance = (r * 299 + g * 587 + b * 114) / 1000
+        return luminance > 145 ? 'oklch(20% 0.02 260)' : 'oklch(98% 0.01 260)'
+    }
+
+    private toHex(color: string) {
+        const value = color.trim()
+        if (/^#[0-9A-Fa-f]{6}$/.test(value)) return value
+        if (/^#[0-9A-Fa-f]{3}$/.test(value)) {
+            const short = value.replace('#', '')
+            return `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`
+        }
+        return ''
     }
 
     private playAdvancedRipple(pos: { x: number; y: number }, dark: boolean) {

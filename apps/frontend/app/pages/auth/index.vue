@@ -30,22 +30,13 @@ const themeModes = [
 ] as const
 
 const primaryPresets = [
-  { value: 'primary', label: '默认蓝', swatch: 'bg-primary' },
-  { value: 'secondary', label: '紫色', swatch: 'bg-secondary' },
-  { value: 'accent', label: '青色', swatch: 'bg-accent' },
-  { value: 'success', label: '绿色', swatch: 'bg-success' },
-  { value: 'warning', label: '橙色', swatch: 'bg-warning' },
-  { value: 'error', label: '红色', swatch: 'bg-error' },
+  { value: '#4f46e5', label: '默认蓝' },
+  { value: '#a855f7', label: '紫色' },
+  { value: '#06b6d4', label: '青色' },
+  { value: '#16a34a', label: '绿色' },
+  { value: '#f59e0b', label: '橙色' },
+  { value: '#ef4444', label: '红色' },
 ] as const
-
-const accentClassMap: Record<string, string> = {
-  primary: 'bg-primary',
-  secondary: 'bg-secondary',
-  accent: 'bg-accent',
-  success: 'bg-success',
-  warning: 'bg-warning',
-  error: 'bg-error',
-}
 
 const activeSceneId = ref<SceneId>('chat')
 const isPaused = ref(false)
@@ -54,7 +45,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 const activeScene = computed<Scene>(() => sceneMap[activeSceneId.value])
 const activeIndex = computed(() => Math.max(0, sceneOrder.indexOf(activeSceneId.value)))
 const canUseMica = computed(() => isTauri())
-const accentClass = computed(() => accentClassMap[settings.primaryColor] ?? 'bg-primary')
+const accentStyle = computed(() => ({ backgroundColor: settings.primaryColor || '#4f46e5' }))
 const isCompact = computed(() => settings.compactMode)
 
 const switchScene = (index: number) => {
@@ -249,11 +240,11 @@ onUnmounted(() => {
                           :key="item.value"
                           class="h-8 rounded-lg border transition-all"
                           :class="[
-                            item.swatch,
                             settings.primaryColor === item.value
                               ? 'scale-105 border-base-content/30 ring-2 ring-base-content/15'
                               : 'border-base-content/10'
                           ]"
+                          :style="{ backgroundColor: item.value }"
                           :title="item.label"
                           @click="handlePrimarySelect(item.value)"
                         ></button>
@@ -271,8 +262,7 @@ onUnmounted(() => {
                         </div>
                         <input
                           type="checkbox"
-                          class="toggle toggle-sm"
-                          :class="accentClass"
+                          class="toggle toggle-sm toggle-primary"
                           :disabled="!canUseMica"
                           :checked="isMicaEnabled"
                           @change="onMicaChange(($event.target as HTMLInputElement).checked)"
@@ -298,7 +288,8 @@ onUnmounted(() => {
               >
                 <span
                   class="h-2.5 rounded-full transition-all duration-300"
-                  :class="index === activeIndex ? `w-7 ${accentClass}` : 'w-2.5 bg-base-content/25 group-hover:bg-base-content/45'"
+                  :class="index === activeIndex ? 'w-7' : 'w-2.5 bg-base-content/25 group-hover:bg-base-content/45'"
+                  :style="index === activeIndex ? accentStyle : undefined"
                 />
                 <span
                   class="text-xs transition-colors duration-300"

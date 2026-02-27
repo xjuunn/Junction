@@ -10,6 +10,14 @@ export interface AppSettings {
   downloadPath: string
   themeMode: string
   primaryColor: string
+  secondaryColor: string
+  accentColor: string
+  lightPrimaryColor: string
+  lightSecondaryColor: string
+  lightAccentColor: string
+  darkPrimaryColor: string
+  darkSecondaryColor: string
+  darkAccentColor: string
   compactMode: boolean
   sidebarCollapsed: boolean
   animationsEnabled: boolean
@@ -169,7 +177,15 @@ export const useSettingsStore = defineStore('settings', () => {
   const startMinimizedToTray = ref(false)
   const downloadPath = ref(getSavedDownloadDir() || '')
   const themeMode = ref('system')
-  const primaryColor = ref('primary')
+  const primaryColor = ref('#4f46e5')
+  const secondaryColor = ref('#a855f7')
+  const accentColor = ref('#06b6d4')
+  const lightPrimaryColor = ref('#4f46e5')
+  const lightSecondaryColor = ref('#7c3aed')
+  const lightAccentColor = ref('#0891b2')
+  const darkPrimaryColor = ref('#818cf8')
+  const darkSecondaryColor = ref('#c084fc')
+  const darkAccentColor = ref('#22d3ee')
   const compactMode = ref(false)
   const sidebarCollapsed = ref(false)
   const animationsEnabled = ref(true)
@@ -331,6 +347,14 @@ export const useSettingsStore = defineStore('settings', () => {
     downloadPath: downloadPath.value,
     themeMode: themeMode.value,
     primaryColor: primaryColor.value,
+    secondaryColor: secondaryColor.value,
+    accentColor: accentColor.value,
+    lightPrimaryColor: lightPrimaryColor.value,
+    lightSecondaryColor: lightSecondaryColor.value,
+    lightAccentColor: lightAccentColor.value,
+    darkPrimaryColor: darkPrimaryColor.value,
+    darkSecondaryColor: darkSecondaryColor.value,
+    darkAccentColor: darkAccentColor.value,
     compactMode: compactMode.value,
     sidebarCollapsed: sidebarCollapsed.value,
     animationsEnabled: animationsEnabled.value,
@@ -366,6 +390,14 @@ export const useSettingsStore = defineStore('settings', () => {
     downloadPath,
     themeMode,
     primaryColor,
+    secondaryColor,
+    accentColor,
+    lightPrimaryColor,
+    lightSecondaryColor,
+    lightAccentColor,
+    darkPrimaryColor,
+    darkSecondaryColor,
+    darkAccentColor,
     compactMode,
     sidebarCollapsed,
     animationsEnabled,

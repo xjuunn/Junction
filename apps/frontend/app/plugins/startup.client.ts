@@ -25,6 +25,25 @@ export default defineNuxtPlugin(async () => {
     await appTheme.setTheme(mode === 'dark', true)
   }
 
+  const resolvePalette = (dark: boolean) => ({
+    primary: dark ? settings.darkPrimaryColor : settings.lightPrimaryColor,
+    secondary: dark ? settings.darkSecondaryColor : settings.lightSecondaryColor,
+    accent: dark ? settings.darkAccentColor : settings.lightAccentColor,
+  })
+
+  const applyThemeColors = () => {
+    const palette = resolvePalette(appTheme.getIsDark().value)
+    appTheme.setBrandColors({
+      primary: palette.primary,
+      secondary: palette.secondary,
+      accent: palette.accent,
+    })
+    // 兼容历史字段，保证旧页面读取到当前生效主题色
+    settings.primaryColor = palette.primary
+    settings.secondaryColor = palette.secondary
+    settings.accentColor = palette.accent
+  }
+
   watch(
     () => settings.themeMode,
     (mode) => {
@@ -38,6 +57,38 @@ export default defineNuxtPlugin(async () => {
       appTheme.setTheme(val, true)
     }
   })
+
+  watch(
+    () => [
+      appTheme.getIsDark().value,
+      settings.lightPrimaryColor,
+      settings.lightSecondaryColor,
+      settings.lightAccentColor,
+      settings.darkPrimaryColor,
+      settings.darkSecondaryColor,
+      settings.darkAccentColor,
+    ],
+    () => {
+      applyThemeColors()
+    },
+    { immediate: true }
+  )
+
+  // 兼容旧入口仅设置 primary/secondary/accent 的场景
+  watch(
+    () => [settings.primaryColor, settings.secondaryColor, settings.accentColor],
+    ([primary, secondary, accent]) => {
+      if (appTheme.getIsDark().value) {
+        settings.darkPrimaryColor = primary
+        settings.darkSecondaryColor = secondary
+        settings.darkAccentColor = accent
+      } else {
+        settings.lightPrimaryColor = primary
+        settings.lightSecondaryColor = secondary
+        settings.lightAccentColor = accent
+      }
+    }
+  )
 
   const userStore = useUserStore()
   if (userStore.authToken.value) {
