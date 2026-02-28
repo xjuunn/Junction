@@ -199,6 +199,38 @@ for await (const chunk of stream.textStream) {
 - 前端禁止直接使用 `fetch`/`axios` 调用 AI；必须使用上述封装
 - API Key 若保存在后端，必须加密存储并只在服务端解密使用
 
+## 钱包登录与关联（新增）
+
+### 基本原则
+- 以太坊登录统一使用 **better-auth SIWE**，前端通过 `useAuthClient().siwe` 调用。
+- 个人档案页的钱包绑定/解绑/设主钱包统一走 `~/api/user`，禁止页面内直接请求后端。
+- 禁止让用户在登录页输入私钥；仅允许钱包地址 + 钱包签名流程。
+
+### 前端入口
+- 登录页：`apps/frontend/app/pages/auth/index/sign-in/ethereum.vue`
+- 个人档案安全页：`apps/frontend/app/pages/profile/index/security.vue`
+- API 封装：`apps/frontend/app/api/user.ts`
+  - `listMyWallets`
+  - `createWalletBindNonce`
+  - `bindWallet`
+  - `setPrimaryWallet`
+  - `unbindWallet`
+
+### 后端入口
+- 控制器：`apps/backend/src/resource/user/user.controller.ts`
+- 服务：`apps/backend/src/resource/user/user.service.ts`
+- 路由：
+  - `GET /user/wallets`
+  - `POST /user/wallets/nonce`
+  - `POST /user/wallets/bind`
+  - `PATCH /user/wallets/:walletId/primary`
+  - `DELETE /user/wallets/:walletId`
+
+### 注意事项
+- 钱包绑定必须使用一次性签名挑战（nonce）并设置过期时间。
+- 绑定时需校验地址归属，若钱包已绑定其他账户必须拒绝。
+- 解绑主钱包后需自动补一个主钱包（若还有其他钱包）。
+
 ## 管理后台注意事项（新增）
 - 管理后台使用独立布局 `apps/frontend/app/layouts/admin.vue`，左侧菜单统一在布局内维护。
 - 管理页面统一放在 `apps/frontend/app/pages/admin/index/**` 下，确保与左侧菜单同屏展示。
@@ -374,7 +406,7 @@ for await (const chunk of stream.textStream) {
 
 已存在 API 模块：
 - `~/api/app`：`getHello`
-- `~/api/user`：`me`、`isAuthenticated`、`search`、`findOne`
+- `~/api/user`：`me`、`isAuthenticated`、`search`、`findOne`、`listMyWallets`、`createWalletBindNonce`、`bindWallet`、`setPrimaryWallet`、`unbindWallet`
 - `~/api/upload`：`uploadFiles`
 - `~/api/friendship`：好友申请/通过/拒绝/拉黑/备注/删除等
 - `~/api/conversation`：会话创建、成员管理、设置、群信息、转让群主
