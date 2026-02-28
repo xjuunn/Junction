@@ -89,14 +89,38 @@ const handleRegisterPasskey = async () => {
     return
   }
 
+  const register = async (authenticatorAttachment?: 'platform' | 'cross-platform') => {
+    return await authClient.passkey.addPasskey({
+      name: `${userStore.user.value?.name || 'User'} Device`,
+      ...(authenticatorAttachment ? { authenticatorAttachment } : {}),
+    })
+  }
+
   isPasskeyActionLoading.value = true
   try {
-    const result = await authClient.passkey.addPasskey({
-      name: `${userStore.user.value?.name || 'User'} Device`,
-    })
+    let result = await register()
 
     if (result?.error) {
-      toast.error(result.error.message || '添加 Passkey 失败，请重试')
+      const message = String(result.error.message || '').toLowerCase()
+      const code = String(result.error.code || '')
+      const shouldFallback =
+        code === 'ERROR_CEREMONY_ABORTED'
+        || code === 'AUTH_CANCELLED'
+        || message.includes('not allowed')
+        || message.includes('timed out')
+
+      if (shouldFallback) {
+        result = await register('cross-platform')
+      }
+    }
+
+    if (result?.error) {
+      const message = String(result.error.message || '').toLowerCase()
+      if (message.includes('timed out') || message.includes('not allowed')) {
+        toast.error('Passkey 请求超时或被系统拒绝，请解锁系统认证后重试')
+      } else {
+        toast.error(result.error.message || '添加 Passkey 失败，请重试')
+      }
       return
     }
 

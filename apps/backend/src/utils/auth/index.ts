@@ -141,7 +141,6 @@ export const authFactory = (emailService: EmailService): Auth => {
         // 开发环境下使用请求头中的 origin，避免 IP/localhost 切换导致校验失败。
         origin: isDevLike ? null : trustedOrigins,
         authenticatorSelection: {
-          authenticatorAttachment: 'platform',
           residentKey: 'preferred',
           userVerification: 'preferred',
         },
