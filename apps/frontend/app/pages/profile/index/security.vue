@@ -8,9 +8,27 @@ const dialog = useDialog()
 const isPasskeyLoading = ref(false)
 const osName = ref('Web')
 
-const isPasskeySupported = computed(() => {
-  if (typeof window === 'undefined') return false
-  return !!window.PublicKeyCredential
+const passkeySupport = computed(() => {
+  if (typeof window === 'undefined') {
+    return { supported: false, reason: '当前环境不支持 Passkey' }
+  }
+
+  if (!window.PublicKeyCredential) {
+    return { supported: false, reason: '当前浏览器不支持 Passkey' }
+  }
+
+  const host = window.location.hostname
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
+  const secureContext = window.isSecureContext || isLocalHost
+
+  if (!secureContext) {
+    return {
+      supported: false,
+      reason: 'HTTP + IP 地址不支持 Passkey，请改用 localhost 或 HTTPS 域名',
+    }
+  }
+
+  return { supported: true, reason: '' }
 })
 
 const initOs = async () => {
@@ -27,29 +45,32 @@ const initOs = async () => {
 }
 
 const handleRegisterPasskey = async () => {
-  if (!isPasskeySupported.value) {
-    toast.warning('当前环境不支持 Passkey，请升级系统或浏览器')
+  if (!passkeySupport.value.supported) {
+    toast.warning(passkeySupport.value.reason)
     return
   }
+
   isPasskeyLoading.value = true
   try {
-    await authClient.passkey.addPasskey({
+    const result = await authClient.passkey.addPasskey({
       name: `${userStore.user.value?.name || 'User'} Device`,
     })
+
+    if (result?.error) {
+      toast.error(result.error.message || '添加 Passkey 失败，请重试')
+      return
+    }
+
     toast.success('Passkey 添加成功')
-  } catch {
-    toast.error('操作取消或失败')
+  } catch (error: any) {
+    toast.error(error?.message || '操作取消或失败')
   } finally {
     isPasskeyLoading.value = false
   }
 }
 
 const handleSecurityGuide = async () => {
-  await dialog.alert({
-    title: '安全建议',
-    content: '建议优先启用 Passkey，并保持邮箱可用以接收登录验证。Web3 登录能力正在开发中。',
-    type: 'info',
-  })
+  await dialog.alert('建议优先启用 Passkey，并保持邮箱可用以接收登录验证。Web3 登录能力正在开发中。')
 }
 
 onMounted(initOs)
@@ -68,8 +89,8 @@ onMounted(initOs)
           <div class="mb-3 flex flex-wrap items-center gap-2">
             <span class="badge badge-soft border border-base-content/10">环境：{{ isTauri() ? 'Tauri' : 'Web' }}</span>
             <span class="badge badge-soft border border-base-content/10">系统：{{ osName }}</span>
-            <span class="badge" :class="isPasskeySupported ? 'badge-success badge-soft' : 'badge-warning badge-soft'">
-              {{ isPasskeySupported ? '支持 Passkey' : '不支持 Passkey' }}
+            <span class="badge" :class="passkeySupport.supported ? 'badge-success badge-soft' : 'badge-warning badge-soft'">
+              {{ passkeySupport.supported ? '支持 Passkey' : '不支持 Passkey' }}
             </span>
           </div>
 
@@ -80,12 +101,11 @@ onMounted(initOs)
               </div>
               <div class="space-y-1">
                 <div class="font-semibold">通行密钥（Passkey）</div>
-                <p class="text-sm text-base-content/60">
-                  使用系统级生物识别或安全密钥登录，降低密码泄露风险，并提升跨设备体验。
-                </p>
+                <p class="text-sm text-base-content/60">使用系统级生物识别或安全密钥登录，降低密码泄露风险，并提升跨设备体验。</p>
+                <p v-if="!passkeySupport.supported" class="text-xs text-warning">{{ passkeySupport.reason }}</p>
               </div>
             </div>
-            <button class="btn btn-soft btn-sm shrink-0" :disabled="isPasskeyLoading" @click="handleRegisterPasskey">
+            <button class="btn btn-soft btn-sm shrink-0" :disabled="isPasskeyLoading || !passkeySupport.supported" @click="handleRegisterPasskey">
               <span v-if="isPasskeyLoading" class="loading loading-spinner loading-xs"></span>
               <Icon v-else name="mingcute:add-line" />
               添加 Passkey

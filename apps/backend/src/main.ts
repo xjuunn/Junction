@@ -23,6 +23,7 @@ async function bootstrap() {
   const NUXT_PUBLIC_SERVER_HOST = process.env.NUXT_PUBLIC_SERVER_HOST ?? 'localhost';
   const NUXT_PUBLIC_FRONTEND_PORT = process.env.NUXT_PUBLIC_FRONTEND_PORT ?? '3000';
   const NUXT_PUBLIC_BACKEND_PORT = process.env.NUXT_PUBLIC_BACKEND_PORT ?? '8080';
+  const isDevLike = process.env.NODE_ENV !== 'production';
   const allowedOrigins = [
     `${NUXT_PUBLIC_HTTP_TYPE}://${NUXT_PUBLIC_SERVER_HOST}:${NUXT_PUBLIC_FRONTEND_PORT}`,
     `${NUXT_PUBLIC_HTTP_TYPE}://localhost:${NUXT_PUBLIC_FRONTEND_PORT}`,
@@ -37,9 +38,16 @@ async function bootstrap() {
     "https://junct.dpdns.org",
     'tauri://localhost',
   ];
+  const originSet = new Set(allowedOrigins);
+  const lanOriginPattern = /^http:\/\/(?:\d{1,3}\.){3}\d{1,3}:(3000|8080)$/;
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (originSet.has(origin)) return callback(null, true);
+      if (isDevLike && lanOriginPattern.test(origin)) return callback(null, true);
+      return callback(new Error(`CORS origin not allowed: ${origin}`), false);
+    },
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
     exposedHeaders: ['set-auth-token', 'set-refresh-token'],
