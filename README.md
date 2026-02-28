@@ -14,11 +14,6 @@
 <p align="center">
   <code>Nuxt 4</code> · <code>NestJS</code> · <code>Prisma</code> · <code>Redis</code> · <code>better-auth</code> · <code>LiveKit</code> · <code>Tauri</code>
 </p>
-
-> [!TIP]
-> 首次启动建议按顺序执行：`pnpm install` -> 配置 `.env` -> `pnpm dev`。  
-> 需要通话能力时，再执行 `pnpm livekit`。
-
 ## 目录
 
 - [1. 项目定位](#1-项目定位)
@@ -77,8 +72,8 @@ flowchart LR
   F --> G[LiveKit Server]
   A -->|SDK| G
   A --> H[Tauri Runtime]
-  A --> I[@junction/types]
-  B --> I
+  A --> ITypes["@junction/types"]
+  B --> ITypes
 ```
 
 ### 3.3 启动链路
@@ -384,4 +379,3 @@ pnpm livekit
 - 安全策略：[`SECURITY.md`](./SECURITY.md)
 - 支持说明：[`SUPPORT.md`](./SUPPORT.md)
 - 变更记录：[`CHANGELOG.md`](./CHANGELOG.md)
-
