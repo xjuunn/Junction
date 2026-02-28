@@ -10,10 +10,10 @@ const appVersion = '1.0.0'
 const buildDate = '2026-02-02'
 
 const links = [
-  { name: '官方网站', url: 'https://junction.app', icon: 'mingcute:global-line' },
-  { name: '帮助文档', url: 'https://docs.junction.app', icon: 'mingcute:book-line' },
-  { name: 'GitHub', url: 'https://github.com/junction', icon: 'mingcute:github-line' },
-  { name: '问题反馈', url: 'https://github.com/junction/issues', icon: 'mingcute:feedback-line' },
+  { name: '官方网站', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:global-line' },
+  { name: '帮助文档', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:book-line' },
+  { name: 'GitHub', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:github-line' },
+  { name: '问题反馈', url: 'https://github.com/xjuunn/Junction/issues', icon: 'mingcute:feedback-line' },
 ]
 
 const techStack = [
@@ -27,8 +27,8 @@ const techStack = [
 
 const legalLinks = [
   { name: 'MIT License', url: 'https://opensource.org/licenses/MIT', icon: 'mingcute:document-line' },
-  { name: '隐私政策', url: 'https://github.com/junction/junction/blob/main/PRIVACY.md', icon: 'mingcute:shield-line' },
-  { name: '服务条款', url: 'https://github.com/junction/junction/blob/main/TERMS.md', icon: 'mingcute:scales-line' },
+  { name: '隐私政策', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:shield-line' },
+  { name: '服务条款', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:scales-line' },
 ]
 
 const handleCopyVersion = async () => {
