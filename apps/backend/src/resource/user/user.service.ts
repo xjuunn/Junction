@@ -1,8 +1,23 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PaginationOptions } from "~/decorators/pagination.decorator";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaginationData, PrismaTypes, PrismaValues } from "@junction/types";
 import { StatusService } from "../status/status.service";
+import { generateRandomString } from "better-auth/crypto";
+import { getAddress, isAddress, verifyMessage } from "viem";
+import { randomUUID } from "node:crypto";
+
+interface WalletBindNoncePayload {
+    walletAddress: string;
+    chainId?: number;
+}
+
+interface WalletBindPayload {
+    walletAddress: string;
+    chainId?: number;
+    message: string;
+    signature: string;
+}
 
 @Injectable()
 export class UserService {
@@ -198,5 +213,221 @@ export class UserService {
     private getEmailDomain(email: string) {
         const parts = email.split('@');
         return parts.length === 2 ? parts[1].toLowerCase() : '';
+    }
+
+    private normalizeAddress(rawAddress: string) {
+        if (!isAddress(rawAddress)) {
+            throw new BadRequestException('无效的钱包地址');
+        }
+        return getAddress(rawAddress);
+    }
+
+    private normalizeChainId(rawChainId?: number) {
+        const chainId = rawChainId ?? 1;
+        if (!Number.isInteger(chainId) || chainId <= 0) {
+            throw new BadRequestException('无效的链 ID');
+        }
+        return chainId;
+    }
+
+    private buildWalletBindMessage(address: string, chainId: number, nonce: string) {
+        const host = process.env.NUXT_PUBLIC_SERVER_HOST || 'localhost';
+        const httpType = process.env.NUXT_PUBLIC_HTTP_TYPE || 'http';
+        const frontendPort = process.env.NUXT_PUBLIC_FRONTEND_PORT || '3000';
+        const origin = `${httpType}://${host}:${frontendPort}`;
+        const issuedAt = new Date().toISOString();
+        return `${host} wants you to sign in with your Ethereum account:
+${address}
+
+绑定 Junction 账户钱包，请勿在未知页面签名。
+
+URI: ${origin}
+Version: 1
+Chain ID: ${chainId}
+Nonce: ${nonce}
+Issued At: ${issuedAt}`;
+    }
+
+    async listMyWallets(userId: string) {
+        return this.prisma.walletAddress.findMany({
+            where: { userId },
+            select: {
+                id: true,
+                address: true,
+                chainId: true,
+                isPrimary: true,
+                createdAt: true,
+            },
+            orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+        });
+    }
+
+    async createWalletBindNonce(userId: string, payload: WalletBindNoncePayload) {
+        const address = this.normalizeAddress(payload.walletAddress);
+        const chainId = this.normalizeChainId(payload.chainId);
+        const nonce = generateRandomString(32);
+        const message = this.buildWalletBindMessage(address, chainId, nonce);
+        const identifier = `wallet-bind:${userId}:${address}:${chainId}`;
+
+        await this.prisma.verification.deleteMany({ where: { identifier } });
+        await this.prisma.verification.create({
+            data: {
+                id: randomUUID(),
+                identifier,
+                value: message,
+                expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            },
+        });
+
+        return {
+            walletAddress: address,
+            chainId,
+            nonce,
+            message,
+            expiresIn: 900,
+        };
+    }
+
+    async bindWallet(userId: string, payload: WalletBindPayload) {
+        const address = this.normalizeAddress(payload.walletAddress);
+        const chainId = this.normalizeChainId(payload.chainId);
+        const message = String(payload.message || '');
+        const signature = String(payload.signature || '');
+
+        if (!message || !signature) {
+            throw new BadRequestException('签名参数不完整');
+        }
+
+        const identifier = `wallet-bind:${userId}:${address}:${chainId}`;
+        const verification = await this.prisma.verification.findFirst({
+            where: { identifier },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        if (!verification || verification.expiresAt.getTime() < Date.now()) {
+            throw new BadRequestException('签名挑战已过期，请重新发起绑定');
+        }
+
+        if (verification.value !== message) {
+            throw new BadRequestException('签名消息不匹配，请重新发起绑定');
+        }
+
+        const isValid = await verifyMessage({
+            address: address as `0x${string}`,
+            message,
+            signature: signature as `0x${string}`,
+        });
+
+        if (!isValid) {
+            throw new BadRequestException('签名校验失败');
+        }
+
+        const existingWallet = await this.prisma.walletAddress.findUnique({
+            where: {
+                address_chainId: {
+                    address,
+                    chainId,
+                },
+            },
+        });
+
+        if (existingWallet && existingWallet.userId !== userId) {
+            throw new BadRequestException('该钱包已绑定其他账户');
+        }
+
+        const wallet = await this.prisma.$transaction(async (tx) => {
+            const nextWallet = existingWallet ?? await tx.walletAddress.create({
+                data: {
+                    userId,
+                    address,
+                    chainId,
+                    isPrimary: (await tx.walletAddress.count({ where: { userId } })) === 0,
+                },
+            });
+
+            const siweAccountId = `${address}:${chainId}`;
+            const existingAccount = await tx.account.findFirst({
+                where: {
+                    userId,
+                    providerId: 'siwe',
+                    accountId: siweAccountId,
+                },
+            });
+
+            if (!existingAccount) {
+                await tx.account.create({
+                    data: {
+                        id: randomUUID(),
+                        userId,
+                        providerId: 'siwe',
+                        accountId: siweAccountId,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    },
+                });
+            }
+
+            return nextWallet;
+        });
+
+        await this.prisma.verification.deleteMany({ where: { identifier } });
+
+        return wallet;
+    }
+
+    async setPrimaryWallet(userId: string, walletId: string) {
+        const wallet = await this.prisma.walletAddress.findUnique({ where: { id: walletId } });
+        if (!wallet || wallet.userId !== userId) {
+            throw new BadRequestException('钱包不存在');
+        }
+
+        await this.prisma.$transaction([
+            this.prisma.walletAddress.updateMany({
+                where: { userId, isPrimary: true },
+                data: { isPrimary: false },
+            }),
+            this.prisma.walletAddress.update({
+                where: { id: walletId },
+                data: { isPrimary: true },
+            }),
+        ]);
+
+        return { success: true };
+    }
+
+    async unbindWallet(userId: string, walletId: string) {
+        const wallet = await this.prisma.walletAddress.findUnique({ where: { id: walletId } });
+        if (!wallet || wallet.userId !== userId) {
+            throw new BadRequestException('钱包不存在');
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.walletAddress.delete({ where: { id: walletId } });
+
+            await tx.account.deleteMany({
+                where: {
+                    userId,
+                    providerId: 'siwe',
+                    accountId: `${wallet.address}:${wallet.chainId}`,
+                },
+            });
+
+            if (wallet.isPrimary) {
+                const nextWallet = await tx.walletAddress.findFirst({
+                    where: { userId },
+                    orderBy: { createdAt: 'asc' },
+                });
+                if (nextWallet) {
+                    await tx.walletAddress.update({
+                        where: { id: nextWallet.id },
+                        data: { isPrimary: true },
+                    });
+                }
+            }
+        });
+
+        return { success: true };
     }
 }

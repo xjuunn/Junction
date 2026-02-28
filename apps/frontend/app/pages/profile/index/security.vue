@@ -1,5 +1,23 @@
 <script setup lang="ts">
 import { isTauri } from '~/utils/check'
+import { bindWallet, createWalletBindNonce, listMyWallets, setPrimaryWallet, unbindWallet } from '~/api/user'
+
+declare global {
+  interface Window {
+    ethereum?: {
+      isMetaMask?: boolean
+      request: (args: { method: string; params?: any[] }) => Promise<any>
+    }
+  }
+}
+
+interface WalletItem {
+  id: string
+  address: string
+  chainId: number
+  isPrimary: boolean
+  createdAt: string | Date
+}
 
 const authClient = useAuthClient() as any
 const userStore = useUserStore()
@@ -8,8 +26,11 @@ const dialog = useDialog()
 
 const osName = ref('Web')
 const passkeys = ref<Array<{ id: string, name?: string, createdAt?: string | Date }>>([])
+const wallets = ref<WalletItem[]>([])
 const isPasskeyListLoading = ref(false)
 const isPasskeyActionLoading = ref(false)
+const isWalletListLoading = ref(false)
+const isWalletActionLoading = ref(false)
 
 const passkeySupport = computed(() => {
   if (typeof window === 'undefined') {
@@ -36,12 +57,23 @@ const passkeySupport = computed(() => {
 
 const hasPasskey = computed(() => passkeys.value.length > 0)
 const currentPasskey = computed(() => passkeys.value[0] ?? null)
+const hasWallet = computed(() => wallets.value.length > 0)
 
 const formatDateTime = (value?: string | Date) => {
   if (!value) return '未知时间'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '未知时间'
   return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+const shortAddress = (address: string) => {
+  if (!address || address.length < 10) return address
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
+
+const copyAddress = async (address: string) => {
+  await navigator.clipboard.writeText(address)
+  toast.success('钱包地址已复制')
 }
 
 const resolvePasskeyList = (result: any): any[] => {
@@ -67,6 +99,18 @@ const loadPasskeys = async () => {
     passkeys.value = []
   } finally {
     isPasskeyListLoading.value = false
+  }
+}
+
+const loadWallets = async () => {
+  isWalletListLoading.value = true
+  try {
+    const { data } = await listMyWallets()
+    wallets.value = Array.isArray(data) ? data : []
+  } catch {
+    wallets.value = []
+  } finally {
+    isWalletListLoading.value = false
   }
 }
 
@@ -170,13 +214,83 @@ const handleDeletePasskey = async () => {
   }
 }
 
-const handleSecurityGuide = async () => {
-  await dialog.alert('建议优先启用 Passkey，并保持邮箱可用以接收登录验证。Web3 登录能力正在开发中。')
+const handleBindMetaMask = async () => {
+  if (!window.ethereum?.isMetaMask) {
+    toast.warning('请先安装并登录 MetaMask')
+    return
+  }
+
+  isWalletActionLoading.value = true
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+    if (!Array.isArray(accounts) || accounts.length === 0) {
+      throw new Error('未检测到可用钱包账户')
+    }
+
+    const walletAddress = accounts[0]
+    const { data: challenge } = await createWalletBindNonce({ walletAddress, chainId: 1 })
+    if (!challenge?.message) {
+      throw new Error('获取签名挑战失败')
+    }
+
+    const signature = await window.ethereum.request({
+      method: 'personal_sign',
+      params: [challenge.message, challenge.walletAddress],
+    })
+
+    await bindWallet({
+      walletAddress: challenge.walletAddress,
+      chainId: challenge.chainId,
+      message: challenge.message,
+      signature,
+    })
+
+    toast.success('钱包绑定成功')
+    await loadWallets()
+  } catch (error: any) {
+    toast.error(error?.message || '钱包绑定失败，请重试')
+  } finally {
+    isWalletActionLoading.value = false
+  }
+}
+
+const handleSetPrimaryWallet = async (walletId: string) => {
+  if (isWalletActionLoading.value) return
+  isWalletActionLoading.value = true
+  try {
+    await setPrimaryWallet(walletId)
+    toast.success('主钱包已更新')
+    await loadWallets()
+  } catch (error: any) {
+    toast.error(error?.message || '设置主钱包失败')
+  } finally {
+    isWalletActionLoading.value = false
+  }
+}
+
+const handleUnbindWallet = async (wallet: WalletItem) => {
+  const ok = await dialog.confirm({
+    title: '解绑钱包',
+    content: `确认解绑钱包 ${shortAddress(wallet.address)} 吗？`,
+    type: 'warning',
+  })
+  if (!ok) return
+
+  isWalletActionLoading.value = true
+  try {
+    await unbindWallet(wallet.id)
+    toast.success('钱包已解绑')
+    await loadWallets()
+  } catch (error: any) {
+    toast.error(error?.message || '解绑失败，请重试')
+  } finally {
+    isWalletActionLoading.value = false
+  }
 }
 
 onMounted(async () => {
   await initOs()
-  await loadPasskeys()
+  await Promise.all([loadPasskeys(), loadWallets()])
 })
 </script>
 
@@ -262,17 +376,76 @@ onMounted(async () => {
               <span class="badge badge-success badge-soft">已启用</span>
             </div>
 
-            <div class="flex items-center justify-between rounded-xl bg-base-100/20 px-3 py-3">
-              <div class="flex items-center gap-3">
-                <div class="grid h-9 w-9 place-items-center rounded-lg bg-base-100/20">
-                  <Icon name="mingcute:wallet-line" size="18" class="text-base-content/70" />
+            <div class="rounded-xl bg-base-100/20 px-3 py-3">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="grid h-9 w-9 place-items-center rounded-lg bg-base-100/20">
+                    <Icon name="mingcute:wallet-line" size="18" class="text-base-content/70" />
+                  </div>
+                  <div>
+                    <div class="text-sm font-medium">SIWE（Web3 钱包）</div>
+                    <div class="text-xs text-base-content/60">
+                      已绑定 {{ wallets.length }} 个钱包
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div class="text-sm font-medium">SIWE（Web3 钱包）</div>
-                  <div class="text-xs text-base-content/60">功能开发中</div>
+
+                <button
+                  class="btn btn-soft btn-xs"
+                  :disabled="isWalletActionLoading"
+                  @click="handleBindMetaMask"
+                >
+                  <span v-if="isWalletActionLoading" class="loading loading-spinner loading-xs"></span>
+                  <Icon v-else name="mingcute:add-line" />
+                  绑定 MetaMask
+                </button>
+              </div>
+
+              <div v-if="isWalletListLoading" class="mt-3 rounded-lg border border-base-content/10 bg-base-100/30 px-3 py-2 text-xs text-base-content/60">
+                正在加载钱包列表...
+              </div>
+
+              <div v-else-if="hasWallet" class="mt-3 space-y-2">
+                <div
+                  v-for="wallet in wallets"
+                  :key="wallet.id"
+                  class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-base-content/10 bg-base-100/35 px-3 py-2"
+                >
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="font-mono text-xs md:text-sm">{{ shortAddress(wallet.address) }}</span>
+                      <span v-if="wallet.isPrimary" class="badge badge-success badge-soft badge-xs">主钱包</span>
+                    </div>
+                    <div class="text-[11px] text-base-content/60">
+                      Chain {{ wallet.chainId }} · {{ formatDateTime(wallet.createdAt) }}
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button class="btn btn-ghost btn-xs" @click="copyAddress(wallet.address)">
+                      复制
+                    </button>
+                    <button
+                      v-if="!wallet.isPrimary"
+                      class="btn btn-ghost btn-xs"
+                      :disabled="isWalletActionLoading"
+                      @click="handleSetPrimaryWallet(wallet.id)"
+                    >
+                      设为主钱包
+                    </button>
+                    <button
+                      class="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                      :disabled="isWalletActionLoading"
+                      @click="handleUnbindWallet(wallet)"
+                    >
+                      解绑
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button class="btn btn-ghost btn-xs" @click="handleSecurityGuide">查看建议</button>
+
+              <div v-else class="mt-3 rounded-lg border border-dashed border-base-content/15 px-3 py-3 text-xs text-base-content/60">
+                暂未绑定钱包，可点击右侧按钮完成 MetaMask 绑定。
+              </div>
             </div>
           </div>
         </div>
