@@ -14,6 +14,8 @@
 <p align="center">
   <code>Nuxt 4</code> · <code>NestJS</code> · <code>Prisma</code> · <code>Redis</code> · <code>better-auth</code> · <code>LiveKit</code> · <code>Tauri</code>
 </p>
+![image](docs\assets\img0.png)
+
 ## 目录
 
 - [1. 项目定位](#1-项目定位)
@@ -40,7 +42,22 @@ Junction 是一个基于 **pnpm workspaces + Turborepo** 的全栈 Monorepo，�
 - 在业务层复用统一 API、统一类型与统一状态管理
 - 提供 AI Bot、富文本、文件能力等协作增强模块
 
+![image](docs\assets\img1.png)
+
+![image](docs\assets\img2.png)
+
+![image](docs\assets\img3.png)
+
+![image](docs\assets\img4.png)
+
+![image](docs\assets\img5.png)
+
+![image](docs\assets\img6.png)
+
+![image](docs\assets\img7.png)
+
 ## 2. 核心能力
+
 | 能力域 | 说明 |
 | --- | --- |
 | 即时通信 | 私聊、群聊、临时会话、系统会话 |
