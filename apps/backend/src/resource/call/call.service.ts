@@ -32,7 +32,7 @@ export class CallService {
 
     const apiKey = this.config.get<string>('LIVEKIT_API_KEY');
     const apiSecret = this.config.get<string>('LIVEKIT_API_SECRET');
-    const url = this.config.get<string>('LIVEKIT_URL');
+    const url = this.resolveLivekitUrl();
     if (!apiKey || !apiSecret || !url) {
       throw new BadRequestException('LiveKit 未配置');
     }
@@ -82,6 +82,13 @@ export class CallService {
     if (!first) return '';
     const withoutProtocol = first.replace(/^https?:\/\//i, '');
     return withoutProtocol.split(':')[0] || '';
+  }
+
+  private resolveLivekitUrl() {
+    const protocol = this.config.get<string>('NUXT_PUBLIC_HTTP_TYPE') || 'http';
+    const host = this.config.get<string>('NUXT_PUBLIC_SERVER_HOST') || 'localhost';
+    const port = this.config.get<string>('LIVEKIT_PORT') || '7880';
+    return `${protocol}://${host}:${port}`;
   }
 
 }

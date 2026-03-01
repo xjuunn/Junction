@@ -188,7 +188,6 @@ pnpm dev
 | `NUXT_PUBLIC_SERVER_HOST` | 服务主机名 | `localhost` |
 | `NUXT_PUBLIC_FRONTEND_PORT` | 前端端口 | `3000` |
 | `NUXT_PUBLIC_BACKEND_PORT` | 后端端口 | `8080` |
-| `NUXT_PUBLIC_API_URL` | 前端请求后端基础地址 | `http://localhost:8080` |
 
 ### 6.2 认证
 | 变量 | 说明 |
@@ -229,8 +228,7 @@ pnpm dev
 | 变量 | 说明 |
 | --- | --- |
 | `NUXT_PUBLIC_RTC_ICE_SERVERS` | RTC ICE 服务器 JSON |
-| `NUXT_PUBLIC_LIVEKIT_URL` | 前端连接 LiveKit 地址 |
-| `LIVEKIT_URL` | 后端签发 Token 使用的 LiveKit 地址 |
+| `LIVEKIT_PORT` | LiveKit 服务端口（默认 `7880`） |
 | `LIVEKIT_API_KEY` | LiveKit API Key |
 | `LIVEKIT_API_SECRET` | LiveKit API Secret |
 
@@ -377,7 +375,7 @@ pnpm livekit
 
 ## 14. 常见问题
 ### 14.1 前端启动后无法请求后端
-- 检查 `.env` 中 `NUXT_PUBLIC_API_URL`
+- 检查 `.env` 中 `NUXT_PUBLIC_SERVER_HOST` 与 `NUXT_PUBLIC_BACKEND_PORT`
 - 检查后端端口 `NUXT_PUBLIC_BACKEND_PORT`
 - 检查 `apps/backend/src/main.ts` CORS 白名单
 
@@ -388,7 +386,7 @@ pnpm livekit
 
 ### 14.3 通话连接失败
 - 确认 LiveKit 服务已启动
-- 检查 `LIVEKIT_URL`、`LIVEKIT_API_KEY`、`LIVEKIT_API_SECRET`
+- 检查 `NUXT_PUBLIC_SERVER_HOST`、`LIVEKIT_PORT`、`LIVEKIT_API_KEY`、`LIVEKIT_API_SECRET`
 - 确认 7880/7881/7882 端口可达
 
 ## 15. 贡献与支持

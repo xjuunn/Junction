@@ -43,7 +43,6 @@ const buildTrustedOrigins = () => {
     `${httpType}://localhost:${backendPort}`,
     `${httpType}://127.0.0.1:${backendPort}`,
     `${httpType}://${serverHost}:${backendPort}`,
-    process.env.NUXT_PUBLIC_API_URL,
     process.env.PASSKEY_ORIGIN,
     'http://tauri.localhost',
     'tauri://localhost',

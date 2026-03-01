@@ -20,6 +20,17 @@ export function formatTimeAgo(dateStr: Date | string): string {
     return `${y}-${m}-${d}`;
 }
 
+function resolveApiBaseUrl(options?: { baseUrl?: string }): string {
+    const config = useRuntimeConfig();
+    const protocol = String(config.public.httpType || 'http').trim();
+    const host = String(config.public.serverHost || '').trim();
+    const backendPort = String(config.public.backendPort || '').trim();
+    const fallback = host
+        ? `${protocol}://${host}${backendPort ? `:${backendPort}` : ''}`
+        : '';
+    return String(options?.baseUrl || config.public.apiUrl || fallback).trim();
+}
+
 /**
  * 转换为可渲染的资源路径
  * 自动拼接baseurl
@@ -38,8 +49,7 @@ export function resolveAssetUrl(
     if (!value) return options?.fallback ?? '';
     if (/^(data:|blob:)/.test(value)) return value;
     if (/^(https?:)?\/\//.test(value)) return value;
-    const config = useRuntimeConfig();
-    const base = options?.baseUrl ?? config.public.apiUrl;
+    const base = resolveApiBaseUrl(options);
     if (!base) return value;
     if (value.startsWith('/'))
         return `${base}${value}`;
@@ -64,8 +74,7 @@ export function normalizeUploadPath(
 
     if (/^(https?:)?\/\//.test(value)) {
         try {
-            const config = useRuntimeConfig();
-            const base = options?.baseUrl ?? config.public.apiUrl;
+            const base = resolveApiBaseUrl(options);
             const baseUrl = base ? new URL(base) : null;
             const url = new URL(value, baseUrl ?? undefined);
             if (url.pathname.startsWith('/uploads/')) {

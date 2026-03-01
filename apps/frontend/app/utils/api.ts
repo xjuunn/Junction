@@ -25,7 +25,13 @@ class Api {
             (config: InternalAxiosRequestConfig) => {
                 if (!config.headers) config.headers = new AxiosHeaders()
                 const runtimeConfig = useRuntimeConfig()
-                const apiUrl = runtimeConfig.public.apiUrl as string
+                const protocol = String(runtimeConfig.public.httpType || 'http').trim()
+                const host = String(runtimeConfig.public.serverHost || '').trim()
+                const backendPort = String(runtimeConfig.public.backendPort || '').trim()
+                const fallbackBaseUrl = host
+                    ? `${protocol}://${host}${backendPort ? `:${backendPort}` : ''}`
+                    : ''
+                const apiUrl = String(runtimeConfig.public.apiUrl || fallbackBaseUrl).trim()
                 if (!config.baseURL && !config.url?.startsWith('http')) {
                     config.baseURL = apiUrl
                 }
