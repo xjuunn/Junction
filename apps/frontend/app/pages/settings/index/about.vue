@@ -2,113 +2,132 @@
 import { useClipboard } from '@vueuse/core'
 import { openExternalUrl } from '~/utils/link'
 
-const { copy } = useClipboard()
 const toast = useToast()
+const { copy } = useClipboard()
 
 const appName = 'Junction'
 const appVersion = '1.0.0'
 const buildDate = '2026-02-02'
 
-const links = [
-  { name: '官方网站', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:global-line' },
-  { name: '帮助文档', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:book-line' },
-  { name: 'GitHub', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:github-line' },
-  { name: '问题反馈', url: 'https://github.com/xjuunn/Junction/issues', icon: 'mingcute:feedback-line' },
+const linkItems = [
+  {
+    title: '代码仓库',
+    description: '查看项目源码、路线图与版本历史',
+    url: 'https://github.com/xjuunn/Junction',
+    icon: 'mingcute:github-line'
+  },
+  {
+    title: '问题追踪',
+    description: '提交程序缺陷与改进建议',
+    url: 'https://github.com/xjuunn/Junction/issues',
+    icon: 'mingcute:bug-line'
+  },
+  {
+    title: '版本发布',
+    description: '查看历史版本与详细更新说明',
+    url: 'https://github.com/xjuunn/Junction/releases',
+    icon: 'mingcute:rocket-line'
+  },
+  {
+    title: '作者主页',
+    description: '访问开发者主页与更多开源项目',
+    url: 'https://github.com/xjuunn',
+    icon: 'mingcute:user-4-line'
+  },
 ]
 
-const techStack = [
-  { name: 'Nuxt 4', description: '前端框架' },
-  { name: 'Vue 3', description: 'UI 框架' },
-  { name: 'NestJS', description: '服务端框架' },
-  { name: 'Prisma', description: '数据访问层' },
-  { name: 'Tauri', description: '桌面运行时' },
-  { name: 'Tailwind CSS', description: '样式系统' },
+const supportItems = [
+  { title: '提交缺陷报告', url: 'https://github.com/xjuunn/Junction/issues/new?template=bug_report.md', icon: 'mingcute:warning-line' },
+  { title: '提出功能建议', url: 'https://github.com/xjuunn/Junction/issues/new?template=feature_request.md', icon: 'mingcute:ai-line' },
 ]
 
-const legalLinks = [
-  { name: 'MIT License', url: 'https://opensource.org/licenses/MIT', icon: 'mingcute:document-line' },
-  { name: '隐私政策', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:shield-line' },
-  { name: '服务条款', url: 'https://github.com/xjuunn/Junction', icon: 'mingcute:scales-line' },
-]
-
-const handleCopyVersion = async () => {
-  await copy(`Version: ${appVersion}\nBuild: ${buildDate}`)
-  toast.success('版本信息已复制')
+const copyBuildInfo = async () => {
+  await copy(`应用名称: ${appName}\n当前版本: ${appVersion}\n构建日期: ${buildDate}`)
+  toast.success('构建信息已复制到剪贴板')
 }
 </script>
 
 <template>
-  <div class="card border border-base-content/10 bg-base-100/20 shadow-none backdrop-blur-md">
-    <div class="card-body p-5 md:p-7">
-      <h2 class="card-title mb-4 flex items-center gap-2 border-b border-base-content/10 pb-4 text-lg">
-        <Icon name="mingcute:information-line" class="text-primary" />
-        关于 Junction
-      </h2>
+  <div
+    class="min-h-full w-full bg-transparent flex justify-center items-start p-4 sm:p-8 font-sans text-base-content selection:bg-base-content/20 overflow-y-auto">
+    <div class="w-full max-w-2xl flex flex-col gap-8">
 
-      <div class="space-y-6">
-        <section class="rounded-2xl border border-base-content/10 bg-base-100/20 p-5">
-          <div class="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-4">
-              <div class="grid h-16 w-16 place-items-center rounded-2xl bg-primary/15 text-primary">
-                <span class="text-2xl font-bold">J</span>
-              </div>
-              <div>
-                <div class="text-xl font-bold">{{ appName }}</div>
-                <div class="text-sm text-base-content/60">连接一切，沟通无界</div>
-              </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-primary badge-soft">v{{ appVersion }}</span>
-              <button class="btn btn-soft btn-sm" @click="handleCopyVersion">
-                <Icon name="mingcute:copy-line" />
-                复制版本
-              </button>
-            </div>
-          </div>
-        </section>
+      <section
+        class="flex flex-col sm:flex-row items-center sm:items-start gap-6 p-6 sm:p-8 rounded-[2rem] bg-base-content/[0.02] border border-base-content/5 shadow-sm">
+        <div
+          class="w-20 h-20 rounded-2xl bg-base-content/[0.04] border border-base-content/10 flex items-center justify-center shrink-0 group">
+          <Icon name="mingcute:asterisk-fill" size="3rem"
+            class="w-10 h-10 text-base-content/80 group-hover:rotate-180 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]" />
+        </div>
 
-        <section>
-          <div class="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Icon name="mingcute:link-line" class="text-base-content/60" />
-            快捷入口
+        <div class="flex flex-col items-center sm:items-start flex-1 gap-4">
+          <div class="text-center sm:text-left space-y-1">
+            <h1 class="text-2xl font-bold tracking-tight text-base-content">{{ appName }}</h1>
+            <p class="text-sm font-medium text-base-content/50">企业级实时沟通与协作体验</p>
           </div>
-          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button v-for="link in links" :key="link.name"
-              class="btn btn-soft justify-start gap-3"
-              @click="openExternalUrl(link.url)">
-              <Icon :name="link.icon" size="18" />
-              {{ link.name }}
-            </button>
-          </div>
-        </section>
 
-        <section>
-          <div class="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Icon name="mingcute:stack-line" class="text-base-content/60" />
-            技术栈
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <span v-for="tech in techStack" :key="tech.name"
-              class="badge badge-soft gap-2 border border-base-content/10 px-3 py-3">
-              <span class="font-medium">{{ tech.name }}</span>
-              <span class="text-base-content/60">{{ tech.description }}</span>
+          <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+            <span
+              class="px-3 py-1.5 rounded-lg bg-base-content/[0.03] border border-base-content/5 text-xs font-medium text-base-content/70">
+              版本 {{ appVersion }}
             </span>
-          </div>
-        </section>
-
-        <section class="rounded-2xl border border-base-content/10 bg-base-100/20 p-4">
-          <div class="mb-3 text-sm font-semibold">开源与协议</div>
-          <div class="flex flex-wrap gap-2">
-            <button v-for="item in legalLinks" :key="item.name"
-              class="btn btn-soft btn-sm"
-              @click="openExternalUrl(item.url)">
-              <Icon :name="item.icon" />
-              {{ item.name }}
+            <span
+              class="px-3 py-1.5 rounded-lg bg-base-content/[0.03] border border-base-content/5 text-xs font-medium text-base-content/70">
+              构建于 {{ buildDate }}
+            </span>
+            <button
+              class="px-3.5 py-1.5 rounded-lg bg-base-content text-base-100 text-xs font-semibold hover:opacity-85 active:scale-95 transition-all duration-200 flex items-center gap-1.5 shadow-md shadow-base-content/10 ml-1"
+              @click="copyBuildInfo">
+              <Icon name="mingcute:copy-2-line" class="w-3.5 h-3.5" />
+              <span>复制信息</span>
             </button>
           </div>
-          <div class="mt-3 text-xs text-base-content/60">Build: {{ buildDate }}</div>
-        </section>
-      </div>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xs font-bold text-base-content/40 tracking-wider pl-2">官方链接</h2>
+        <div
+          class="flex flex-col bg-base-content/[0.02] border border-base-content/5 rounded-3xl overflow-hidden shadow-sm">
+          <button v-for="(item, index) in linkItems" :key="item.title"
+            class="group flex items-center gap-4 p-4 hover:bg-base-content/[0.04] transition-colors duration-300 w-full text-left"
+            :class="{ 'border-b border-base-content/5': index !== linkItems.length - 1 }"
+            @click="openExternalUrl(item.url)">
+            <div
+              class="w-10 h-10 rounded-xl bg-base-content/[0.04] border border-base-content/5 flex items-center justify-center shrink-0 group-hover:bg-base-content text-base-content/60 group-hover:text-base-100 transition-all duration-300">
+              <Icon :name="item.icon" class="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+            </div>
+            <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+              <h3 class="text-sm font-semibold text-base-content/90">{{ item.title }}</h3>
+              <p class="text-xs text-base-content/50 truncate">{{ item.description }}</p>
+            </div>
+            <Icon name="mingcute:right-line"
+              class="w-4 h-4 text-base-content/20 group-hover:text-base-content/60 group-hover:translate-x-1 transition-all duration-300 shrink-0" />
+          </button>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xs font-bold text-base-content/40 tracking-wider pl-2">支持与反馈</h2>
+        <div
+          class="flex flex-col bg-base-content/[0.02] border border-base-content/5 rounded-3xl overflow-hidden shadow-sm">
+          <button v-for="(item, index) in supportItems" :key="item.title"
+            class="group flex items-center gap-4 p-4 hover:bg-base-content/[0.04] transition-colors duration-300 w-full text-left"
+            :class="{ 'border-b border-base-content/5': index !== supportItems.length - 1 }"
+            @click="openExternalUrl(item.url)">
+            <div
+              class="w-10 h-10 rounded-xl bg-base-content/[0.04] border border-base-content/5 flex items-center justify-center shrink-0 group-hover:bg-base-content text-base-content/60 group-hover:text-base-100 transition-all duration-300">
+              <Icon :name="item.icon" class="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-sm font-semibold text-base-content/90">{{ item.title }}</h3>
+            </div>
+            <Icon name="mingcute:external-link-line"
+              class="w-4 h-4 text-base-content/20 group-hover:text-base-content/60 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 shrink-0" />
+          </button>
+        </div>
+      </section>
+
     </div>
   </div>
 </template>
