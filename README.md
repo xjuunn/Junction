@@ -397,3 +397,34 @@ pnpm livekit
 - 安全策略：[`SECURITY.md`](./SECURITY.md)
 - 支持说明：[`SUPPORT.md`](./SUPPORT.md)
 - 变更记录：[`CHANGELOG.md`](./CHANGELOG.md)
+
+## 16. LiveKit
+无需再修改 `infra/livekit/docker-compose.yml` 或 `infra/livekit/livekit.yaml` 中的 IP。
+
+启动命令：
+
+```bash
+pnpm livekit:up
+```
+
+常用命令：
+
+```bash
+pnpm livekit:up
+pnpm livekit:down
+pnpm livekit:restart
+pnpm livekit:logs
+```
+
+IP 读取优先级：
+
+1. `LIVEKIT_NODE_IP`
+2. `NUXT_PUBLIC_SERVER_HOST`
+3. `127.0.0.1`
+
+建议在根目录 `.env` 中维护：
+
+```env
+NUXT_PUBLIC_SERVER_HOST=10.64.197.133
+LIVEKIT_NODE_IP=
+```

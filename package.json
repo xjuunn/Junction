@@ -10,7 +10,11 @@
     "start": "npx turbo run start",
     "build": "npx turbo run build",
     "build:packages": "npx turbo run build --filter=./packages/*",
-    "livekit": "docker compose -f infra/livekit/docker-compose.yml up -d"
+    "livekit": "pnpm livekit:up",
+    "livekit:up": "docker compose -f infra/livekit/docker-compose.yml up -d",
+    "livekit:down": "docker compose -f infra/livekit/docker-compose.yml down",
+    "livekit:restart": "pnpm livekit:down && pnpm livekit:up",
+    "livekit:logs": "docker compose -f infra/livekit/docker-compose.yml logs -f --tail=200"
   },
   "keywords": [],
   "author": "",
