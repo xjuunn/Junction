@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import * as botApi from '~/api/ai-bot'
 import { uploadFiles } from '~/api/upload'
 
@@ -93,14 +93,14 @@ watch(() => form.triggerMode, (mode) => {
 })
 
 const visibilityOptions: Array<{ value: BotVisibility; label: string }> = [
-  { value: 'PRIVATE', label: '私有 (仅自己可见)' },
-  { value: 'PUBLIC', label: '公开 (所有人可见)' },
+  { value: 'PRIVATE', label: '私有（仅自己可见）' },
+  { value: 'PUBLIC', label: '公开（所有人可见）' },
   { value: 'ORG', label: '组织内可见' },
 ]
 
 const triggerOptions: Array<{ value: BotTriggerMode; label: string }> = [
   { value: 'MENTION', label: '@ 提及触发' },
-  { value: 'AUTO', label: '自动回应' },
+  { value: 'AUTO', label: '自动回复' },
 ]
 
 const responseOptions: Array<{ value: BotResponseMode; label: string }> = [
@@ -372,7 +372,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="h-full min-h-[500px] w-full flex flex-col font-sans text-base-content selection:bg-primary/20 bg-transparent">
+    class="h-full min-h-[500px] w-full flex flex-col rounded-2xl border border-base-content/10 bg-transparent font-sans text-base-content selection:bg-primary/20">
 
     <Transition name="fade" mode="out-in">
 
@@ -385,7 +385,7 @@ onBeforeUnmount(() => {
               机器人
             </h1>
             <p class="text-sm text-base-content/40 mt-2 tracking-widest font-light uppercase">
-              <span class="text-success">{{ activeBots.length }} Online</span> · {{ bots.length }} Total
+              <span class="text-success">{{ activeBots.length }} 在线</span> · {{ bots.length }} 总计
             </p>
           </div>
           <div class="flex items-center gap-4">
@@ -402,39 +402,54 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 列表内容 -->
-        <div class="flex-1 overflow-y-auto px-6 lg:px-12 pb-12 custom-scrollbar">
-          <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div v-for="i in 8" :key="i" class="h-32 bg-base-content/5 animate-pulse rounded-3xl"></div>
+        <div class="flex-1 overflow-y-auto px-4 pb-8 md:px-6 lg:px-12 lg:pb-12 custom-scrollbar">
+          <div v-if="loading" class="space-y-3">
+            <div v-for="i in 8" :key="i" class="h-24 animate-pulse rounded-2xl border border-base-content/10 bg-base-content/[0.03]"></div>
           </div>
 
-          <div v-else-if="bots.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <button v-for="bot in bots" :key="bot.id"
-              class="group text-left p-6 rounded-3xl transition-all duration-300 bg-base-100/40 backdrop-blur-xl border border-base-content/5 hover:bg-base-100/60 hover:shadow-lg hover:shadow-base-content/5 hover:-translate-y-1 flex flex-col gap-5"
-              @click="fillForm(bot)">
-              <div class="flex items-center gap-4">
+          <div v-else-if="bots.length > 0" class="space-y-3">
+            <button
+              v-for="bot in bots"
+              :key="bot.id"
+              class="group w-full text-left rounded-2xl border border-base-content/10 bg-base-content/[0.02] px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-base-content/[0.04] md:px-5"
+              @click="fillForm(bot)"
+            >
+              <div class="flex items-start gap-4 md:gap-5">
                 <div class="relative flex-shrink-0">
                   <div
-                    class="w-14 h-14 rounded-full overflow-hidden bg-base-content/5 flex items-center justify-center">
+                    class="h-12 w-12 rounded-xl overflow-hidden border border-base-content/10 bg-base-content/5 flex items-center justify-center md:h-14 md:w-14">
                     <img v-if="bot.avatar" :src="resolveAssetUrl(bot.avatar)" class="w-full h-full object-cover" />
                     <Icon v-else name="mingcute:bot-line" size="24" class="text-base-content/30" />
                   </div>
-                  <span class="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-base-100/50"
-                    :class="bot.status === 'ACTIVE' ? 'bg-success' : 'bg-base-content/20'"></span>
+                  <span
+                    class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border border-base-100/70"
+                    :class="bot.status === 'ACTIVE' ? 'bg-success' : 'bg-base-content/20'"
+                  ></span>
                 </div>
-                <div class="flex-1 min-w-0">
-                  <h3 class="font-medium text-lg text-base-content truncate group-hover:text-primary transition-colors">
-                    {{ bot.name }}</h3>
-                  <p class="text-xs text-base-content/40 truncate mt-1 font-light">{{ bot.description || '暂无描述' }}</p>
+                <div class="min-w-0 flex-1 space-y-3">
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0">
+                      <h3 class="truncate text-base font-semibold text-base-content transition-colors group-hover:text-primary md:text-lg">
+                        {{ bot.name }}
+                      </h3>
+                      <p class="mt-1 line-clamp-2 text-xs text-base-content/55 md:text-sm">{{ bot.description || '暂无描述' }}</p>
+                    </div>
+                    <div class="hidden shrink-0 items-center gap-2 md:flex">
+                      <span class="badge badge-ghost border-base-content/10 text-[11px]">{{ bot.status === 'ACTIVE' ? '在线' : '停用' }}</span>
+                      <Icon name="mingcute:right-line" class="text-base-content/35 transition-transform duration-300 group-hover:translate-x-0.5" />
+                    </div>
+                  </div>
+                  <div class="mt-1 flex flex-wrap items-center gap-2 md:justify-end">
+                    <span
+                      class="rounded-full border border-base-content/10 bg-base-content/[0.03] px-2.5 py-1 text-[10px] font-medium tracking-wide text-base-content/60 uppercase">
+                      {{ bot.visibility === 'PRIVATE' ? 'PRIVATE' : bot.visibility === 'PUBLIC' ? 'PUBLIC' : 'ORG' }}
+                    </span>
+                    <span
+                      class="rounded-full border border-base-content/10 bg-base-content/[0.03] px-2.5 py-1 text-[10px] font-medium tracking-wide text-base-content/60 uppercase">
+                      {{ bot.triggerMode === 'MENTION' ? '@ MENTION' : 'AUTO' }}
+                    </span>
+                  </div>
                 </div>
-              </div>
-
-              <div class="flex items-center gap-2 mt-auto">
-                <span
-                  class="px-2.5 py-1 rounded-full bg-base-content/5 text-[10px] text-base-content/50 font-medium tracking-widest uppercase">{{
-                    bot.visibility === 'PRIVATE' ? 'PRIVATE' : bot.visibility === 'PUBLIC' ? 'PUBLIC' : 'ORG' }}</span>
-                <span
-                  class="px-2.5 py-1 rounded-full bg-base-content/5 text-[10px] text-base-content/50 font-medium tracking-widest uppercase">{{
-                    bot.triggerMode === 'MENTION' ? '@ MENTION' : 'AUTO' }}</span>
               </div>
             </button>
           </div>
@@ -448,7 +463,7 @@ onBeforeUnmount(() => {
 
       <!-- 表单视图 -->
       <div v-else key="form" class="flex flex-col flex-1 h-full w-full relative">
-        <!-- 悬浮的极简头部 -->
+        <!-- 悬浮极简头部 -->
         <div
           class="flex-none px-6 py-4 flex items-center justify-between sticky top-0 z-30 bg-base-100/60 backdrop-blur-xl border-b border-base-content/5">
           <div class="flex items-center gap-4">
@@ -509,7 +524,7 @@ onBeforeUnmount(() => {
               <div class="flex-1 w-full space-y-4">
                 <input v-model="form.name" type="text"
                   class="w-full bg-transparent border-none focus:ring-0 p-0 text-3xl font-light placeholder:text-base-content/20 text-center md:text-left"
-                  placeholder="命名你的助理...">
+                  placeholder="命名你的助手...">
                 <textarea v-model="form.description"
                   class="w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-light resize-none h-16 placeholder:text-base-content/20 custom-scrollbar text-center md:text-left"
                   placeholder="一句话描述它的作用..."></textarea>
@@ -551,7 +566,7 @@ onBeforeUnmount(() => {
                 <label class="flex items-center gap-3 cursor-pointer group">
                   <input v-model="form.autoReplyInGroup" type="checkbox"
                     class="toggle toggle-sm toggle-primary opacity-60 group-hover:opacity-100 transition-opacity">
-                  <span class="text-sm font-light text-base-content/70">群聊自动回应</span>
+                  <span class="text-sm font-light text-base-content/70">群聊自动回复</span>
                 </label>
                 <label class="flex items-center gap-3 cursor-pointer group">
                   <input v-model="form.summaryEnabled" type="checkbox"
@@ -575,7 +590,7 @@ onBeforeUnmount(() => {
                   Prompt)</label>
                 <textarea v-model="form.systemPrompt"
                   class="w-full bg-base-content/5 border-none focus:ring-1 focus:ring-primary rounded-3xl p-6 text-sm font-mono resize-none h-48 custom-scrollbar placeholder:text-base-content/20 transition-all leading-relaxed"
-                  placeholder="定义角色、语气、核心指令..."></textarea>
+                  placeholder="定义角色、语气与核心指令..."></textarea>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 bg-base-content/[0.02] p-6 rounded-3xl">
@@ -612,7 +627,7 @@ onBeforeUnmount(() => {
                     class="w-full bg-base-content/5 border-none focus:ring-1 focus:ring-primary rounded-2xl px-5 py-3.5 text-sm font-mono transition-all">
                 </div>
                 <div class="space-y-3">
-                  <label class="text-[10px] font-medium text-base-content/50 uppercase tracking-widest">指定模型 <span
+                  <label class="text-[10px] font-medium text-base-content/50 uppercase tracking-widest">鎸囧畾妯″瀷 <span
                       class="font-light lowercase opacity-50">(可选)</span></label>
                   <input v-model="form.model" type="text"
                     class="w-full bg-base-content/5 border-none focus:ring-1 focus:ring-primary rounded-2xl px-5 py-3.5 text-sm font-mono transition-all">
@@ -623,7 +638,7 @@ onBeforeUnmount(() => {
                     <input v-model="form.apiKey" :type="showApiKey ? 'text' : 'password'"
                       class="w-full bg-base-content/5 border-none focus:ring-1 focus:ring-primary rounded-2xl pl-5 pr-12 py-3.5 text-sm font-mono placeholder:text-base-content/20 transition-all"
                       @input="apiKeyTouched = true"
-                      :placeholder="form.apiKeyHint ? `已保存 (尾号 ${form.apiKeyHint})` : 'sk-...'">
+                      :placeholder="form.apiKeyHint ? `已保存（尾号 ${form.apiKeyHint}）` : 'sk-...'">
                     <button
                       class="absolute right-4 top-1/2 -translate-y-1/2 text-base-content/30 hover:text-base-content transition-colors"
                       type="button" @click="showApiKey = !showApiKey">
@@ -730,7 +745,7 @@ onBeforeUnmount(() => {
   transform: translateY(-10px);
 }
 
-/* 极致隐藏滚动条 */
+/* 极简隐藏滚动条 */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
   height: 4px;

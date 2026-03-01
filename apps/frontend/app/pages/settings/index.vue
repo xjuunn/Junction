@@ -12,7 +12,7 @@ const menuItems = computed(() => [
   { to: '/settings/privacy', label: '隐私设置', icon: 'mingcute:shield-line' },
   { to: '/settings/theme', label: '主题设置', icon: 'mingcute:paint-line' },
   { to: '/settings/about', label: '关于 Junction', icon: 'mingcute:information-line' },
-  ...(isAdmin.value ? [{ to: '/admin', label: '管理员后台', icon: 'mingcute:shield-line' }] : []),
+  ...(isAdmin.value ? [{ to: '/admin', label: '管理后台', icon: 'mingcute:shield-line' }] : []),
 ])
 
 const activeLabel = computed(() => {
@@ -55,9 +55,11 @@ onMounted(() => {
           <div class="sticky top-4 rounded-2xl border border-base-content/10 bg-base-100/20 p-2 shadow-sm backdrop-blur-md">
             <ul class="menu w-full gap-1">
               <li v-for="item in menuItems" :key="item.to">
-                <NuxtLink :to="item.to"
+                <NuxtLink
+                  :to="item.to"
                   active-class="!bg-base-content !text-base-100 font-semibold"
-                  class="rounded-xl px-4 py-3 text-sm text-base-content/70 transition hover:bg-base-200 hover:text-base-content">
+                  class="rounded-xl px-4 py-3 text-sm text-base-content/70 transition hover:bg-base-200 hover:text-base-content"
+                >
                   <Icon :name="item.icon" size="18" />
                   {{ item.label }}
                 </NuxtLink>
@@ -68,21 +70,23 @@ onMounted(() => {
 
         <div class="space-y-3 md:space-y-4">
           <div class="flex gap-2 overflow-x-auto rounded-2xl border border-base-content/10 bg-base-100/20 p-2 shadow-sm backdrop-blur-md lg:hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <NuxtLink v-for="item in menuItems" :key="item.to" :to="item.to"
+            <NuxtLink
+              v-for="item in menuItems"
+              :key="item.to"
+              :to="item.to"
               active-class="!bg-base-content !text-base-100"
-              class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs text-base-content/70 transition hover:bg-base-200 hover:text-base-content">
+              class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs text-base-content/70 transition hover:bg-base-200 hover:text-base-content"
+            >
               <Icon :name="item.icon" size="16" />
               <span>{{ item.label }}</span>
             </NuxtLink>
           </div>
 
-          <div class="rounded-2xl border border-base-content/10 bg-base-100/20 p-2 shadow-sm backdrop-blur-md md:p-3">
-            <div class="settings-content
+          <div class="rounded-2xl bg-transparent p-0 md:p-0">
+            <div
+              class="settings-content
               [&_.card]:rounded-2xl
-              [&_.card]:!border
-              [&_.card]:!border-base-content/10
-              [&_.card]:!bg-base-100/20
-              [&_.card]:!backdrop-blur-md
+              [&_.card]:!bg-transparent
               [&_.card]:!shadow-none
               [&_.card-body]:!p-4
               md:[&_.card-body]:!p-6
@@ -107,7 +111,8 @@ onMounted(() => {
               [&_.dropdown-content]:backdrop-blur-md
               [&_.menu]:backdrop-blur-md
               [&_.border-base-200]:!border-base-content/10
-              [&_.max-w-2xl]:!max-w-none">
+              [&_.max-w-2xl]:!max-w-none"
+            >
               <NuxtPage />
             </div>
           </div>

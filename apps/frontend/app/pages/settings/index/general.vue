@@ -86,7 +86,7 @@ async function handleSave() {
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-sm border border-base-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
+  <div class="card bg-transparent shadow-none border border-base-content/10 animate-in fade-in slide-in-from-bottom-2 duration-300">
     <div class="card-body p-6 md:p-8">
       <h2 class="card-title text-lg border-b border-base-200 pb-4 mb-6 flex items-center gap-2">
         <Icon name="mingcute:settings-3-line" class="text-primary" />
