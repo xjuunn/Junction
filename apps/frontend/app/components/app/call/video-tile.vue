@@ -10,7 +10,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   stream: null,
-  muted: false
+  muted: false,
 })
 
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -25,6 +25,7 @@ const attachStream = (stream: MediaStream | null) => {
       videoRef.value.play().catch(() => {})
     }
   }
+
   if (audioRef.value) {
     audioRef.value.srcObject = stream
     if (stream) {
@@ -41,11 +42,6 @@ const updateTrackFlags = (stream: MediaStream | null) => {
 const handleTrackChange = () => {
   updateTrackFlags(props.stream || null)
   attachStream(props.stream || null)
-  if (props.stream) {
-    console.info('[RTC] tile track change', {
-      tracks: props.stream.getTracks().map(t => ({ kind: t.kind, id: t.id, enabled: t.enabled }))
-    })
-  }
 }
 
 watch(
@@ -59,10 +55,11 @@ watch(
       stream.addEventListener('addtrack', handleTrackChange)
       stream.addEventListener('removetrack', handleTrackChange)
     }
+
     updateTrackFlags(stream || null)
     attachStream(stream || null)
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 watchEffect(() => {
@@ -71,25 +68,41 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="relative w-full h-full rounded-2xl overflow-hidden bg-base-200/60 border border-base-content/5">
+  <div class="relative h-full w-full overflow-hidden bg-black">
     <audio ref="audioRef" autoplay playsinline :muted="muted" class="hidden" />
     <video
       ref="videoRef"
-      class="w-full h-full object-contain bg-black/90"
+      class="h-full w-full bg-black object-contain transition-all duration-300"
       autoplay
       playsinline
       muted
-      :class="{ 'opacity-0 pointer-events-none': !hasVideo }"
+      :class="{ 'pointer-events-none opacity-0': !hasVideo }"
     />
+
     <div v-if="!hasVideo" class="absolute inset-0 flex flex-col items-center justify-center gap-3">
       <BaseAvatar :text="participant.name || 'User'" :src="participant.image || undefined" :height="64" :width="64" :radius="18" />
-      <div class="text-xs font-bold opacity-70 truncate max-w-[70%]">
-        {{ participant.name || '\u533f\u540d\u7528\u6237' }}
+      <div class="max-w-[70%] truncate text-xs font-bold text-white/70">
+        {{ participant.name || '匿名用户' }}
       </div>
     </div>
 
-    <div class="absolute left-3 bottom-3 px-2.5 py-1 rounded-full text-[10px] font-bold bg-base-100/80 backdrop-blur-md border border-base-content/5">
-      {{ participant.isLocal ? '\u6211' : (participant.name || '\u53c2\u4e0e\u8005') }}
+    <div class="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-md">
+      {{ participant.isLocal ? '我' : (participant.name || '参与者') }}
+    </div>
+
+    <div class="absolute right-3 top-3 flex items-center gap-1.5">
+      <span
+        class="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white backdrop-blur-md"
+        :title="hasAudio ? '麦克风已开启' : '麦克风已关闭'"
+      >
+        <Icon :name="hasAudio ? 'mingcute:mic-line' : 'mingcute:mic-off-line'" size="12" />
+      </span>
+      <span
+        class="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white backdrop-blur-md"
+        :title="hasVideo ? '摄像头已开启' : '摄像头已关闭'"
+      >
+        <Icon :name="hasVideo ? 'mingcute:camera-line' : 'mingcute:eye-close-line'" size="12" />
+      </span>
     </div>
   </div>
 </template>

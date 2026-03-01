@@ -18,6 +18,9 @@ const resolvedLivekitUrl = buildUrl(httpType, serverHost, livekitPort)
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  experimental: {
+    appManifest: false,
+  },
   vite: {
     plugins: [tailwindcss()],
     server: {
@@ -90,6 +93,7 @@ export default defineNuxtConfig({
     "/": { ssr: false },
     "/auth/**": { ssr: false },
     "/chat/**": { ssr: false },
+    "/call/**": { ssr: false },
     "/tools/**": { ssr: false }
   }
 })

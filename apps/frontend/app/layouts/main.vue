@@ -10,6 +10,7 @@ const { isAdmin } = useAdminAccess();
 const appTheme = AppTheme.getInstance();
 const isMicaActive = computed(() => isTauri() && appTheme.getIsBgTransparent().value);
 const shouldShowBottomNav = computed(() => {
+    if (route.path.startsWith('/call')) return false;
     const isMobileView = breakpoints.smaller('sm').value;
     const isDetailRoute = route.name?.toString().endsWith('-id');
     return isMobileView && !isDetailRoute;
