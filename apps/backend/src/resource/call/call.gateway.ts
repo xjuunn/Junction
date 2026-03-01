@@ -126,7 +126,22 @@ export class CallGateway implements OnGatewayDisconnect {
     const { callId } = payload;
     const session = this.sessions.get(callId);
     if (!session || !userId) return;
-    if (!session.ringing.has(userId) && !session.participants.has(userId)) return;
+    const isParticipant = session.participants.has(userId);
+    if (!isParticipant) {
+      const member = await this.prisma.conversationMember.findFirst({
+        where: { conversationId: session.conversationId, userId, isActive: true },
+        select: { userId: true }
+      });
+      if (!member) return;
+    }
+
+    if (isParticipant) {
+      client.emit('call-joined', {
+        callId,
+        participants: [...session.participants.values()]
+      });
+      return;
+    }
 
     const profile = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -147,6 +162,11 @@ export class CallGateway implements OnGatewayDisconnect {
       participants: [...session.participants.values()]
     });
     await this.emitToUserExceptSocket(userId, client.id, 'call-canceled', { callId });
+
+    this.broadcastToRinging(session, 'call-joined', {
+      callId,
+      participants: [...session.participants.values()]
+    }, userId);
 
     this.broadcastToParticipants(session, 'call-participant-joined', {
       callId,
@@ -231,9 +251,6 @@ export class CallGateway implements OnGatewayDisconnect {
       this.endSession(session.id, 'ended');
       return;
     }
-    if (session.participants.size === 1 && session.ringing.size === 0) {
-      this.endSession(session.id, 'ended');
-    }
   }
 
   private endSession(callId: string, reason: 'hangup' | 'canceled' | 'rejected' | 'timeout' | 'disconnected' | 'ended', endedBy?: string) {
@@ -256,6 +273,13 @@ export class CallGateway implements OnGatewayDisconnect {
     session.participants.forEach(participant => {
       if (participant.userId === excludeUserId) return;
       this.server.to(`user-${participant.userId}`).emit(event, payload);
+    });
+  }
+
+  private broadcastToRinging(session: CallSession, event: string, payload: any, excludeUserId?: string) {
+    session.ringing.forEach(userId => {
+      if (userId === excludeUserId) return;
+      this.server.to(`user-${userId}`).emit(event, payload);
     });
   }
 

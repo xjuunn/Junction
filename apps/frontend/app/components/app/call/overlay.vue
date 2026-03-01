@@ -34,6 +34,7 @@ const showMiniFloating = computed(() => showFloating.value && !isRinging.value)
 
 const participants = computed<RtcCallParticipant[]>(() => state.participants.value || [])
 const meId = computed(() => userStore.user.value?.id || '')
+const incomingFrom = computed(() => state.incomingFrom?.value ?? null)
 
 const callStartedAt = ref<number | null>(null)
 const nowTick = ref(Date.now())
@@ -71,6 +72,12 @@ const callDurationText = computed(() => {
 })
 
 const callTypeText = computed(() => isVideoCall.value ? '视频通话' : '语音通话')
+
+const toNumberSetter = (fn: Function): ((value: number) => void) => {
+  return (value: number) => {
+    fn(value)
+  }
+}
 
 const openCallPage = () => {
   const from = route.fullPath && !route.fullPath.startsWith('/call') ? route.fullPath : '/chat'
@@ -213,8 +220,8 @@ watch(showMiniFloating, async (value) => {
   if (!value) return
   await nextTick()
   if (!miniRef.value) return
-  miniSetter.value = gsap.quickSetter(miniRef.value, 'x', 'px')
-  miniSetterY.value = gsap.quickSetter(miniRef.value, 'y', 'px')
+  miniSetter.value = toNumberSetter(gsap.quickSetter(miniRef.value, 'x', 'px'))
+  miniSetterY.value = toNumberSetter(gsap.quickSetter(miniRef.value, 'y', 'px'))
   updateMiniPosition()
 })
 
@@ -244,7 +251,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="min-w-0">
                 <div class="truncate text-sm font-black text-white">
-                  {{ state.incomingFrom.value?.name || '来电邀请' }}
+                  {{ incomingFrom?.name || '来电邀请' }}
                 </div>
                 <div class="mt-0.5 text-xs text-white/70">
                   {{ isVideoCall ? '邀请你进行视频通话' : '邀请你进行语音通话' }}
@@ -293,7 +300,7 @@ onBeforeUnmount(() => {
         @pointercancel="onMiniPointerUp"
         @click="onMiniClick"
       >
-        <div class="flex h-9 items-center justify-between border-b border-white/10 px-3 text-white" :data-tauri-drag-region="isTauri() ? '' : undefined">
+        <div class="flex h-9 items-center justify-between border-b border-white/10 px-3 text-white">
           <div class="flex items-center gap-2 text-[11px] font-bold">
             <Icon :name="isVideoCall ? 'mingcute:video-line' : 'mingcute:mic-line'" size="14" />
             <span>{{ callTypeText }} · {{ callDurationText }}</span>

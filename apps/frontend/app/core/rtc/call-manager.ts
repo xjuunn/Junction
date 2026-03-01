@@ -55,6 +55,7 @@ export class CallManager {
   private roomConnecting: Promise<void> | null = null
   private roomBound = false
   private isCleaningUp = false
+  private selfJoinedByAction = false
 
   private localAudioTrack: LocalAudioTrack | null = null
   private localVideoTrack: LocalVideoTrack | null = null
@@ -105,6 +106,7 @@ export class CallManager {
   async startCall(options: StartCallOptions) {
     this.init()
     if (!this.ensureIdle()) return
+    this.selfJoinedByAction = true
     const callId = createCallId()
     this.store.setSession({
       callId,
@@ -129,6 +131,7 @@ export class CallManager {
 
   async acceptCall() {
     if (!this.store.callId || !this.store.callType || !this.store.conversationId) return
+    this.selfJoinedByAction = true
     this.store.setStatus('connecting')
     this.store.setIncoming(null)
     this.store.upsertParticipant(this.getLocalParticipant())
@@ -371,6 +374,10 @@ export class CallManager {
     this.roomBound = true
     room.on(RoomEvent.ConnectionStateChanged, state => {
       if (state === ConnectionState.Connected) {
+        if (this.store.direction === 'incoming' && !this.selfJoinedByAction) {
+          void this.teardownRoom()
+          return
+        }
         if (this.store.status !== 'in-call') {
           this.store.setStatus('in-call')
         }
@@ -799,10 +806,11 @@ export class CallManager {
 
   private handleIncoming(payload: RtcCallInvite) {
     this.init()
-    if (!this.ensureIdle()) {
+    if (!this.ensureIncomingAllowed(payload.callId)) {
       this.socket.emit('call-reject', { callId: payload.callId })
       return
     }
+    this.selfJoinedByAction = false
     this.store.setSession({
       callId: payload.callId,
       conversationId: payload.conversationId,
@@ -818,22 +826,49 @@ export class CallManager {
 
   private handleJoined(payload: RtcCallJoined) {
     if (payload.callId !== this.store.callId) return
-    this.store.setParticipants(payload.participants)
-    const hasRemote = payload.participants.some(p => p.userId !== this.currentUserId())
-    this.store.setStatus(hasRemote ? 'connecting' : this.store.status)
-    if (hasRemote) {
-      this.store.setStatus('in-call')
+    this.store.setParticipants(payload.participants || [])
+    if (this.store.direction === 'incoming' && !this.selfJoinedByAction) {
+      if (this.store.status !== 'idle') {
+        this.store.setStatus('ringing')
+      }
+      return
     }
-    this.connectRoomIfNeeded()
+    const joinedBySelf = this.isSelfInParticipants(payload.participants || [])
+    const hasRemote = (payload.participants || []).some(p => p.userId !== this.currentUserId())
+    if (joinedBySelf) {
+      if (hasRemote) {
+        this.store.setStatus('in-call')
+        this.store.setIncoming(null)
+        this.connectRoomIfNeeded()
+        return
+      }
+      if (this.store.direction === 'outgoing' && this.store.status !== 'idle') {
+        this.store.setStatus('ringing')
+      }
+      return
+    }
+    if (this.store.direction === 'incoming' && this.store.status !== 'idle') {
+      this.store.setStatus('ringing')
+    }
   }
 
   private handleParticipantJoined(payload: RtcCallParticipantEvent) {
     if (payload.callId !== this.store.callId) return
     this.store.upsertParticipant(payload.participant)
-    if (this.store.status === 'ringing' || this.store.status === 'connecting') {
-      this.store.setStatus('in-call')
+    if (this.store.direction === 'incoming' && !this.selfJoinedByAction) {
+      if (this.store.status !== 'idle') {
+        this.store.setStatus('ringing')
+      }
+      return
     }
-    this.connectRoomIfNeeded()
+    if (this.hasSelfJoinedCurrentCall()) {
+      this.store.setStatus('in-call')
+      this.connectRoomIfNeeded()
+      return
+    }
+    if (this.store.direction === 'incoming' && this.store.status !== 'idle') {
+      this.store.setStatus('ringing')
+    }
   }
 
   private handleParticipantLeft(payload: RtcCallParticipantLeft) {
@@ -876,6 +911,7 @@ export class CallManager {
     this.activeSpeakerIds.clear()
     this.lastQuality = 'unknown'
     this.store.setPreferredQuality('auto')
+    this.selfJoinedByAction = false
     this.isCleaningUp = false
   }
 
@@ -905,6 +941,21 @@ export class CallManager {
       return false
     }
     return true
+  }
+
+  private ensureIncomingAllowed(callId: string) {
+    if (this.store.status === 'idle') return true
+    return this.store.callId === callId
+  }
+
+  private isSelfInParticipants(participants: RtcCallParticipant[]) {
+    const me = this.currentUserId()
+    if (!me) return false
+    return participants.some(item => item.userId === me)
+  }
+
+  private hasSelfJoinedCurrentCall() {
+    return this.isSelfInParticipants(this.store.participants || [])
   }
 
   private currentUserId() {

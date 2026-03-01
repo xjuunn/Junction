@@ -17,7 +17,7 @@ const toast = useToast();
 const dialog = useDialog();
 const appSocket = useSocket('app');
 const { emit: busEmit, on: busOn, off: busOff } = useEmitt();
-const { startCall } = useCall();
+const { startCall, state: callState } = useCall();
 
 const conversationId = computed(() => route.params.id as string);
 const currentUserId = computed(() => unref(userStore.user)?.id);
@@ -1054,6 +1054,40 @@ const handleConversationUpdated = (payload: { id: string; title?: string; avatar
     messages.value = applyRemarksToReadInfo(applyRemarks(messages.value));
 };
 
+const isCurrentGroupCallActive = computed(() => {
+    if (!currentConversation.value) return false;
+    if (currentConversation.value.type !== 'GROUP') return false;
+    if (!callState.conversationId?.value) return false;
+    if (callState.conversationId.value !== conversationId.value) return false;
+    return callState.status.value !== 'idle';
+});
+
+const currentGroupCallCount = computed(() => {
+    if (!isCurrentGroupCallActive.value) return 0;
+    const count = callState.participants?.value?.length ?? 0;
+    return Math.max(1, count);
+});
+
+const currentGroupCallStatusText = computed(() => {
+    const status = callState.status.value;
+    if (status === 'ringing') return '通话邀请中';
+    if (status === 'connecting') return '通话连接中';
+    if (status === 'in-call') return '通话进行中';
+    return '通话进行中';
+});
+
+const currentGroupCallTypeText = computed(() => {
+    return callState.callType.value === 'video' ? '视频通话' : '语音通话';
+});
+
+const enterCurrentGroupCall = async () => {
+    if (!isCurrentGroupCallActive.value) return;
+    await navigateTo({
+        path: '/call',
+        query: { from: route.fullPath || '/chat' },
+    });
+};
+
 const handleNewMessage = async (msg: MessageItem) => {
     if (msg.conversationId === conversationId.value) {
         await ensureRemarks([msg]);
@@ -1318,6 +1352,36 @@ onUnmounted(() => {
                 </button>
             </div>
         </header>
+
+        <Transition name="call-tip-fade">
+            <div v-if="isCurrentGroupCallActive"
+                class="relative z-20 border-b border-primary/20 bg-primary/8 px-4 py-2.5 md:px-6">
+                <button
+                    class="group flex w-full items-center justify-between gap-3 rounded-xl border border-primary/20 bg-base-100/70 px-3 py-2 text-left backdrop-blur-md transition-all hover:border-primary/40 hover:bg-primary/5"
+                    @click="enterCurrentGroupCall">
+                    <div class="min-w-0 flex items-center gap-3">
+                        <div
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                            <Icon :name="callState.callType.value === 'video' ? 'mingcute:video-line' : 'mingcute:mic-line'"
+                                size="16" />
+                        </div>
+                        <div class="min-w-0">
+                            <div class="truncate text-xs font-extrabold text-base-content">
+                                {{ currentGroupCallStatusText }} · {{ currentGroupCallTypeText }}
+                            </div>
+                            <div class="mt-0.5 text-[11px] text-base-content/60">
+                                当前 {{ currentGroupCallCount }} 人在通话，点击加入
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1 text-primary">
+                        <span class="text-[11px] font-bold">加入</span>
+                        <Icon name="mingcute:right-line" size="14" />
+                    </div>
+                </button>
+            </div>
+        </Transition>
+
         <div class="flex-1 relative overflow-hidden bg-base-100">
             <div v-if="initialLoading" class="absolute inset-0 z-20 flex items-center justify-center">
                 <div class="loading loading-ring loading-lg text-primary/20"></div>
@@ -1539,3 +1603,16 @@ onUnmounted(() => {
         </BaseModal>
     </div>
 </template>
+
+<style scoped>
+.call-tip-fade-enter-active,
+.call-tip-fade-leave-active {
+    transition: all 0.24s ease;
+}
+
+.call-tip-fade-enter-from,
+.call-tip-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+</style>
