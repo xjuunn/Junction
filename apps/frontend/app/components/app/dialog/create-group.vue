@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, watch } from 'vue';
-import type { PrismaTypes, ApiResponse } from '@junction/types';
-import type { ExtractDataType } from '~/utils/types';
+import { ref, computed, watch } from 'vue';
 import * as conversationApi from '~/api/conversation';
-import * as userApi from '~/api/user';
+import * as friendshipApi from '~/api/friendship';
 import * as uploadApi from '~/api/upload';
 
 interface Props {
@@ -28,13 +26,9 @@ const groupName = ref('');
 const groupAvatar = ref('');
 const selectedMembers = ref<string[]>([]);
 const searchQuery = ref('');
-const loading = ref(false);
 const creating = ref(false);
-const friends = ref<AwaitedReturnType<typeof userApi.search>['data']>(null);
+const friends = ref<Array<{ id: string; name?: string | null; email: string; image: string | null }>>([]);
 const friendsLoading = ref(true);
-
-// 搜索防抖
-const searchDebounce = ref<NodeJS.Timeout>();
 
 // 头像上传
 const avatarInput = ref<HTMLInputElement>();
@@ -44,17 +38,16 @@ const uploadingAvatar = ref(false);
 const loadFriends = async () => {
     friendsLoading.value = true;
     try {
-        const res = await userApi.search({ query: searchQuery.value || '', limit: 100 });
+        const res = await friendshipApi.findAll({ page: 1, limit: 500, status: 'ACCEPTED' });
         if (res.success && res.data) {
-            // 过滤掉自己
-            const filteredUsers = res.data.items.filter(user =>
-                user.id !== useUserStore().user.value?.id
-            );
-            friends.value = {
-                ...res.data,
-                items: filteredUsers
-            };
+            const currentUserId = useUserStore().user.value?.id;
+            const friendUsers = res.data.items
+                .map(item => item.friend)
+                .filter(friend => !!friend && friend.id !== currentUserId);
+            friends.value = friendUsers;
         }
+    } catch (error) {
+        friends.value = [];
     } finally {
         friendsLoading.value = false;
     }
@@ -62,10 +55,10 @@ const loadFriends = async () => {
 
 // 搜索好友
 const filteredFriends = computed(() => {
-    if (!friends.value?.items) return [];
-    if (!searchQuery.value) return friends.value.items;
+    if (!friends.value.length) return [];
+    if (!searchQuery.value) return friends.value;
     const query = searchQuery.value.toLowerCase().trim();
-    return friends.value.items.filter(friend =>
+    return friends.value.filter(friend =>
         friend.name?.toLowerCase().includes(query) ||
         friend.email?.toLowerCase().includes(query)
     );
@@ -73,8 +66,8 @@ const filteredFriends = computed(() => {
 
 // 选择状态
 const selectedFriends = computed(() => {
-    if (!friends.value?.items) return [];
-    return friends.value.items.filter(friend => selectedMembers.value.includes(friend.id));
+    if (!friends.value.length) return [];
+    return friends.value.filter(friend => selectedMembers.value.includes(friend.id));
 });
 
 // 切换成员选择
@@ -91,11 +84,6 @@ const toggleMember = (userId: string) => {
 const handleSearch = (event: Event) => {
     const query = (event.target as HTMLInputElement).value;
     searchQuery.value = query;
-    clearTimeout(searchDebounce.value);
-    searchDebounce.value = setTimeout(() => {
-        // 重新执行搜索
-        loadFriends();
-    }, 300);
 };
 
 // 头像上传处理
@@ -227,6 +215,27 @@ const getInitial = (user: { name?: string | null; email: string }) => {
     return name.charAt(0).toUpperCase();
 };
 
+// 兼容旧 IP 绝对链接与相对路径头像，统一映射到当前环境可访问地址
+const resolveUserAvatar = (raw?: string | null) => {
+    if (!raw) return '';
+    const value = String(raw).trim();
+    if (!value) return '';
+
+    if (/^(https?:)?\/\//.test(value)) {
+        try {
+            const url = new URL(value);
+            if (url.pathname.startsWith('/uploads/')) {
+                return resolveAssetUrl(`${url.pathname}${url.search || ''}`);
+            }
+            return value;
+        } catch {
+            return resolveAssetUrl(value);
+        }
+    }
+
+    return resolveAssetUrl(value);
+};
+
 // 检查是否移动端
 const isMobile = computed(() => useDevice().isMobile);
 </script>
@@ -350,7 +359,8 @@ const isMobile = computed(() => useDevice().isMobile);
                                         class="badge badge-primary h-9 gap-2 px-3 pl-1.5 rounded-xl border-none shadow-md shadow-primary/10 animate-zoom-in">
                                         <div class="avatar">
                                             <div class="w-6 h-6 rounded-lg">
-                                                <img v-if="friend.image" :src="friend.image" :alt="friend.name" />
+                                                <img v-if="friend.image" :src="resolveUserAvatar(friend.image)"
+                                                    :alt="getDisplayName(friend)" />
                                                 <div v-else
                                                     class="bg-primary-focus flex items-center justify-center text-[10px]">
                                                     {{ getInitial(friend) }}</div>
@@ -400,7 +410,7 @@ const isMobile = computed(() => useDevice().isMobile);
                                             <div class="avatar">
                                                 <div
                                                     class="w-12 h-12 rounded-xl transition-transform group-hover:scale-105">
-                                                    <img v-if="friend.image" :src="friend.image" />
+                                                    <img v-if="friend.image" :src="resolveUserAvatar(friend.image)" />
                                                     <div v-else
                                                         class="w-full h-full bg-base-300 flex items-center justify-center text-primary font-black">
                                                         {{ getInitial(friend) }}</div>

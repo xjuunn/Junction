@@ -506,7 +506,7 @@ export class MessageService {
   }
 
   /**
-   * 鏋勫缓娑堟伅宸茶淇℃伅
+   * 构建消息已读信息
    */
   private async buildReadInfo(
     messages: Array<{ id: string; sequence: number; senderId: string | null }>,
@@ -598,7 +598,7 @@ export class MessageService {
   }
 
   /**
-   * 鏍规嵁鎸囧畾鐢ㄦ埛鏋勫缓鍙箍鎾殑娑堟伅瀵硅薄
+   * 根据指定用户构建可广播的消息对象
    */
   private async buildMessageForUser<
     T extends { id: string; sequence: number; senderId: string | null; sender?: { id: string; name: string; image: string | null } | null }

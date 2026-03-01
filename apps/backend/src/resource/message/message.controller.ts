@@ -12,7 +12,7 @@ export class MessageController {
 
   /**
    * 批量删除消息
-   * 注意：静态路由必须放在动态路由 (:conversationId) 之前
+   * 注意：静态路由必须放在动态路由（:conversationId）之前
    */
   @Delete('bulk')
   @ApiOperation({ summary: "批量删除消息" })
@@ -134,10 +134,10 @@ export class MessageController {
   }
 
   /**
-   * 鑾峰彇鎸囧畾娑堟伅涓婁笅鏂囧瓙闆嗙殑鍐呭
+   * 获取指定消息的上下文消息
    */
   @Get(':conversationId/context/:messageId')
-  @ApiOperation({ summary: "鑾峰彇鎸囧畾娑堟伅涓婁笅鏂囧瓙闆嗙殑鍐呭" })
+  @ApiOperation({ summary: "获取指定消息的上下文消息" })
   getContext(
     @Session() session: UserSession,
     @Param('conversationId') conversationId: string,

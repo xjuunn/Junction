@@ -42,17 +42,26 @@ export class UserService {
      * 搜索用户
      */
     async search(keyword: string, pageOption: PaginationOptions, currentUserId: string) {
+        const normalizedKeyword = (keyword || '').trim().toLowerCase();
+        if (!normalizedKeyword) {
+            return new PaginationData([], { total: 0, limit: pageOption.limit, page: pageOption.page });
+        }
+
         const currentUser = await this.prisma.user.findUnique({
             where: { id: currentUserId },
             select: { id: true, role: true, accountType: true, email: true }
         });
-        const keywordFilter: PrismaTypes.Prisma.UserWhereInput = {
-            OR: [
-                { name: { contains: keyword } },
-                { id: keyword },
-                { email: keyword },
-            ],
-        };
+
+        const trimmedKeyword = keyword.trim();
+        const keywordOr: PrismaTypes.Prisma.UserWhereInput[] = [
+            { id: trimmedKeyword },
+            { email: { equals: trimmedKeyword } },
+            { name: { equals: trimmedKeyword } },
+            { name: { contains: trimmedKeyword } },
+            { email: { contains: trimmedKeyword } },
+            { id: { contains: trimmedKeyword } },
+        ];
+        const keywordFilter: PrismaTypes.Prisma.UserWhereInput = { OR: keywordOr };
 
         const isAdmin = currentUser ? this.isAdmin(currentUser) : false;
         const domain = this.getEmailDomain(currentUser?.email || '');
@@ -96,49 +105,68 @@ export class UserService {
             }
         } as const;
 
-        const [users, total] = await Promise.all([
-            this.prisma.user.findMany({
-                where,
-                take: pageOption.take,
-                skip: pageOption.skip,
-                select: userSelect
-            }) as Promise<Array<{
-                id: string;
-                name: string;
-                role: string;
-                image: string | null;
-                email: string;
-                accountType: PrismaValues.UserAccountType;
-                botProfile?: { visibility: PrismaValues.BotVisibility; creatorId: string; status: PrismaValues.BotStatus; orgDomain: string | null } | null;
-                receivedFriendRequests: Array<{ status: string }>;
-                sentFriendRequests: Array<{ status: string }>;
-            }>>,
-            this.prisma.user.count({ where }),
-        ]);
+        const users = await this.prisma.user.findMany({
+            where,
+            select: userSelect
+        }) as Array<{
+            id: string;
+            name: string;
+            role: string;
+            image: string | null;
+            email: string;
+            accountType: PrismaValues.UserAccountType;
+            botProfile?: { visibility: PrismaValues.BotVisibility; creatorId: string; status: PrismaValues.BotStatus; orgDomain: string | null } | null;
+            receivedFriendRequests: Array<{ status: string }>;
+            sentFriendRequests: Array<{ status: string }>;
+        }>;
 
-        const userIds = users.map(u => u.id);
-        const statuses = await this.statusService.getStatuses(userIds);
-
-        const getScore = (val: string) => {
-            if (val === keyword) return 100;
-            if (val.startsWith(keyword)) return 80;
-            if (val.includes(keyword)) return 60 + Math.floor((keyword.length / val.length) * 19);
+        const calcTextScore = (
+            value: string,
+            target: string,
+            weight: { exact: number; prefix: number; contains: number }
+        ) => {
+            const normalizedValue = (value || '').toLowerCase();
+            if (!normalizedValue) return 0;
+            if (normalizedValue === target) return weight.exact;
+            if (normalizedValue.startsWith(target)) return weight.prefix;
+            if (normalizedValue.includes(target)) {
+                const ratioBonus = Math.min(49, Math.floor((target.length / normalizedValue.length) * 49));
+                return weight.contains + ratioBonus;
+            }
             return 0;
         };
 
-        const result = users
-            .map(u => {
-                const { receivedFriendRequests, sentFriendRequests, botProfile, ...data } = u;
-                const score = [u.name, u.id, u.email].reduce((max, field) => Math.max(max, getScore(field)), 0);
+        const rankedUsers = users
+            .map((user) => {
+                const emailValue = (user.email || '').toLowerCase();
+                const [emailLocal = '', emailDomain = ''] = emailValue.split('@');
+                const score = Math.max(
+                    calcTextScore(user.name, normalizedKeyword, { exact: 1000, prefix: 860, contains: 620 }),
+                    calcTextScore(user.id, normalizedKeyword, { exact: 940, prefix: 780, contains: 560 }),
+                    calcTextScore(user.email, normalizedKeyword, { exact: 900, prefix: 740, contains: 540 }),
+                    calcTextScore(emailLocal, normalizedKeyword, { exact: 920, prefix: 760, contains: 560 }),
+                    calcTextScore(emailDomain, normalizedKeyword, { exact: 700, prefix: 560, contains: 420 }),
+                );
                 return {
-                    ...data,
-                    relation: this.getRelationStatus(u.id === currentUserId, receivedFriendRequests[0], sentFriendRequests[0]),
-                    online: statuses[u.id] ? 1 : 0,
+                    ...user,
                     _score: score
                 };
             })
-            .sort((a, b) => b._score - a._score)
-            .map(({ _score, ...u }) => u);
+            .filter(user => user._score > 0)
+            .sort((a, b) => b._score - a._score || a.name.localeCompare(b.name));
+
+        const total = rankedUsers.length;
+        const pagedUsers = rankedUsers.slice(pageOption.skip, pageOption.skip + pageOption.take);
+        const statuses = await this.statusService.getStatuses(pagedUsers.map(user => user.id));
+
+        const result = pagedUsers.map((user) => {
+            const { receivedFriendRequests, sentFriendRequests, botProfile, _score, ...data } = user;
+            return {
+                ...data,
+                relation: this.getRelationStatus(user.id === currentUserId, receivedFriendRequests[0], sentFriendRequests[0]),
+                online: statuses[user.id] ? 1 : 0,
+            };
+        });
 
         return new PaginationData(result, { total, limit: pageOption.limit, page: pageOption.page });
     }

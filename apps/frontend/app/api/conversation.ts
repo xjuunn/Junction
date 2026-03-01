@@ -1,11 +1,11 @@
-﻿import type { ConversationService } from '@junction/backend/src/resource/conversation/conversation.service'
+import type { ConversationService } from '@junction/backend/src/resource/conversation/conversation.service'
 import type { PrismaTypes } from '@junction/types';
 
 const base = "/conversation"
 
 /**
- * 鍒涘缓鎴栬幏鍙栫幇鏈変細璇?
- * @param data 绉佽亰浼?targetId锛岀兢鑱婁紶 title 鍜?memberIds
+ * 创建或获取现有会话
+ * @param data 私聊传 targetId，群聊传 title 和 memberIds
  */
 export function create(data: {
     type: 'PRIVATE' | 'GROUP';
@@ -18,21 +18,22 @@ export function create(data: {
 }
 
 /**
- * 鍒嗛〉鑾峰彇浼氳瘽鍒楄〃
+ * 分页获取会话列表
  */
 export function findAll(pagination: PaginationOptions & { type?: 'PRIVATE' | 'GROUP' }) {
     return api.get<AwaitedReturnType<ConversationService['findAll']>>(base, pagination);
 }
 
 /**
- * 鑾峰彇鎸囧畾浼氳瘽鐨勫厓鏁版嵁璇︽儏
+ * 获取指定会话详情
  */
 export function findOne(id: string) {
     return api.get<AwaitedReturnType<ConversationService['findOne']>>(base + "/" + id);
 }
 
 /**
- * 鏇存柊褰撳墠鐢ㄦ埛鐨勪細璇濆亸濂借缃紙缃《銆侀潤闊崇瓑锛? */
+ * 更新当前用户会话偏好设置（置顶、免打扰等）
+ */
 export function updateSettings(id: string, data: PrismaTypes.Prisma.ConversationMemberUpdateInput) {
     return api.patch<AwaitedReturnType<ConversationService['updateMember']>>(`${base}/${id}/settings`, data, {});
 }
@@ -43,64 +44,67 @@ export function updateSettings(id: string, data: PrismaTypes.Prisma.Conversation
 export function transferOwner(conversationId: string, targetUserId: string) {
     return api.patch<AwaitedReturnType<ConversationService['transferOwner']>>(`${base}/${conversationId}/owner`, { targetUserId }, {});
 }
+
 /**
- * 鍦ㄥ垪琛ㄤ腑闅愯棌璇ヤ細璇? */
+ * 在列表中隐藏该会话
+ */
 export function remove(id: string) {
     return api.delete<AwaitedReturnType<ConversationService['remove']>>(base + "/" + id);
 }
 
 /**
- * 鑾峰彇缇よ亰鎴愬憳鍒楄〃
+ * 获取群聊成员列表
  */
 export function getMembers(conversationId: string) {
     return api.get<AwaitedReturnType<ConversationService['getMembers']>>(`${base}/${conversationId}/members`);
 }
 
 /**
- * 閭€璇锋垚鍛樺姞鍏ョ兢鑱? */
+ * 邀请成员加入群聊
+ */
 export function addMembers(conversationId: string, memberIds: string[]) {
     return api.post<AwaitedReturnType<ConversationService['addMembers']>>(`${base}/${conversationId}/members`, { memberIds });
 }
 
 /**
- * 绉婚櫎缇よ亰鎴愬憳
+ * 移除群聊成员
  */
 export function removeMember(conversationId: string, targetUserId: string) {
     return api.delete<AwaitedReturnType<ConversationService['removeMember']>>(`${base}/${conversationId}/members/${targetUserId}`);
 }
 
 /**
- * 淇敼鎴愬憳瑙掕壊
+ * 修改成员角色
  */
 export function updateMemberRole(conversationId: string, targetUserId: string, role: 'ADMIN' | 'MEMBER') {
     return api.patch<AwaitedReturnType<ConversationService['updateMemberRole']>>(`${base}/${conversationId}/members/${targetUserId}/role`, { role }, {});
 }
 
 /**
- * 鏇存柊缇よ亰淇℃伅
+ * 更新群聊信息
  */
 export function updateGroupInfo(conversationId: string, data: { title?: string; avatar?: string }) {
     return api.patch<AwaitedReturnType<ConversationService['updateGroupInfo']>>(`${base}/${conversationId}/info`, data, {});
 }
 
-// 浼氳瘽绫诲瀷
+// 会话类型
 export enum ConversationType {
-    "PRIVATE", // 绉佽亰
-    "GROUP", // 缇よ亰
-    "TEMPORARY", // 涓存椂浼氳瘽
-    "SYSTEM", // 绯荤粺
+    "PRIVATE", // 私聊
+    "GROUP", // 群聊
+    "TEMPORARY", // 临时会话
+    "SYSTEM", // 系统
 }
 
-// 浼氳瘽鐘舵€?
+// 会话状态
 export enum ConversationStatus {
-    "ACTIVE", // 婵€娲?
-    "ARCHIVED", // 褰掓。
-    "DISABLED", // 澶辨晥
+    "ACTIVE", // 激活
+    "ARCHIVED", // 归档
+    "DISABLED", // 失效
 }
 
-// 浼氳瘽鎴愬憳瑙掕壊
+// 会话成员角色
 export enum ConversationMemberRole {
-    "OWNER", // 鎷ユ湁鑰?
-    "ADMIN",  // 绠＄悊鍛?
-    "MEMBER",  //鎴愬憳
+    "OWNER", // 拥有者
+    "ADMIN", // 管理员
+    "MEMBER", // 成员
 }

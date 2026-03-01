@@ -74,6 +74,7 @@ export class ConversationService {
       // 去重并过滤无效用户ID
       const uniqueMemberIds = [...new Set(data.memberIds || [])].filter(id => id && id !== userId);
       await this.assertBotVisibility(currentUser, uniqueMemberIds);
+      await this.assertUsersAreFriends(userId, uniqueMemberIds);
 
       const members: PrismaTypes.Prisma.ConversationMemberCreateManyInput[] = [
         { conversationId: conv.id, userId, role: PrismaValues.ConversationMemberRole.OWNER },
@@ -639,6 +640,36 @@ export class ConversationService {
       if (target.botProfile.visibility === 'PUBLIC') continue;
       if (target.botProfile.visibility === 'ORG' && domain && target.botProfile.orgDomain === domain) continue;
       throw new ForbiddenException('机器人不可见或无权限');
+    }
+  }
+
+  /**
+   * 校验目标用户是否均为当前用户好友
+   */
+  private async assertUsersAreFriends(currentUserId: string, targetUserIds: string[]) {
+    if (!targetUserIds.length) return;
+
+    const uniqueTargetIds = [...new Set(targetUserIds)].filter(id => id && id !== currentUserId);
+    if (!uniqueTargetIds.length) return;
+
+    const acceptedFriendships = await this.prisma.friendship.findMany({
+      where: {
+        status: 'ACCEPTED',
+        isBlocked: false,
+        OR: [
+          { senderId: currentUserId, receiverId: { in: uniqueTargetIds } },
+          { receiverId: currentUserId, senderId: { in: uniqueTargetIds } }
+        ]
+      },
+      select: { senderId: true, receiverId: true }
+    });
+
+    const friendIdSet = new Set(
+      acceptedFriendships.map(item => item.senderId === currentUserId ? item.receiverId : item.senderId)
+    );
+    const invalidTargetIds = uniqueTargetIds.filter(id => !friendIdSet.has(id));
+    if (invalidTargetIds.length) {
+      throw new BadRequestException('创建群聊仅支持选择自己的好友');
     }
   }
 

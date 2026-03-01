@@ -82,6 +82,7 @@ export class MenuService {
       icon: 'mingcute:chat-4-line',
       path: '/chat',
       group: 'main',
+      replace: true,
     })
 
     this.add({
