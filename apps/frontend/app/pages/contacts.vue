@@ -225,6 +225,9 @@ const filteredList = computed<ContactItem[]>(() => {
     });
 });
 
+const normalizedSearchKeyword = computed(() => searchQuery.value.trim());
+const showGlobalSearchItem = computed(() => normalizedSearchKeyword.value.length > 0);
+
 const handleItemClick = (item: ContactItem) => {
     if (isFriendContact(item)) {
         if (item.friendId) {
@@ -237,6 +240,15 @@ const handleItemClick = (item: ContactItem) => {
 
 const handleBack = () => {
     router.push('/contacts');
+};
+
+const handleGlobalSearch = () => {
+    const keyword = normalizedSearchKeyword.value;
+    if (!keyword) return;
+    router.push({
+        path: '/search',
+        query: { q: keyword }
+    });
 };
 
 const handleRefresh = () => {
@@ -342,6 +354,24 @@ defineExpose({
                         <p class="mt-4 font-black uppercase tracking-widest text-xs">
                             {{ activeTab === 'blocked' ? '暂无拉黑用户' : activeTab === 'bot' ? '暂无机器人' : '暂无联系人' }}
                         </p>
+
+                        <button v-if="showGlobalSearchItem"
+                            class="mt-6 w-full max-w-xs rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-left opacity-100 shadow-sm transition-all hover:bg-primary/15 hover:shadow-md"
+                            @click="handleGlobalSearch">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                                    <Icon name="mingcute:world-2-line" size="18" />
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-[11px] font-bold tracking-wider text-primary/80">全网搜索</div>
+                                    <div class="truncate text-sm font-semibold text-base-content">
+                                        {{ normalizedSearchKeyword }}
+                                    </div>
+                                </div>
+                                <Icon name="mingcute:right-line" size="16" class="text-primary/70" />
+                            </div>
+                        </button>
                     </div>
 
                     <div v-else class="flex flex-col space-y-0.5">
@@ -411,6 +441,24 @@ defineExpose({
                                 <span v-else>加载更多</span>
                             </button>
                         </div>
+
+                        <button v-if="showGlobalSearchItem"
+                            class="mx-2 mt-2 rounded-2xl border border-base-content/10 bg-base-200/50 px-4 py-3 text-left transition-all hover:border-primary/20 hover:bg-primary/5"
+                            @click="handleGlobalSearch">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                    <Icon name="mingcute:search-2-line" size="18" />
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-[11px] font-bold tracking-wider text-base-content/50">全网搜索</div>
+                                    <div class="truncate text-sm font-semibold text-base-content">
+                                        搜索 “{{ normalizedSearchKeyword }}”
+                                    </div>
+                                </div>
+                                <Icon name="mingcute:right-line" size="16" class="text-base-content/40" />
+                            </div>
+                        </button>
                     </div>
                 </main>
             </div>
