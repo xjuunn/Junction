@@ -109,6 +109,14 @@ export default defineNuxtPlugin(async () => {
   const conversationCache = new Map<string, ConversationMeta>()
   const cacheTTL = 60 * 1000
 
+  const isMessageFromCurrentUser = (msg: any) => {
+    const uid = String(currentUserId.value || '').trim()
+    if (!uid) return false
+    const senderId = String(msg?.senderId || '').trim()
+    const senderUserId = String(msg?.sender?.id || '').trim()
+    return senderId === uid || senderUserId === uid
+  }
+
   const isConversationActive = (conversationId: string | null | undefined) => {
     if (!conversationId) return false
     const activeId = activeConversationId.value || (route.params.id ? String(route.params.id) : null)
@@ -167,7 +175,9 @@ export default defineNuxtPlugin(async () => {
 
   socket.on('new-message', async (msg) => {
     if (!msg?.conversationId) return
-    if (msg?.senderId && msg.senderId === currentUserId.value) return
+    // 用户信息未就绪时不触发系统通知，避免把自己消息误判为他人消息
+    if (!currentUserId.value) return
+    if (isMessageFromCurrentUser(msg)) return
 
     if (isConversationActive(String(msg.conversationId)) && document.visibilityState === 'visible') return
 

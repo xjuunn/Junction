@@ -129,6 +129,8 @@ const resolvePreviewBody = (body: string | undefined, mode: NotificationPreviewM
   return body
 }
 
+const NOTIFICATION_SOUND_URL = '/audio/notification1.mp3'
+
 const playBeep = async (volume = 80) => {
   try {
     if (typeof window === 'undefined') return
@@ -149,6 +151,17 @@ const playBeep = async (volume = 80) => {
     }
   } catch {
     // 静默失败，避免影响主流程
+  }
+}
+
+const playNotificationSound = async (volume = 80) => {
+  try {
+    if (typeof window === 'undefined') return
+    const audio = new Audio(NOTIFICATION_SOUND_URL)
+    audio.volume = Math.min(Math.max(volume, 0), 100) / 100
+    await audio.play()
+  } catch {
+    await playBeep(volume)
   }
 }
 
@@ -228,10 +241,16 @@ export const notify = async (payload: NotifyPayload, options: NotifyOptions = {}
         ...(channelId ? { channelId } : {}),
       }
       mod.sendNotification(base)
+      if (!silent && (settings?.notificationSoundEnabled ?? true)) {
+        await playNotificationSound(settings?.notificationSoundVolume ?? 80)
+      }
       return { success: true }
     } catch {
       try {
         mod.sendNotification(payload.title)
+        if (!silent && (settings?.notificationSoundEnabled ?? true)) {
+          await playNotificationSound(settings?.notificationSoundVolume ?? 80)
+        }
         return { success: true }
       } catch {
         return { success: false, reason: 'not-supported' }
@@ -268,7 +287,7 @@ export const notify = async (payload: NotifyPayload, options: NotifyOptions = {}
   }
 
   if (!silent && (settings?.notificationSoundEnabled ?? true)) {
-    await playBeep(settings?.notificationSoundVolume ?? 80)
+    await playNotificationSound(settings?.notificationSoundVolume ?? 80)
   }
   return { success: true }
 }
