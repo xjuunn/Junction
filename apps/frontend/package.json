@@ -4,7 +4,7 @@
   "scripts": {
     "build": "nuxt build",
     "start": "nuxt dev --host",
-    "dev": "nuxt dev --host",
+    "dev": "nuxi cleanup && nuxt dev --host",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",

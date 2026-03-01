@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { RtcCallParticipant } from '@junction/types'
 import { isTauri } from '~/utils/check'
@@ -264,9 +264,6 @@ onBeforeUnmount(() => {
           <button class="btn btn-ghost btn-circle btn-sm text-white hover:bg-white/10" @click="toggleParticipantsPanel">
             <Icon name="mingcute:group-3-line" size="18" />
           </button>
-          <button class="btn btn-ghost btn-circle btn-sm text-white hover:bg-white/10" @click="toggleDevicePanel">
-            <Icon name="mingcute:settings-3-line" size="18" />
-          </button>
         </div>
       </header>
 
@@ -338,12 +335,9 @@ onBeforeUnmount(() => {
             <Icon name="mingcute:computer-line" size="20" />
           </button>
 
-          <select v-model="selectedQuality" class="select select-sm h-10 min-h-0 w-[112px] rounded-xl border-white/20 bg-black/40 text-xs text-white sm:w-auto">
-            <option value="auto">自动画质</option>
-            <option value="high">高清</option>
-            <option value="medium">标清</option>
-            <option value="low">流畅</option>
-          </select>
+          <button class="btn btn-circle btn-ghost text-white hover:bg-white/10" @click="toggleDevicePanel">
+            <Icon name="mingcute:settings-3-line" size="20" />
+          </button>
 
           <button class="btn btn-error btn-circle text-base-100" @click="leaveCall">
             <Icon name="mingcute:phone-outgoing-line" size="20" />
@@ -384,7 +378,7 @@ onBeforeUnmount(() => {
       <Transition name="panel-slide">
         <aside
           v-if="showDevicePanel"
-          class="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] left-1/2 z-30 w-[340px] max-w-[92vw] -translate-x-1/2 rounded-2xl border border-white/15 bg-black/85 p-4 shadow-2xl backdrop-blur-xl"
+          class="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+5.4rem)] left-1/2 z-30 w-[340px] max-w-[92vw] -translate-x-1/2 rounded-2xl border border-white/15 bg-black/85 p-4 shadow-2xl backdrop-blur-xl"
         >
           <div class="mb-3 flex items-center justify-between">
             <div class="text-sm font-bold">设备设置</div>
@@ -394,6 +388,15 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="space-y-3">
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-white/70">画质</div>
+              <select v-model="selectedQuality" class="select select-sm w-full rounded-xl border-white/20 bg-black/30 text-white">
+                <option value="auto">自动画质</option>
+                <option value="high">高清</option>
+                <option value="medium">标清</option>
+                <option value="low">流畅</option>
+              </select>
+            </div>
             <div class="space-y-1">
               <div class="text-[11px] font-semibold text-white/70">麦克风</div>
               <select v-model="selectedAudioInputId" class="select select-sm w-full rounded-xl border-white/20 bg-black/30 text-white">
@@ -496,3 +499,5 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
