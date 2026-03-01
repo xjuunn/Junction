@@ -89,6 +89,31 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(100, 100, 100, 0.2) transparent;
     touch-action: pan-x pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+img {
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.message-selectable,
+.message-selectable * {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+.message-selectable img {
+    -webkit-user-select: none !important;
+    user-select: none !important;
 }
 
 body,
@@ -311,5 +336,4 @@ select optgroup {
     background-color: hsl(var(--b1)) !important;
     color: hsl(var(--bc)) !important;
 }
-
 
