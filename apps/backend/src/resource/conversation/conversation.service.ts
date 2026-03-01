@@ -61,11 +61,12 @@ export class ConversationService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
+      const normalizedAvatar = this.normalizeUploadPath(data.avatar);
       const conv = await tx.conversation.create({
         data: {
           type: 'GROUP',
           title: data.title,
-          avatar: data.avatar,
+          avatar: normalizedAvatar || undefined,
           ownerId: userId
         }
       });
@@ -227,6 +228,7 @@ export class ConversationService {
         otherUserAccountType = otherMember.user.accountType;
       }
     } else {
+      avatar = this.normalizeUploadPath(avatar);
       online = conv.members.reduce((acc: number, m: any) => acc + (onlineMap[m.userId] ? 1 : 0), 0);
     }
 
@@ -567,7 +569,7 @@ export class ConversationService {
       where: { id: conversationId, type: 'GROUP' },
       data: {
         ...(data.title && { title: data.title }),
-        ...(data.avatar !== undefined && { avatar: data.avatar })
+        ...(data.avatar !== undefined && { avatar: this.normalizeUploadPath(data.avatar) })
       },
       select: {
         id: true,
@@ -579,6 +581,28 @@ export class ConversationService {
     });
 
     return conversation;
+  }
+
+  /**
+   * 规范化上传资源路径，统一仅存储 /uploads 下的相对路径
+   */
+  private normalizeUploadPath(input?: string | null) {
+    if (!input) return '';
+    const value = input.trim();
+    if (!value) return '';
+    if (value.startsWith('/uploads/')) return value;
+    if (value.startsWith('uploads/')) return `/${value}`;
+    if (/^(https?:)?\/\//.test(value)) {
+      try {
+        const url = new URL(value);
+        if (url.pathname.startsWith('/uploads/')) {
+          return `${url.pathname}${url.search || ''}`;
+        }
+      } catch {
+        return value;
+      }
+    }
+    return value;
   }
 
   /**

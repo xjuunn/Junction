@@ -119,7 +119,7 @@ const handleAvatarUpload = async (event: Event) => {
         const response = await uploadApi.uploadFiles('avatar', [file]);
 
         if (response.success && response.data?.files?.[0]) {
-            groupAvatar.value = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+            groupAvatar.value = response.data.files[0];
         }
     } catch (error) {
         useToast().error('头像上传失败');
@@ -282,7 +282,7 @@ const isMobile = computed(() => useDevice().isMobile);
                                     <div class="avatar">
                                         <div
                                             class="w-32 h-32 mask mask-squircle bg-base-200 ring-4 ring-primary/5 ring-offset-4 ring-offset-base-100 transition-all group-hover:ring-primary/20 shadow-inner">
-                                            <img v-if="groupAvatar" :src="groupAvatar" alt="群聊头像"
+                                            <img v-if="groupAvatar" :src="resolveAssetUrl(groupAvatar)" alt="群聊头像"
                                                 class="object-cover" />
                                             <div v-else
                                                 class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center text-primary/40">

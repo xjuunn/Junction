@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 import * as conversationApi from '~/api/conversation'
+import * as uploadApi from '~/api/upload'
 import type { ExtractDataType } from '~/utils/types'
 
 type ConversationView = ExtractDataType<Awaited<ReturnType<typeof conversationApi.findOne>>> & {
@@ -21,6 +22,7 @@ const toast = useToast()
 const dialog = useDialog()
 const router = useRouter()
 const authClient = useAuthClient()
+const { emit: busEmit } = useEmitt()
 const { copy, copied } = useClipboard()
 
 const activeTab = ref<'members' | 'info' | 'settings'>('members')
@@ -28,6 +30,12 @@ const members = ref<any[]>([])
 const loading = ref(false)
 const currentUserId = ref<string>('')
 const keyword = ref('')
+const avatarInputRef = ref<HTMLInputElement | null>(null)
+const editingInfo = ref(false)
+const savingInfo = ref(false)
+const uploadingAvatar = ref(false)
+const editTitle = ref('')
+const editAvatar = ref('')
 
 const fetchCurrentUser = async () => {
   const { data } = await authClient.getSession()
@@ -36,9 +44,17 @@ const fetchCurrentUser = async () => {
 
 const isOwner = computed(() => props.conversation?.ownerId === currentUserId.value)
 const isAdmin = computed(() => props.conversation?.members?.some((m: any) => m.userId === currentUserId.value && m.role === 'ADMIN'))
+const canEditGroupInfo = computed(() => isOwner.value || isAdmin.value)
 const currentMember = computed(() => props.conversation?.mySettings)
 const isMuted = computed(() => currentMember.value?.muted ?? false)
 const isPinned = computed(() => currentMember.value?.pinned ?? false)
+const previewTitle = computed(() => (editingInfo.value ? editTitle.value : props.conversation?.title) || '')
+const previewAvatar = computed(() => editingInfo.value ? editAvatar.value : (props.conversation?.avatar || ''))
+const hasInfoChanged = computed(() => {
+  if (!props.conversation) return false
+  return editTitle.value.trim() !== (props.conversation.title || '').trim()
+    || editAvatar.value !== (props.conversation.avatar || '')
+})
 
 const memberCount = computed(() => members.value.length)
 const adminCount = computed(() => members.value.filter(m => m.role === 'ADMIN').length)
@@ -62,6 +78,103 @@ const fetchMembers = async () => {
     if (res.data) members.value = res.data
   } finally {
     loading.value = false
+  }
+}
+
+const syncEditableInfo = () => {
+  editTitle.value = props.conversation?.title || ''
+  editAvatar.value = props.conversation?.avatar || ''
+}
+
+const startEditInfo = () => {
+  syncEditableInfo()
+  editingInfo.value = true
+}
+
+const cancelEditInfo = () => {
+  editingInfo.value = false
+  syncEditableInfo()
+}
+
+const triggerAvatarPicker = () => {
+  if (!editingInfo.value || !canEditGroupInfo.value) return
+  avatarInputRef.value?.click()
+}
+
+const handleAvatarSelected = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    toast.error('请选择图片文件')
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('图片大小不能超过 5MB')
+    return
+  }
+
+  uploadingAvatar.value = true
+  try {
+    const res = await uploadApi.uploadFiles('avatar', [file])
+    const avatarPath = res.data?.files?.[0]
+    if (!res.success || !avatarPath) {
+      toast.error(res.error || '头像上传失败')
+      return
+    }
+    editAvatar.value = avatarPath
+    toast.success('头像已更新，记得保存')
+  } finally {
+    uploadingAvatar.value = false
+    if (avatarInputRef.value) avatarInputRef.value.value = ''
+  }
+}
+
+const removeEditingAvatar = () => {
+  if (!editingInfo.value || !canEditGroupInfo.value) return
+  editAvatar.value = ''
+}
+
+const handleSaveGroupInfo = async () => {
+  if (!props.conversation?.id || !canEditGroupInfo.value || !hasInfoChanged.value) return
+
+  const title = editTitle.value.trim()
+  if (title.length < 2) {
+    toast.error('群名称至少需要 2 个字符')
+    return
+  }
+  if (title.length > 50) {
+    toast.error('群名称不能超过 50 个字符')
+    return
+  }
+
+  const payload: { title?: string; avatar?: string } = {}
+  if (title !== (props.conversation.title || '').trim()) payload.title = title
+  if (editAvatar.value !== (props.conversation.avatar || '')) payload.avatar = editAvatar.value
+
+  if (!Object.keys(payload).length) {
+    toast.info('暂无变更')
+    return
+  }
+
+  savingInfo.value = true
+  try {
+    const res = await conversationApi.updateGroupInfo(props.conversation.id, payload)
+    if (!res.success) {
+      toast.error(res.error || '保存失败')
+      return
+    }
+    editingInfo.value = false
+    busEmit('chat:conversation-updated', {
+      id: props.conversation.id,
+      title,
+      avatar: editAvatar.value || '',
+    })
+    toast.success('群信息已更新')
+    emit('conversation-deleted')
+  } finally {
+    savingInfo.value = false
   }
 }
 
@@ -187,6 +300,13 @@ const handleCopyGroupId = () => {
 
 onMounted(async () => {
   await fetchCurrentUser()
+  syncEditableInfo()
+  fetchMembers()
+})
+
+watch(() => props.conversation?.id, () => {
+  editingInfo.value = false
+  syncEditableInfo()
   fetchMembers()
 })
 </script>
@@ -284,19 +404,62 @@ onMounted(async () => {
     </div>
 
     <div v-if="activeTab === 'info'" class="space-y-6">
-      <div class="rounded-2xl border border-base-200 bg-base-100/80 backdrop-blur-md p-5 shadow-sm">
-        <div class="flex flex-col items-center gap-4">
-          <BaseAvatar :text="conversation?.title" :src="conversation?.avatar" :size="88" :radius="20" />
-          <div class="text-center">
-            <h3 class="text-xl font-bold">{{ conversation?.title }}</h3>
-            <p class="text-sm opacity-50">群ID: {{ conversation?.id }}</p>
+      <div class="relative overflow-hidden rounded-3xl border border-base-content/5 bg-base-100/80 backdrop-blur-md p-6 shadow-sm">
+        <div class="pointer-events-none absolute -top-16 -right-10 h-44 w-44 rounded-full bg-primary/15 blur-3xl"></div>
+        <div class="pointer-events-none absolute -bottom-20 -left-12 h-44 w-44 rounded-full bg-secondary/10 blur-3xl"></div>
+        <div class="relative flex flex-col gap-5">
+          <div class="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            <div class="relative">
+              <BaseAvatar :text="previewTitle" :src="previewAvatar || undefined" :size="96" :radius="24" />
+              <button v-if="editingInfo && canEditGroupInfo"
+                class="btn btn-circle btn-xs absolute -right-2 -bottom-2 bg-base-100/90 border border-base-content/10 shadow-sm"
+                :class="{ loading: uploadingAvatar }" :disabled="uploadingAvatar" @click="triggerAvatarPicker">
+                <Icon v-if="!uploadingAvatar" name="mingcute:camera-line" size="14" />
+              </button>
+            </div>
+
+            <div class="flex-1 min-w-0 space-y-3">
+              <div v-if="editingInfo" class="space-y-2">
+                <input v-model="editTitle" type="text" maxlength="50"
+                  class="input input-lg w-full bg-base-100/80 border-base-content/10 focus:border-primary/30 focus:outline-none"
+                  placeholder="请输入群名称" />
+                <div class="flex items-center justify-between text-[11px] opacity-60">
+                  <span>可编辑群名称与头像</span>
+                  <span>{{ editTitle.length }}/50</span>
+                </div>
+              </div>
+              <div v-else>
+                <h3 class="text-2xl font-black tracking-tight">{{ previewTitle || '未命名群聊' }}</h3>
+                <p class="text-xs opacity-55">群ID: {{ conversation?.id }}</p>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <button class="btn btn-ghost btn-sm" @click="handleCopyGroupId">
+                  <Icon :name="copied ? 'mingcute:check-line' : 'mingcute:copy-2-line'" />
+                  复制群ID
+                </button>
+                <template v-if="canEditGroupInfo">
+                  <button v-if="!editingInfo" class="btn btn-soft btn-sm" @click="startEditInfo">
+                    <Icon name="mingcute:edit-2-line" />
+                    编辑群资料
+                  </button>
+                  <template v-else>
+                    <button class="btn btn-ghost btn-sm" @click="removeEditingAvatar">
+                      <Icon name="mingcute:delete-2-line" />
+                      移除头像
+                    </button>
+                    <button class="btn btn-ghost btn-sm" @click="cancelEditInfo">取消</button>
+                    <button class="btn btn-primary btn-sm" :class="{ loading: savingInfo }"
+                      :disabled="savingInfo || !hasInfoChanged" @click="handleSaveGroupInfo">
+                      保存修改
+                    </button>
+                  </template>
+                </template>
+              </div>
+            </div>
           </div>
-          <div class="flex gap-3">
-            <button class="btn btn-soft btn-sm" @click="handleCopyGroupId">
-              <Icon :name="copied ? 'mingcute:check-line' : 'mingcute:copy-2-line'" />
-              复制群ID
-            </button>
-          </div>
+
+          <input ref="avatarInputRef" type="file" accept="image/*" class="hidden" @change="handleAvatarSelected" />
         </div>
       </div>
 

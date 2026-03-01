@@ -144,7 +144,7 @@ const handleAvatarUpload = async (event: Event) => {
         const response = await uploadApi.uploadFiles('avatar', [file]);
 
         if (response.success && response.data?.files?.[0]) {
-            const newAvatar = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+            const newAvatar = response.data.files[0];
             const res = await conversationApi.updateGroupInfo(props.conversationId, {
                 avatar: newAvatar
             });
@@ -324,7 +324,7 @@ const isMobile = computed(() => useDevice().isMobile);
                                         <div class="avatar">
                                             <div
                                                 class="w-28 h-28 rounded-3xl border-4 border-base-200 shadow-xl transition-all group-hover:shadow-2xl">
-                                                <img v-if="groupAvatar" :src="groupAvatar" alt="群聊头像"
+                                                <img v-if="groupAvatar" :src="resolveAssetUrl(groupAvatar)" alt="群聊头像"
                                                     class="object-cover" />
                                                 <div v-else
                                                     class="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
