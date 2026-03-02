@@ -14,9 +14,22 @@
 
                     <span class="font-medium text-sm">{{ item.message }}</span>
 
-                    <button v-if="item.closable" class="btn btn-sm btn-circle btn-ghost" @click="remove(item.id)">
-                        <icon name="mingcute:close-line" class="text-lg" />
-                    </button>
+                    <div class="inline-flex items-center gap-1">
+                        <button
+                            v-if="item.closable"
+                            class="btn btn-sm btn-circle btn-ghost"
+                            @click="remove(item.id)"
+                        >
+                            <icon name="mingcute:close-line" class="text-lg" />
+                        </button>
+                        <button
+                            v-if="item.type === 'error'"
+                            class="btn btn-xs btn-ghost"
+                            @click="copyMessage(item.message)"
+                        >
+                            复制
+                        </button>
+                    </div>
                 </div>
             </TransitionGroup>
         </div>
@@ -24,7 +37,8 @@
 </template>
 
 <script setup lang="ts">
-const { toasts, remove } = useToast()
+const toast = useToast()
+const { toasts, remove } = toast
 
 const getAlertClass = (type: ToastType) => {
     switch (type) {
@@ -43,6 +57,31 @@ const getIconName = (type: ToastType) => {
         case 'warning': return 'mingcute:warning-fill'
         case 'info': return 'mingcute:information-fill'
         default: return 'mingcute:information-fill'
+    }
+}
+
+const copyMessage = async (message: string) => {
+    if (!import.meta.client) return
+    const text = String(message || '')
+    if (!text) return
+
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text)
+        } else {
+            const textarea = document.createElement('textarea')
+            textarea.value = text
+            textarea.style.position = 'fixed'
+            textarea.style.opacity = '0'
+            document.body.appendChild(textarea)
+            textarea.focus()
+            textarea.select()
+            document.execCommand('copy')
+            document.body.removeChild(textarea)
+        }
+        toast.success('已复制错误信息')
+    } catch {
+        toast.error('复制失败')
     }
 }
 </script>
