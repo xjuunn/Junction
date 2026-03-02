@@ -207,7 +207,12 @@ export default defineNuxtPlugin(async () => {
     if (!currentUserId.value) return
     if (isMessageFromCurrentUser(msg)) return
 
-    if (isConversationActive(String(msg.conversationId)) && document.visibilityState === 'visible') return
+    const isWindowFocused = typeof document !== 'undefined' ? document.hasFocus() : true
+    if (
+      isConversationActive(String(msg.conversationId))
+      && document.visibilityState === 'visible'
+      && isWindowFocused
+    ) return
 
     const meta = await getConversationMeta(String(msg.conversationId))
     if (meta?.muted) return
