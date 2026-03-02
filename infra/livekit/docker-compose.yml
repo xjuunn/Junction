@@ -2,9 +2,12 @@ version: "3.9"
 services:
   livekit:
     image: livekit/livekit-server:latest
-    env_file:
-      - ../../.env
-    command: /bin/sh -c "exec livekit-server --config /etc/livekit.yaml --node-ip $${LIVEKIT_NODE_IP:-$${NUXT_PUBLIC_SERVER_HOST:-127.0.0.1}}"
+    environment:
+      NODE_IP: ${NUXT_PUBLIC_SERVER_HOST:-127.0.0.1}
+      REDIS_HOST: ''
+    command:
+      - --config
+      - /etc/livekit.yaml
     restart: unless-stopped
     ports:
       - "7880:7880"

@@ -31,7 +31,7 @@ if (-not $NodeIp) {
   $NodeIp = Get-PreferredIPv4
 }
 
-$env:LIVEKIT_NODE_IP = $NodeIp
-Write-Host "LIVEKIT_NODE_IP=$NodeIp"
+$env:NUXT_PUBLIC_SERVER_HOST = $NodeIp
+Write-Host "NUXT_PUBLIC_SERVER_HOST=$NodeIp"
 
 docker compose -f "$PSScriptRoot/docker-compose.yml" up -d

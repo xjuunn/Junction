@@ -299,7 +299,7 @@ export class CallManager {
       try {
         const parsed = new URL(value)
         candidates.push(this.normalizeLiveKitProtocol(parsed))
-        if (this.isLoopbackHost(parsed.hostname)) {
+        if (this.shouldRewriteHost(parsed.hostname)) {
           for (const host of fallbackHosts) {
             if (!host) continue
             const next = new URL(parsed.toString())
@@ -312,7 +312,12 @@ export class CallManager {
       }
     }
 
-    return Array.from(new Set(candidates))
+    const unique = Array.from(new Set(candidates))
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      const httpsCandidates = unique.map(item => item.replace(/^ws:\/\//i, 'wss://'))
+      return Array.from(new Set([...unique, ...httpsCandidates]))
+    }
+    return unique
   }
 
   private extractHostname(urlText: string) {
@@ -356,6 +361,22 @@ export class CallManager {
 
   private isLoopbackHost(host: string) {
     return host === 'localhost' || host === '127.0.0.1' || host === '::1'
+  }
+
+  private isPrivateIpv4(host: string) {
+    const match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+    if (!match) return false
+    const parts = match.slice(1).map(Number)
+    if (parts.some(value => Number.isNaN(value) || value < 0 || value > 255)) return false
+    const [a, b] = parts
+    if (a === 10) return true
+    if (a === 172 && b >= 16 && b <= 31) return true
+    if (a === 192 && b === 168) return true
+    return false
+  }
+
+  private shouldRewriteHost(host: string) {
+    return this.isLoopbackHost(host) || this.isPrivateIpv4(host)
   }
 
   private ensureRoom() {
