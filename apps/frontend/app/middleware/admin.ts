@@ -1,4 +1,5 @@
 import * as adminApi from '~/api/admin'
+import { isAuthInvalidError } from '~/utils/auth'
 
 export default defineNuxtRouteMiddleware(async () => {
   if (import.meta.server) return
@@ -9,9 +10,12 @@ export default defineNuxtRouteMiddleware(async () => {
   if (!userStore.isAuthChecked.value) {
     try {
       await userStore.refresh()
-    } catch {
-      userStore.clearAuth()
-      return navigateTo('/auth/sign-in')
+    } catch (error) {
+      if (isAuthInvalidError(error)) {
+        userStore.clearAuth()
+        return navigateTo('/auth/sign-in')
+      }
+      return navigateTo('/chat')
     }
   }
   const { isAdmin } = useAdminAccess()

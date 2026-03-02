@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 import type { Session, User } from "better-auth";
+import { isTauri } from '~/utils/check';
+import { isAuthInvalidError, resolveAuthErrorStatus } from '~/utils/auth';
 
 const REMEMBER_KEY = 'junction.rememberMe';
 const TOKEN_KEY = 'junction.authToken';
@@ -12,19 +14,27 @@ export const useUserStore = defineStore("user", () => {
     const _rememberMe = ref(false);
 
     if (import.meta.client) {
+        const tauriEnv = isTauri();
         const remembered = window.localStorage.getItem(REMEMBER_KEY);
         _rememberMe.value = remembered === '1';
         const sessionToken = window.sessionStorage.getItem(TOKEN_KEY) || '';
-        const localToken = _rememberMe.value ? (window.localStorage.getItem(TOKEN_KEY) || '') : '';
+        const localToken = (tauriEnv || _rememberMe.value) ? (window.localStorage.getItem(TOKEN_KEY) || '') : '';
         _authToken.value = localToken || sessionToken || '';
     }
 
     async function refresh() {
         const authClient = useAuthClient();
-        const { data } = await authClient.getSession();
+        const { data, error } = await authClient.getSession();
         _session.value = data?.session ?? null;
         _user.value = data?.user ?? null;
         _isAuthChecked.value = true;
+        if (error) {
+            const err = new Error(error.message || '获取会话失败') as Error & { status?: number; code?: string };
+            const status = resolveAuthErrorStatus(error);
+            if (status) err.status = status;
+            if ((error as any)?.code) err.code = String((error as any).code);
+            throw err;
+        }
         return data;
     }
 
@@ -36,16 +46,29 @@ export const useUserStore = defineStore("user", () => {
 
     function setAuthToken(token: string) {
         _authToken.value = token;
-        refresh();
+        if (!token) {
+            _session.value = null;
+            _user.value = null;
+            _isAuthChecked.value = true;
+            return;
+        }
+        void refresh().catch((error) => {
+            if (isAuthInvalidError(error)) {
+                clearAuth();
+                return;
+            }
+            _isAuthChecked.value = true;
+        });
     }
 
     function setRememberMe(value: boolean) {
         _rememberMe.value = value;
         if (import.meta.client) {
+            const tauriEnv = isTauri();
             window.localStorage.setItem(REMEMBER_KEY, value ? '1' : '0');
             if (value && _authToken.value) {
                 window.localStorage.setItem(TOKEN_KEY, _authToken.value);
-            } else if (!value) {
+            } else if (!value && !tauriEnv) {
                 window.localStorage.removeItem(TOKEN_KEY);
             }
         }
@@ -72,10 +95,11 @@ export const useUserStore = defineStore("user", () => {
 
     if (import.meta.client) {
         watch(_authToken, (value) => {
+            const tauriEnv = isTauri();
             window.sessionStorage.setItem(TOKEN_KEY, value || '');
-            if (_rememberMe.value && value) {
+            if ((tauriEnv || _rememberMe.value) && value) {
                 window.localStorage.setItem(TOKEN_KEY, value);
-            } else if (!_rememberMe.value) {
+            } else if (!_rememberMe.value && !tauriEnv) {
                 window.localStorage.removeItem(TOKEN_KEY);
             }
         });

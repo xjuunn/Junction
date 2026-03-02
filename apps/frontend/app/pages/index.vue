@@ -9,6 +9,8 @@
 </template>
 
 <script setup lang="ts">
+import { isAuthInvalidError } from '~/utils/auth'
+
 definePageMeta({ layout: "main" })
 
 const userStore = useUserStore()
@@ -24,10 +26,16 @@ async function performAuthCheck(): Promise<void> {
         if (sessionData?.session) {
             navigateTo("/chat", { replace: true })
         } else {
+            userStore.clearAuth()
             navigateTo("/auth/sign-in", { replace: true })
         }
-    } catch {
-        navigateTo("/auth/sign-in", { replace: true })
+    } catch (error) {
+        if (isAuthInvalidError(error)) {
+            userStore.clearAuth()
+            navigateTo("/auth/sign-in", { replace: true })
+            return
+        }
+        navigateTo("/chat", { replace: true })
     }
 }
 

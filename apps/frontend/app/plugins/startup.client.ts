@@ -1,5 +1,6 @@
 import * as conversationApi from '~/api/conversation'
 import { notify } from '~/utils/notification'
+import { isAuthInvalidError } from '~/utils/auth'
 
 type ConversationMeta = {
   id: string
@@ -94,8 +95,12 @@ export default defineNuxtPlugin(async () => {
   if (userStore.authToken.value) {
     try {
       await userStore.refresh()
-    } catch {
-      userStore.clearAuth()
+    } catch (error) {
+      if (isAuthInvalidError(error)) {
+        userStore.clearAuth()
+      } else {
+        userStore.markAuthChecked()
+      }
     }
   } else {
     userStore.markAuthChecked()
