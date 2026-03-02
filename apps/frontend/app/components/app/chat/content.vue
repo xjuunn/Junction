@@ -1044,11 +1044,25 @@ const handleExtensionAction = (action: string) => {
     showExtensionsMenu.value = false;
 };
 
-const handleConversationUpdated = (payload: { id: string; title?: string; avatar?: string | null }) => {
+const handleConversationUpdated = (payload: {
+    id: string;
+    title?: string;
+    avatar?: string | null;
+    mySettings?: {
+        pinned?: boolean;
+        muted?: boolean;
+    };
+}) => {
     if (!payload?.id || payload.id !== conversationId.value) return;
     if (currentConversation.value) {
         if (typeof payload.title === 'string') currentConversation.value.title = payload.title;
         if (payload.avatar !== undefined) currentConversation.value.avatar = payload.avatar;
+        if (payload.mySettings) {
+            currentConversation.value.mySettings = {
+                ...(currentConversation.value.mySettings || {}),
+                ...payload.mySettings
+            };
+        }
     }
     if (!messages.value.length) return;
     messages.value = applyRemarksToReadInfo(applyRemarks(messages.value));

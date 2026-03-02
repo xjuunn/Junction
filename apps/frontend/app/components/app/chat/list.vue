@@ -234,11 +234,28 @@ const handleMessageRead = (payload: { conversationId: string; userId: string }) 
 /**
  * 处理会话标题更新
  */
-const handleConversationUpdated = (payload: { id: string; title?: string; avatar?: string | null }) => {
+const handleConversationUpdated = (payload: {
+    id: string;
+    title?: string;
+    avatar?: string | null;
+    mySettings?: {
+        pinned?: boolean;
+        muted?: boolean;
+    };
+}) => {
     const target = conversations.value.find(c => c.id === payload.id);
     if (!target) return;
     if (typeof payload.title === 'string') target.title = payload.title;
     if (payload.avatar !== undefined) target.avatar = payload.avatar;
+    if (payload.mySettings) {
+        target.mySettings = {
+            ...(target.mySettings || {}),
+            ...payload.mySettings
+        } as any;
+        if (typeof payload.mySettings.pinned !== 'undefined') {
+            moveToCorrectPosition(target);
+        }
+    }
 };
 
 /**

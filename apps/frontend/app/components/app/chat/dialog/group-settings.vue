@@ -209,6 +209,12 @@ const handleToggleMute = async () => {
   const res = await conversationApi.updateSettings(props.conversation.id, { muted: newValue } as any)
   if (res.success) {
     toast.success(newValue ? '已开启免打扰' : '已取消免打扰')
+    busEmit('chat:conversation-updated', {
+      id: props.conversation.id,
+      mySettings: {
+        muted: newValue,
+      },
+    })
     emit('conversation-deleted')
   }
 }
@@ -219,6 +225,12 @@ const handleTogglePin = async () => {
   const res = await conversationApi.updateSettings(props.conversation.id, { pinned: newValue } as any)
   if (res.success) {
     toast.success(newValue ? '已开启置顶' : '已取消置顶')
+    busEmit('chat:conversation-updated', {
+      id: props.conversation.id,
+      mySettings: {
+        pinned: newValue,
+      },
+    })
     emit('conversation-deleted')
   }
 }
