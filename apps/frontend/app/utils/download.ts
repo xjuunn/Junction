@@ -112,6 +112,31 @@ const resolveFileName = (source: DownloadSource, target?: DownloadTarget, resolv
   return guessFileName(source);
 };
 
+const resolveDownloadUrl = (rawUrl: string) => {
+  const input = String(rawUrl || '').trim();
+  if (!input) return input;
+  if (!import.meta.client) return input;
+
+  try {
+    const runtimeConfig = useRuntimeConfig();
+    const apiUrl = String(runtimeConfig.public.apiUrl || '').trim();
+    if (!apiUrl) return input;
+
+    const sourceUrl = new URL(input, window.location.origin);
+    const apiBase = new URL(apiUrl);
+
+    // 历史消息里可能写死了旧内网 IP，统一替换为当前后端 host
+    if (sourceUrl.origin !== apiBase.origin) {
+      sourceUrl.protocol = apiBase.protocol;
+      sourceUrl.hostname = apiBase.hostname;
+      sourceUrl.port = apiBase.port;
+    }
+    return sourceUrl.toString();
+  } catch {
+    return input;
+  }
+};
+
 const readWithProgress = async (response: Response, onProgress?: DownloadHooks['onProgress']) => {
   if (!response.body || !onProgress) {
     const buffer = await response.arrayBuffer();
@@ -145,8 +170,9 @@ const readWithProgress = async (response: Response, onProgress?: DownloadHooks['
 
 const downloadInWeb = async (options: DownloadOptions): Promise<DownloadResult> => {
   const fileName = resolveFileName(options.source, options.target, options.resolveFileName);
+  const requestUrl = resolveDownloadUrl(options.source.url);
   try {
-    const response = await fetch(options.source.url, {
+    const response = await fetch(requestUrl, {
       method: options.source.method || 'GET',
       headers: options.source.headers,
       body: options.source.body,
@@ -174,16 +200,31 @@ const downloadInWeb = async (options: DownloadOptions): Promise<DownloadResult> 
 
 const downloadInTauri = async (options: DownloadOptions): Promise<DownloadResult> => {
   const fileName = resolveFileName(options.source, options.target, options.resolveFileName);
+  const requestUrl = resolveDownloadUrl(options.source.url);
   try {
     const { fetch } = await import('@tauri-apps/plugin-http');
     const { writeFile, mkdir, exists } = await import('@tauri-apps/plugin-fs');
     const { join, dirname, downloadDir } = await import('@tauri-apps/api/path');
 
-    const response = await fetch(options.source.url, {
-      method: options.source.method || 'GET',
-      headers: options.source.headers,
-      body: options.source.body,
-    });
+    let response: Response;
+    try {
+      response = await fetch(requestUrl, {
+        method: options.source.method || 'GET',
+        headers: options.source.headers,
+        body: options.source.body,
+      }) as Response;
+    } catch (error: any) {
+      const message = String(error?.message || error || '');
+      const blockedByScope = message.includes('url not allowed on the configured scope');
+      if (!blockedByScope) throw error;
+
+      // capability 未覆盖时，回退到 Web fetch（若后端允许 CORS 可直接成功）
+      response = await globalThis.fetch(requestUrl, {
+        method: options.source.method || 'GET',
+        headers: options.source.headers,
+        body: options.source.body,
+      });
+    }
     if (!response.ok) {
       return { success: false, error: `下载失败: ${response.status} ${response.statusText}` };
     }
