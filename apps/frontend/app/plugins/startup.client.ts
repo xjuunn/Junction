@@ -1,6 +1,7 @@
 import * as conversationApi from '~/api/conversation'
 import { notify } from '~/utils/notification'
 import { isAuthInvalidError } from '~/utils/auth'
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 type ConversationMeta = {
   id: string
@@ -79,14 +80,17 @@ export default defineNuxtPlugin(async () => {
   watch(
     () => [settings.primaryColor, settings.secondaryColor, settings.accentColor],
     ([primary, secondary, accent]) => {
+      const resolvedPrimary = primary ?? settings.primaryColor
+      const resolvedSecondary = secondary ?? settings.secondaryColor
+      const resolvedAccent = accent ?? settings.accentColor
       if (appTheme.getIsDark().value) {
-        settings.darkPrimaryColor = primary
-        settings.darkSecondaryColor = secondary
-        settings.darkAccentColor = accent
+        settings.darkPrimaryColor = resolvedPrimary
+        settings.darkSecondaryColor = resolvedSecondary
+        settings.darkAccentColor = resolvedAccent
       } else {
-        settings.lightPrimaryColor = primary
-        settings.lightSecondaryColor = secondary
-        settings.lightAccentColor = accent
+        settings.lightPrimaryColor = resolvedPrimary
+        settings.lightSecondaryColor = resolvedSecondary
+        settings.lightAccentColor = resolvedAccent
       }
     }
   )
@@ -109,6 +113,22 @@ export default defineNuxtPlugin(async () => {
   const route = useRoute()
   const toast = useToast()
   const { on: busOn } = useEmitt()
+  const focusAppWindowForNotification = async () => {
+    if (!isTauri()) return
+    try {
+      const currentWindow = getCurrentWindow()
+      const isMinimized = await currentWindow.isMinimized()
+
+      // 先确保窗口可见，再恢复最小化，最后抢焦点
+      await currentWindow.show()
+      if (isMinimized) {
+        await currentWindow.unminimize()
+      }
+      await currentWindow.setFocus()
+    } catch {
+      // 通知链路不应因窗口唤起失败中断
+    }
+  }
   const currentUserId = computed(() => userStore.user.value?.id)
   const activeConversationId = ref<string | null>(null)
   const conversationCache = new Map<string, ConversationMeta>()
@@ -202,6 +222,8 @@ export default defineNuxtPlugin(async () => {
     }, {
       requestPermission: true,
     })
+
+    await focusAppWindowForNotification()
   })
 
   busOn('chat:active-conversation', (id) => {

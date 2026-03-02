@@ -1,5 +1,6 @@
 import { isTauri } from '~/utils/check'
 import { useSettingsStore, type AppSettings } from '~/stores/settings'
+import type { Options as TauriNotificationOptions, Channel as TauriChannel } from '@tauri-apps/plugin-notification'
 
 export type NotificationCategory =
   | 'message'
@@ -44,7 +45,7 @@ export interface NotifyPayload {
   /**
    * 覆盖 Tauri 端通知参数（按插件 Options）
    */
-  tauri?: Record<string, any>
+  tauri?: TauriNotificationOptions | string
 }
 
 export interface NotificationChannel {
@@ -78,8 +79,7 @@ export interface NotifyResult {
 const getSettings = (settings?: AppSettings) => {
   if (settings) return settings
   try {
-    const store = useSettingsStore()
-    return store.settings.value
+    return useSettingsStore().settings
   } catch {
     return null
   }
@@ -87,7 +87,9 @@ const getSettings = (settings?: AppSettings) => {
 
 const isInQuietHours = (start: string, end: string, now = new Date()) => {
   const parse = (value: string) => {
-    const [h, m] = value.split(':').map(Number)
+    const [hStr = '', mStr = ''] = value.split(':')
+    const h = Number(hStr)
+    const m = Number(mStr)
     if (Number.isNaN(h) || Number.isNaN(m)) return null
     return h * 60 + m
   }
@@ -173,7 +175,7 @@ const ensureTauriChannel = async (channel?: NotificationChannel) => {
   try {
     const mod = await import('@tauri-apps/plugin-notification')
     if (typeof mod.createChannel === 'function') {
-      await mod.createChannel(channel as any)
+      await mod.createChannel(channel as TauriChannel)
       channelCache.add(channel.id)
     }
   } catch {
@@ -235,7 +237,7 @@ export const notify = async (payload: NotifyPayload, options: NotifyOptions = {}
     try {
       const channelId = payload.channelId || payload.channel?.id
       if (payload.channel) await ensureTauriChannel(payload.channel)
-      const base = payload.tauri || {
+      const base: string | TauriNotificationOptions = payload.tauri || {
         title: payload.title,
         body,
         ...(channelId ? { channelId } : {}),
@@ -268,19 +270,27 @@ export const notify = async (payload: NotifyPayload, options: NotifyOptions = {}
     }
   }
 
-  const notification = new Notification(payload.title, {
+  const webOptions: NotificationOptions = {
     body,
     icon: payload.icon,
-    image: payload.image,
     badge: payload.badge,
     tag: payload.tag,
     data: payload.data,
     requireInteraction: payload.requireInteraction,
     silent,
-    renotify: payload.renotify,
-    vibrate: payload.vibrate,
     ...(payload.web || {}),
-  })
+  }
+  if (payload.image) {
+    ;(webOptions as NotificationOptions & { image?: string }).image = payload.image
+  }
+  if (payload.vibrate) {
+    ;(webOptions as NotificationOptions & { vibrate?: number[] }).vibrate = payload.vibrate
+  }
+  if (typeof payload.renotify !== 'undefined') {
+    ;(webOptions as NotificationOptions & { renotify?: boolean }).renotify = payload.renotify
+  }
+
+  const notification = new Notification(payload.title, webOptions)
 
   if (payload.onClick) {
     notification.onclick = () => payload.onClick?.()

@@ -84,6 +84,9 @@
       ]
     },
     "fs:default",
-    "shell:default"
+    "shell:default",
+    "core:window:allow-unminimize",
+    "core:window:allow-set-focus",
+    "core:window:allow-show"
   ]
 }
