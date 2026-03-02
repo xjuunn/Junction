@@ -73,7 +73,7 @@ export interface NotifyOptions {
 
 export interface NotifyResult {
   success: boolean
-  reason?: 'not-supported' | 'permission-denied' | 'disabled' | 'quiet-hours' | 'invalid'
+  reason?: 'not-supported' | 'permission-denied' | 'disabled' | 'quiet-hours' | 'do-not-disturb' | 'invalid'
 }
 
 const getSettings = (settings?: AppSettings) => {
@@ -211,6 +211,9 @@ export const notify = async (payload: NotifyPayload, options: NotifyOptions = {}
   const settings = getSettings(options.settings)
   if (settings && !settings.notificationEnableDesktop && !payload.force) {
     return { success: false, reason: 'disabled' }
+  }
+  if (settings?.notificationDoNotDisturbEnabled && !payload.force) {
+    return { success: false, reason: 'do-not-disturb' }
   }
   if (!payload.force && settings?.notificationQuietHoursEnabled) {
     if (isInQuietHours(settings.notificationQuietHoursStart, settings.notificationQuietHoursEnd)) {

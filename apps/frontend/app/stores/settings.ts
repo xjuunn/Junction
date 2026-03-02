@@ -26,6 +26,7 @@ export interface AppSettings {
   notificationShowPreview: 'always' | 'when-unlocked' | 'never'
   notificationSoundEnabled: boolean
   notificationSoundVolume: number
+  notificationDoNotDisturbEnabled: boolean
   notificationQuietHoursEnabled: boolean
   notificationQuietHoursStart: string
   notificationQuietHoursEnd: string
@@ -34,6 +35,8 @@ export interface AppSettings {
   notificationMentionEnabled: boolean
   notificationFriendRequestEnabled: boolean
   notificationSystemEnabled: boolean
+  notificationWakeAppOnMessage: boolean
+  notificationWakeAppForceFocus: boolean
   aiProviderId: string
   aiApiKey: string
   aiBaseUrl: string
@@ -194,6 +197,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const notificationShowPreview = ref<'always' | 'when-unlocked' | 'never'>('always')
   const notificationSoundEnabled = ref(true)
   const notificationSoundVolume = ref(80)
+  const notificationDoNotDisturbEnabled = ref(false)
   const notificationQuietHoursEnabled = ref(false)
   const notificationQuietHoursStart = ref('22:00')
   const notificationQuietHoursEnd = ref('08:00')
@@ -202,6 +206,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const notificationMentionEnabled = ref(true)
   const notificationFriendRequestEnabled = ref(true)
   const notificationSystemEnabled = ref(true)
+  const notificationWakeAppOnMessage = ref(true)
+  const notificationWakeAppForceFocus = ref(true)
   const aiProviderId = ref('deepseek')
   const aiApiKey = ref('')
   const aiBaseUrl = ref('')
@@ -363,6 +369,7 @@ export const useSettingsStore = defineStore('settings', () => {
     notificationShowPreview: notificationShowPreview.value,
     notificationSoundEnabled: notificationSoundEnabled.value,
     notificationSoundVolume: notificationSoundVolume.value,
+    notificationDoNotDisturbEnabled: notificationDoNotDisturbEnabled.value,
     notificationQuietHoursEnabled: notificationQuietHoursEnabled.value,
     notificationQuietHoursStart: notificationQuietHoursStart.value,
     notificationQuietHoursEnd: notificationQuietHoursEnd.value,
@@ -371,6 +378,8 @@ export const useSettingsStore = defineStore('settings', () => {
     notificationMentionEnabled: notificationMentionEnabled.value,
     notificationFriendRequestEnabled: notificationFriendRequestEnabled.value,
     notificationSystemEnabled: notificationSystemEnabled.value,
+    notificationWakeAppOnMessage: notificationWakeAppOnMessage.value,
+    notificationWakeAppForceFocus: notificationWakeAppForceFocus.value,
     aiProviderId: aiProviderId.value,
     aiApiKey: aiApiKey.value,
     aiBaseUrl: aiBaseUrl.value,
@@ -406,6 +415,7 @@ export const useSettingsStore = defineStore('settings', () => {
     notificationShowPreview,
     notificationSoundEnabled,
     notificationSoundVolume,
+    notificationDoNotDisturbEnabled,
     notificationQuietHoursEnabled,
     notificationQuietHoursStart,
     notificationQuietHoursEnd,
@@ -414,6 +424,8 @@ export const useSettingsStore = defineStore('settings', () => {
     notificationMentionEnabled,
     notificationFriendRequestEnabled,
     notificationSystemEnabled,
+    notificationWakeAppOnMessage,
+    notificationWakeAppForceFocus,
     aiProviderId,
     aiApiKey,
     aiBaseUrl,

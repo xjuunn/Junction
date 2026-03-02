@@ -118,13 +118,16 @@ export default defineNuxtPlugin(async () => {
     try {
       const currentWindow = getCurrentWindow()
       const isMinimized = await currentWindow.isMinimized()
+      const isFocused = await currentWindow.isFocused()
 
       // 先确保窗口可见，再恢复最小化，最后抢焦点
       await currentWindow.show()
       if (isMinimized) {
         await currentWindow.unminimize()
       }
-      await currentWindow.setFocus()
+      if (!isFocused && settings.notificationWakeAppForceFocus) {
+        await currentWindow.setFocus()
+      }
     } catch {
       // 通知链路不应因窗口唤起失败中断
     }
@@ -184,18 +187,18 @@ export default defineNuxtPlugin(async () => {
     userStore.setUser(user)
   })
 
-  socket.on('new-notification', (notification) => {
+  socket.on('new-notification', async (notification) => {
     console.log('收到通知:', notification)
     const title = notification?.title || '新通知'
     const body = notification?.content || ''
-    notify({
+    const result = await notify({
       title,
       body,
       category: 'system',
       tag: notification?.id,
       data: { id: notification?.id },
     })
-    if (body) toast.info(body)
+    if (body && result.success) toast.info(body)
   })
 
   socket.on('new-message', async (msg) => {
@@ -213,7 +216,7 @@ export default defineNuxtPlugin(async () => {
     const body = msg?.content || ''
     const category = meta?.type === 'GROUP' ? 'group' : 'message'
 
-    notify({
+    const result = await notify({
       title,
       body,
       category,
@@ -223,6 +226,8 @@ export default defineNuxtPlugin(async () => {
       requestPermission: true,
     })
 
+    if (!result.success) return
+    if (!settings.notificationWakeAppOnMessage) return
     await focusAppWindowForNotification()
   })
 

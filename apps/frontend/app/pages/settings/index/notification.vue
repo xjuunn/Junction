@@ -14,6 +14,7 @@ const {
   notificationShowPreview,
   notificationSoundEnabled,
   notificationSoundVolume,
+  notificationDoNotDisturbEnabled,
   notificationQuietHoursEnabled,
   notificationQuietHoursStart,
   notificationQuietHoursEnd,
@@ -22,6 +23,8 @@ const {
   notificationMentionEnabled,
   notificationFriendRequestEnabled,
   notificationSystemEnabled,
+  notificationWakeAppOnMessage,
+  notificationWakeAppForceFocus,
 } = storeToRefs(settingsStore)
 
 const permission = ref<NotificationPermission>('default')
@@ -124,6 +127,37 @@ onMounted(() => {
                 授权系统通知
               </button>
             </div>
+
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-4">
+                <input
+                  v-model="notificationWakeAppOnMessage"
+                  type="checkbox"
+                  class="toggle toggle-primary"
+                />
+                <span class="label-text">
+                  <span class="font-bold">新消息时自动唤起应用</span>
+                  <br />
+                  <span class="text-sm text-base-content/50">收到新消息后自动恢复窗口并显示到前台</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-4">
+                <input
+                  v-model="notificationWakeAppForceFocus"
+                  type="checkbox"
+                  class="toggle toggle-primary"
+                  :disabled="!notificationWakeAppOnMessage"
+                />
+                <span class="label-text">
+                  <span class="font-bold">自动抢占输入焦点</span>
+                  <br />
+                  <span class="text-sm text-base-content/50">关闭后只恢复显示窗口，不强制抢焦点</span>
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -190,6 +224,21 @@ onMounted(() => {
           </h3>
 
           <div class="space-y-4">
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-4">
+                <input
+                  v-model="notificationDoNotDisturbEnabled"
+                  type="checkbox"
+                  class="toggle toggle-primary"
+                />
+                <span class="label-text">
+                  <span class="font-bold">立即开启消息免打扰</span>
+                  <br />
+                  <span class="text-sm text-base-content/50">开启后不显示通知，也不会自动唤起应用</span>
+                </span>
+              </label>
+            </div>
+
             <div class="form-control">
               <label class="label cursor-pointer justify-start gap-4">
                 <input
