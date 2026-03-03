@@ -1,4 +1,4 @@
-name: Release Desktop
+name: Release Multi Platform
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  desktop:
     name: Build ${{ matrix.platform.name }}
     strategy:
       fail-fast: false
@@ -71,8 +71,8 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @junction/backend exec prisma generate --schema prisma/schema.prisma
 
-      - name: Build shared types
-        run: pnpm --filter @junction/types build
+      - name: Build workspace packages
+        run: pnpm build:packages
 
       - name: Build Tauri app
         run: pnpm --filter @junction/frontend tauri build
@@ -101,10 +101,190 @@ jobs:
           path: ${{ matrix.platform.archive_name }}
           if-no-files-found: error
 
+  android:
+    name: Build android-release-signed
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android components
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.2.12479018"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @junction/backend exec prisma generate --schema prisma/schema.prisma
+
+      - name: Build workspace packages
+        run: pnpm build:packages
+
+      - name: Init Android project
+        run: pnpm --filter @junction/frontend tauri android init --ci
+
+      - name: Normalize Android Gradle properties
+        run: sed -i '/trustStoreType=Windows-ROOT/d' apps/frontend/src-tauri/gen/android/gradle.properties
+
+      - name: Validate Android signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          [ -n "${ANDROID_KEYSTORE_BASE64}" ] || (echo "Missing secret: ANDROID_KEYSTORE_BASE64" && exit 1)
+          [ -n "${ANDROID_KEYSTORE_PASSWORD}" ] || (echo "Missing secret: ANDROID_KEYSTORE_PASSWORD" && exit 1)
+          [ -n "${ANDROID_KEY_ALIAS}" ] || (echo "Missing secret: ANDROID_KEY_ALIAS" && exit 1)
+          [ -n "${ANDROID_KEY_PASSWORD}" ] || (echo "Missing secret: ANDROID_KEY_PASSWORD" && exit 1)
+
+      - name: Prepare Android signing config
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/android-release.keystore"
+          cat > apps/frontend/src-tauri/gen/android/key.properties <<EOF
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          storeFile=${RUNNER_TEMP}/android-release.keystore
+          EOF
+
+      - name: Build Android app (release signed)
+        run: pnpm --filter @junction/frontend tauri android build --ci --apk --aab
+
+      - name: Archive Android artifacts
+        run: |
+          mkdir -p mobile-dist/android
+          find apps/frontend/src-tauri/gen/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -exec cp {} mobile-dist/android/ \;
+          if [ -z "$(ls -A mobile-dist/android)" ]; then
+            echo "Signed Android outputs not found"
+            exit 1
+          fi
+          tar -czf release-bundle-android-signed.tar.gz -C mobile-dist android
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-signed
+          path: release-bundle-android-signed.tar.gz
+          if-no-files-found: error
+
+  ios:
+    name: Build ios-release-signed
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @junction/backend exec prisma generate --schema prisma/schema.prisma
+
+      - name: Build workspace packages
+        run: pnpm build:packages
+
+      - name: Ensure CocoaPods
+        run: |
+          pod --version || sudo gem install cocoapods
+
+      - name: Init iOS project
+        run: pnpm --filter @junction/frontend tauri ios init --ci
+
+      - name: Validate iOS signing secrets
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: |
+          [ -n "${IOS_CERTIFICATE}" ] || (echo "Missing secret: IOS_CERTIFICATE (base64 p12)" && exit 1)
+          [ -n "${IOS_CERTIFICATE_PASSWORD}" ] || (echo "Missing secret: IOS_CERTIFICATE_PASSWORD" && exit 1)
+          [ -n "${IOS_MOBILE_PROVISION}" ] || (echo "Missing secret: IOS_MOBILE_PROVISION (base64 mobileprovision)" && exit 1)
+
+      - name: Build iOS app (release signed IPA)
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: pnpm --filter @junction/frontend tauri ios build --ci --export-method app-store-connect
+
+      - name: Archive iOS artifacts
+        run: |
+          mkdir -p mobile-dist/ios
+          find apps/frontend/src-tauri/gen/apple -type f -name "*.ipa" -exec cp {} mobile-dist/ios/ \;
+          if [ -z "$(ls -A mobile-dist/ios)" ]; then
+            echo "Signed iOS IPA not found"
+            exit 1
+          fi
+          tar -czf release-bundle-ios-signed.tar.gz -C mobile-dist ios
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-signed
+          path: release-bundle-ios-signed.tar.gz
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: build
+    needs: [desktop, android, ios]
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
