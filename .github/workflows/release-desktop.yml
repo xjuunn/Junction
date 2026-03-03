@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*'
-      - '[0-9]+.[0-9]+.[0-9]+'
+      - '*.*.*'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -75,6 +75,13 @@ jobs:
             EXPORT_METHOD="${{ github.event.inputs.export_method }}"
             ALLOW_FALLBACK="${{ github.event.inputs.allow_unsigned_fallback }}"
           fi
+
+          AF_LC="$(echo "${ALLOW_FALLBACK:-true}" | tr '[:upper:]' '[:lower:]')"
+          case "$AF_LC" in
+            true|1|yes|y) ALLOW_FALLBACK="true" ;;
+            false|0|no|n) ALLOW_FALLBACK="false" ;;
+            *) ALLOW_FALLBACK="true" ;;
+          esac
 
           if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$ ]]; then
             TAG="v${TAG}"
@@ -295,13 +302,13 @@ jobs:
 
           # Local signing files first, then fall back to secrets.
           KEYSTORE_B64=""
-          if [ -f "apps/frontend/src-tauri/signing/android/release.keystore.base64" ]; then
+          if [ -s "apps/frontend/src-tauri/signing/android/release.keystore.base64" ]; then
             KEYSTORE_B64="$(tr -d '\n\r' < apps/frontend/src-tauri/signing/android/release.keystore.base64)"
           else
             KEYSTORE_B64="${ANDROID_KEYSTORE_BASE64:-$ANDROID_KEYSTORE_FILE_BASE64}"
           fi
 
-          if [ -f "apps/frontend/src-tauri/signing/android/release.keystore" ]; then
+          if [ -s "apps/frontend/src-tauri/signing/android/release.keystore" ]; then
             KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/signing/android/release.keystore"
           elif [ -n "${KEYSTORE_B64}" ]; then
             KEYSTORE_PATH="${RUNNER_TEMP}/android-release.keystore"
@@ -426,25 +433,25 @@ jobs:
           IOS_PWD=""
           DEV_TEAM=""
 
-          if [ -f "apps/frontend/src-tauri/signing/ios/certificate.p12" ]; then
+          if [ -s "apps/frontend/src-tauri/signing/ios/certificate.p12" ]; then
             CERT_B64="$(base64 < apps/frontend/src-tauri/signing/ios/certificate.p12 | tr -d '\n')"
           else
             CERT_B64="${IOS_CERTIFICATE:-$IOS_CERTIFICATE_BASE64}"
           fi
 
-          if [ -f "apps/frontend/src-tauri/signing/ios/profile.mobileprovision" ]; then
+          if [ -s "apps/frontend/src-tauri/signing/ios/profile.mobileprovision" ]; then
             PROVISION_B64="$(base64 < apps/frontend/src-tauri/signing/ios/profile.mobileprovision | tr -d '\n')"
           else
             PROVISION_B64="${IOS_MOBILE_PROVISION:-$IOS_MOBILE_PROVISION_BASE64}"
           fi
 
-          if [ -f "apps/frontend/src-tauri/signing/ios/certificate_password.txt" ]; then
+          if [ -s "apps/frontend/src-tauri/signing/ios/certificate_password.txt" ]; then
             IOS_PWD="$(cat apps/frontend/src-tauri/signing/ios/certificate_password.txt)"
           else
             IOS_PWD="${IOS_CERTIFICATE_PASSWORD:-}"
           fi
 
-          if [ -f "apps/frontend/src-tauri/signing/ios/development_team.txt" ]; then
+          if [ -s "apps/frontend/src-tauri/signing/ios/development_team.txt" ]; then
             DEV_TEAM="$(cat apps/frontend/src-tauri/signing/ios/development_team.txt)"
           else
             DEV_TEAM="${IOS_DEVELOPMENT_TEAM:-$APPLE_DEVELOPMENT_TEAM}"
@@ -455,7 +462,15 @@ jobs:
             MODE="simulator-debug"
           fi
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${MODE}" != "release" && "${{ needs.validate.outputs.allow_unsigned_fallback }}" != "true" ]]; then
+          ALLOW_FB_RAW="${{ needs.validate.outputs.allow_unsigned_fallback }}"
+          ALLOW_FB="$(echo "${ALLOW_FB_RAW:-true}" | tr '[:upper:]' '[:lower:]')"
+          case "$ALLOW_FB" in
+            true|1|yes|y) ALLOW_FB="true" ;;
+            false|0|no|n) ALLOW_FB="false" ;;
+            *) ALLOW_FB="true" ;;
+          esac
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${MODE}" != "release" && "${ALLOW_FB}" != "true" ]]; then
             echo "Unsigned fallback is disabled. Enable allow_unsigned_fallback=true for manual run."
             exit 1
           fi
