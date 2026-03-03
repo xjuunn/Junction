@@ -80,12 +80,5 @@
     "@tauri-apps/cli": "^2.8.4",
     "@types/markdown-it": "^14.1.2",
     "tailwindcss": "^4.1.14"
-  },
-  "pnpm": {
-    "overrides": {
-      "@tiptap/core": "^3.14.0",
-      "@tiptap/pm": "^3.14.0",
-      "@tiptap/vue-3": "^3.14.0"
-    }
   }
 }

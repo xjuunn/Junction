@@ -29,5 +29,12 @@
   },
   "dependencies": {
     "viem": "^2.38.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "@tiptap/core": "^3.14.0",
+      "@tiptap/pm": "^3.14.0",
+      "@tiptap/vue-3": "^3.14.0"
+    }
   }
 }
