@@ -38,6 +38,14 @@ export function resolveRuntimeApiBaseUrl() {
 function readSettingsValue<K extends 'backendServerUrl' | 'assetBaseUrl' | 'livekitBaseUrl'>(key: K) {
   if (import.meta.client) {
     try {
+      const keyMap: Record<'backendServerUrl' | 'assetBaseUrl' | 'livekitBaseUrl', string> = {
+        backendServerUrl: 'junction.backendServerUrl',
+        assetBaseUrl: 'junction.assetBaseUrl',
+        livekitBaseUrl: 'junction.livekitBaseUrl',
+      }
+      const direct = String(window.localStorage.getItem(keyMap[key]) || '').trim()
+      if (direct) return direct
+
       const raw = window.localStorage.getItem('settings')
       if (raw) {
         const parsed = JSON.parse(raw) as Record<string, unknown>
@@ -100,9 +108,15 @@ export function resolveLiveKitBaseUrl() {
   }
 }
 
-export async function probeBackendReachability(options: { baseUrl?: string; timeoutMs?: number; path?: string } = {}) {
+export async function probeBackendReachability(options: {
+  baseUrl?: string
+  timeoutMs?: number
+  path?: string
+  strictApiSuccess?: boolean
+} = {}) {
   const timeoutMs = Number(options.timeoutMs || 4000)
-  const path = String(options.path || '/app/hello')
+  const path = String(options.path || '/auth/get-session')
+  const strictApiSuccess = !!options.strictApiSuccess
   const baseUrl = options.baseUrl
     ? normalizeEndpointUrl(options.baseUrl, { defaultProtocol: 'http' })
     : resolveApiBaseUrl()
@@ -121,8 +135,18 @@ export async function probeBackendReachability(options: { baseUrl?: string; time
     const response = await fetch(`${endpoint}${endpoint.includes('?') ? '&' : '?'}_ts=${Date.now()}`, {
       method: 'GET',
       signal: controller.signal,
+      credentials: 'include',
     })
-    return { reachable: true, status: response.status, reason: 'ok' as const }
+    let reachable = response.status < 500
+    if (strictApiSuccess) {
+      try {
+        const payload = await response.clone().json()
+        reachable = response.ok && payload?.success === true
+      } catch {
+        reachable = response.ok
+      }
+    }
+    return { reachable, status: response.status, reason: reachable ? 'ok' as const : 'network-error' as const }
   } catch (error: any) {
     const elapsed = Date.now() - startedAt
     if (didTimeout || error?.name === 'AbortError' || elapsed >= timeoutMs) {

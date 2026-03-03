@@ -1,5 +1,14 @@
 import { getSavedDownloadDir, setSavedDownloadDir } from '~/utils/download'
 
+const BACKEND_SERVER_URL_KEY = 'junction.backendServerUrl'
+const ASSET_BASE_URL_KEY = 'junction.assetBaseUrl'
+const LIVEKIT_BASE_URL_KEY = 'junction.livekitBaseUrl'
+
+function readLocalSetting(key: string) {
+  if (!import.meta.client) return ''
+  return String(window.localStorage.getItem(key) || '').trim()
+}
+
 export interface AppSettings {
   backendServerUrl: string
   assetBaseUrl: string
@@ -175,9 +184,9 @@ export interface ScrcpyConfig {
 }
 
 export const useSettingsStore = defineStore('settings', () => {
-  const backendServerUrl = ref('')
-  const assetBaseUrl = ref('')
-  const livekitBaseUrl = ref('')
+  const backendServerUrl = ref(readLocalSetting(BACKEND_SERVER_URL_KEY))
+  const assetBaseUrl = ref(readLocalSetting(ASSET_BASE_URL_KEY))
+  const livekitBaseUrl = ref(readLocalSetting(LIVEKIT_BASE_URL_KEY))
   const language = ref('zh-CN')
   const timezone = ref('Asia/Shanghai')
   const dateFormat = ref('YYYY-MM-DD')
@@ -348,6 +357,26 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(downloadPath, (val) => {
     setSavedDownloadDir(val || '')
   })
+
+  if (import.meta.client) {
+    watch(backendServerUrl, (val) => {
+      const next = String(val || '').trim()
+      if (!next) window.localStorage.removeItem(BACKEND_SERVER_URL_KEY)
+      else window.localStorage.setItem(BACKEND_SERVER_URL_KEY, next)
+    })
+
+    watch(assetBaseUrl, (val) => {
+      const next = String(val || '').trim()
+      if (!next) window.localStorage.removeItem(ASSET_BASE_URL_KEY)
+      else window.localStorage.setItem(ASSET_BASE_URL_KEY, next)
+    })
+
+    watch(livekitBaseUrl, (val) => {
+      const next = String(val || '').trim()
+      if (!next) window.localStorage.removeItem(LIVEKIT_BASE_URL_KEY)
+      else window.localStorage.setItem(LIVEKIT_BASE_URL_KEY, next)
+    })
+  }
 
   const settings = computed<AppSettings>(() => ({
     backendServerUrl: backendServerUrl.value,

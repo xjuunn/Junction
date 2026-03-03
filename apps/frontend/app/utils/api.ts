@@ -19,6 +19,12 @@ interface RequestOptions {
 
 let redirectingToNoSignal = false
 
+function shouldSuppressNoSignalRedirect() {
+  if (!import.meta.client) return false
+  const path = String(window.location.pathname || '')
+  return path.startsWith('/settings/connection') || path.startsWith('/no-signal')
+}
+
 class Api {
   private instance: AxiosInstance
   private defaultPagination: PaginationQuery = { page: 1, limit: 20 }
@@ -71,7 +77,7 @@ class Api {
             /network error/i.test(String(error?.message || ''))
 
           if (isNetworkError) {
-            if (!redirectingToNoSignal) {
+            if (!redirectingToNoSignal && !shouldSuppressNoSignalRedirect()) {
               redirectingToNoSignal = true
               const from = `${window.location.pathname || '/'}${window.location.search || ''}`
               void navigateTo(
@@ -86,7 +92,7 @@ class Api {
                 { replace: true },
               )
             }
-            return Promise.reject(new Error('NETWORK_ERROR'))
+            return Promise.resolve({ success: false, error: 'NETWORK_ERROR', data: null } as any)
           }
 
           if (status === 401) {

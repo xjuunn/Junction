@@ -23,6 +23,11 @@ const normalizeWsInput = (value: string) => normalizeEndpointUrl(value, { defaul
 const normalizedServerUrl = computed(() => normalizeHttpInput(form.backendServerUrl))
 const canSave = computed(() => !!normalizedServerUrl.value)
 
+const handleBack = () => {
+  const target = String(route.query.from || '/')
+  navigateTo(target, { replace: true })
+}
+
 const socketEndpoint = computed(() => {
   const base = normalizedServerUrl.value
   if (!base) return ''
@@ -88,9 +93,19 @@ async function saveAndRetry() {
     settings.backendServerUrl = backendServerUrl
     settings.assetBaseUrl = ''
     settings.livekitBaseUrl = normalizeWsInput(livekitEndpoint.value)
+    if (import.meta.client) {
+      window.localStorage.setItem('junction.backendServerUrl', settings.backendServerUrl || '')
+      window.localStorage.removeItem('junction.assetBaseUrl')
+      window.localStorage.setItem('junction.livekitBaseUrl', settings.livekitBaseUrl || '')
+    }
 
-    toast.success('配置已保存，正在刷新')
-    window.location.replace(String(route.query.from || '/'))
+    toast.success('配置已保存，正在应用')
+    const from = String(route.query.from || '/')
+    const fallback = '/'
+    const target = from.startsWith('/no-signal') || from.startsWith('/settings/connection')
+      ? fallback
+      : from
+    await navigateTo(target, { replace: true })
   } finally {
     saving.value = false
   }
@@ -102,6 +117,10 @@ async function saveAndRetry() {
     <div class="mx-auto w-full max-w-2xl">
       <section class="rounded-2xl border border-base-content/10 bg-base-100/80 p-6 shadow-sm backdrop-blur-md md:p-7">
         <header class="mb-6">
+          <button class="btn btn-ghost btn-sm mb-3 rounded-lg px-2" @click="handleBack">
+            <Icon name="mingcute:left-line" size="16" />
+            返回
+          </button>
           <h1 class="text-xl font-semibold tracking-tight">连接设置</h1>
           <p class="mt-1 text-sm text-base-content/60">更新服务器地址后继续使用应用。</p>
         </header>

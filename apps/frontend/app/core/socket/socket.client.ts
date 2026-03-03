@@ -2,6 +2,14 @@ import { io, Socket } from "socket.io-client";
 import type { SocketNamespaces, NSKeys, EventKeys, InferSend, InferAck, InferListen } from "./socket.types";
 import { resolveSocketNamespaceUrl } from '~/utils/backend-endpoint'
 
+let redirectingToNoSignalFromSocket = false
+
+function shouldSuppressNoSignalRedirect() {
+    if (!import.meta.client) return false;
+    const path = String(window.location.pathname || '');
+    return path.startsWith('/settings/connection') || path.startsWith('/no-signal');
+}
+
 export class SocketClient<N extends NSKeys> {
     private static instances = new Map<string, any>();
     private socket: Socket;
@@ -11,6 +19,21 @@ export class SocketClient<N extends NSKeys> {
     private isRefreshing = false;
 
     private pendingListeners: Array<{ event: string; listener: (...args: any[]) => void }> = [];
+
+    private redirectToNoSignal(trigger: string) {
+        if (!import.meta.client || redirectingToNoSignalFromSocket) return;
+        if (shouldSuppressNoSignalRedirect()) return;
+        redirectingToNoSignalFromSocket = true;
+        const from = `${window.location.pathname || '/'}${window.location.search || ''}`;
+        void navigateTo({
+            path: '/no-signal',
+            query: {
+                reason: 'unreachable',
+                probe: `socket-${trigger}`,
+                from,
+            },
+        }, { replace: true });
+    }
 
     private constructor(namespace: N) {
         this.namespace = namespace;
@@ -91,11 +114,17 @@ export class SocketClient<N extends NSKeys> {
             ) {
                 this.refreshAttempts += 1;
                 this.refreshAuthTokenAndReconnect();
+                return;
+            }
+            const msg = String(error?.message || '').toLowerCase();
+            if (msg.includes('timeout') || msg.includes('network') || msg.includes('xhr')) {
+                this.redirectToNoSignal('connect-error');
             }
         });
 
         this.socket.on('connect_timeout', (timeout) => {
             console.error(`[Socket] Connect timeout: ${namespace}`, timeout);
+            this.redirectToNoSignal('connect-timeout');
         });
 
         this.socket.on('error', (error) => {
@@ -108,10 +137,15 @@ export class SocketClient<N extends NSKeys> {
 
         this.socket.on('reconnect_error', (error) => {
             console.error(`[Socket] Reconnect error: ${namespace}`, error);
+            const msg = String((error as any)?.message || '').toLowerCase();
+            if (msg.includes('timeout') || msg.includes('network') || msg.includes('xhr')) {
+                this.redirectToNoSignal('reconnect-error');
+            }
         });
 
         this.socket.on('reconnect_failed', () => {
             console.error(`[Socket] Reconnect failed: ${namespace}`);
+            this.redirectToNoSignal('reconnect-failed');
         });
     }
 

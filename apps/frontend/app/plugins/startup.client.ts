@@ -20,6 +20,7 @@ export default defineNuxtPlugin(async () => {
   const route = useRoute()
   const toast = useToast()
   const prefersDark = usePreferredDark()
+  const isConnectionSettingsPage = route.path.startsWith('/settings/connection')
 
   const applyThemeMode = async (mode: string) => {
     appTheme.setFollowSystem(mode === 'system')
@@ -98,26 +99,29 @@ export default defineNuxtPlugin(async () => {
     }
   )
 
-  const preferredBaseUrl = normalizeEndpointUrl(settings.backendServerUrl || '', { defaultProtocol: 'http' })
-    || resolveApiBaseUrl()
-  const healthCheck = await probeBackendReachability({
-    baseUrl: preferredBaseUrl,
-    timeoutMs: 3500,
-  })
-  if (!healthCheck.reachable) {
-    const isNoSignal = healthCheck.reason === 'timeout' || healthCheck.reason === 'network-error'
-    const targetPath = isNoSignal ? '/no-signal' : '/settings/connection'
-    if (!route.path.startsWith(targetPath)) {
-      await navigateTo({
-        path: targetPath,
-        query: {
+  if (!isConnectionSettingsPage) {
+    const mirroredBackendUrl = import.meta.client
+      ? String(window.localStorage.getItem('junction.backendServerUrl') || '').trim()
+      : ''
+    const preferredBaseUrl = normalizeEndpointUrl(mirroredBackendUrl || settings.backendServerUrl || '', { defaultProtocol: 'http' })
+      || resolveApiBaseUrl()
+    const healthCheck = await probeBackendReachability({
+      baseUrl: preferredBaseUrl,
+      timeoutMs: 3500,
+      path: '/auth/get-session',
+    })
+    if (!healthCheck.reachable) {
+      const targetPath = '/no-signal'
+      if (!route.path.startsWith(targetPath)) {
+        const params = new URLSearchParams({
           reason: 'unreachable',
           probe: healthCheck.reason || 'unknown',
           from: route.fullPath || '/',
-        },
-      }, { replace: true })
+        })
+        window.location.replace(`${targetPath}?${params.toString()}`)
+      }
+      return
     }
-    return
   }
 
   const userStore = useUserStore()
