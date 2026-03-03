@@ -224,6 +224,15 @@ jobs:
             "build-tools;36.0.0" \
             "ndk;27.2.12479018"
 
+      - name: Configure Android NDK env
+        shell: bash
+        run: |
+          NDK_PATH="${ANDROID_SDK_ROOT}/ndk/27.2.12479018"
+          [ -d "${NDK_PATH}" ] || (echo "NDK path not found: ${NDK_PATH}" && exit 1)
+          echo "NDK_HOME=${NDK_PATH}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${NDK_PATH}" >> "$GITHUB_ENV"
+          echo "${NDK_PATH}" >> "$GITHUB_PATH"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -417,7 +426,7 @@ jobs:
           if [ "${IOS_BUILD_MODE}" = "release" ]; then
             pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
           else
-            pnpm --filter @junction/frontend tauri ios build --ci --debug --simulator
+            pnpm --filter @junction/frontend tauri ios build --ci --debug --target aarch64-apple-ios-sim
           fi
 
       - name: Collect iOS artifacts
@@ -427,7 +436,7 @@ jobs:
           if [ "${IOS_BUILD_MODE}" = "release" ]; then
             find apps/frontend/src-tauri/gen/apple -type f -name "*.ipa" -exec cp {} mobile-dist/ios/ \;
           else
-            find apps/frontend/src-tauri/gen/ios -type d -name "*.app" -exec cp -R {} mobile-dist/ios/ \;
+            find apps/frontend/src-tauri/gen -type d -name "*.app" -exec cp -R {} mobile-dist/ios/ \;
           fi
           [ -n "$(ls -A mobile-dist/ios)" ] || (echo "iOS output not found" && exit 1)
           tar -czf release-bundle-ios-signed.tar.gz -C mobile-dist ios
