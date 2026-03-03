@@ -194,10 +194,26 @@ jobs:
           retention-days: 14
 
   android:
-    name: Android Signed Release
+    name: Android Signed Release (${{ matrix.arch.name }})
     needs: validate
     runs-on: ubuntu-22.04
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - name: aarch64
+            rust_target: aarch64-linux-android
+            tauri_target: aarch64
+          - name: armv7
+            rust_target: armv7-linux-androideabi
+            tauri_target: armv7
+          - name: i686
+            rust_target: i686-linux-android
+            tauri_target: i686
+          - name: x86_64
+            rust_target: x86_64-linux-android
+            tauri_target: x86_64
 
     steps:
       - name: Checkout
@@ -224,7 +240,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: ${{ matrix.arch.rust_target }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -340,15 +356,14 @@ jobs:
         env:
           JAVA_TOOL_OPTIONS: ''
           JDK_JAVA_OPTIONS: ''
-        run: pnpm --filter @junction/frontend tauri android build --ci --apk --aab
+        run: pnpm --filter @junction/frontend tauri android build --ci --apk --target ${{ matrix.arch.tauri_target }}
 
       - name: Upload Android packages
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-android-signed
+          name: mobile-android-${{ matrix.arch.name }}
           path: |
-            apps/frontend/src-tauri/gen/android/app/build/outputs/**/*.apk
-            apps/frontend/src-tauri/gen/android/app/build/outputs/**/*.aab
+            apps/frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
 
