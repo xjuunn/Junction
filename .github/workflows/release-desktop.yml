@@ -25,11 +25,6 @@ on:
           - app-store-connect
           - ad-hoc
           - development
-      allow_unsigned_fallback:
-        description: 'Only for manual run: allow iOS simulator fallback when signing is missing'
-        required: false
-        default: true
-        type: boolean
 
 permissions:
   contents: read
@@ -53,7 +48,6 @@ jobs:
       release_tag: ${{ steps.meta.outputs.release_tag }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
       export_method: ${{ steps.meta.outputs.export_method }}
-      allow_unsigned_fallback: ${{ steps.meta.outputs.allow_unsigned_fallback }}
 
     steps:
       - name: Checkout
@@ -68,20 +62,11 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
             PRE="false"
             EXPORT_METHOD="app-store-connect"
-            ALLOW_FALLBACK="false"
           else
             TAG="${{ github.event.inputs.release_tag }}"
             PRE="${{ github.event.inputs.prerelease }}"
             EXPORT_METHOD="${{ github.event.inputs.export_method }}"
-            ALLOW_FALLBACK="${{ github.event.inputs.allow_unsigned_fallback }}"
           fi
-
-          AF_LC="$(echo "${ALLOW_FALLBACK:-true}" | tr '[:upper:]' '[:lower:]')"
-          case "$AF_LC" in
-            true|1|yes|y) ALLOW_FALLBACK="true" ;;
-            false|0|no|n) ALLOW_FALLBACK="false" ;;
-            *) ALLOW_FALLBACK="true" ;;
-          esac
 
           if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$ ]]; then
             TAG="v${TAG}"
@@ -91,7 +76,6 @@ jobs:
           echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
           echo "export_method=$EXPORT_METHOD" >> "$GITHUB_OUTPUT"
-          echo "allow_unsigned_fallback=$ALLOW_FALLBACK" >> "$GITHUB_OUTPUT"
 
       - name: Verify tag/version consistency
         shell: bash
@@ -460,19 +444,6 @@ jobs:
           MODE="release"
           if [ -z "${CERT_B64}" ] || [ -z "${PROVISION_B64}" ] || [ -z "${IOS_PWD}" ] || [ -z "${DEV_TEAM}" ]; then
             MODE="simulator-debug"
-          fi
-
-          ALLOW_FB_RAW="${{ needs.validate.outputs.allow_unsigned_fallback }}"
-          ALLOW_FB="$(echo "${ALLOW_FB_RAW:-true}" | tr '[:upper:]' '[:lower:]')"
-          case "$ALLOW_FB" in
-            true|1|yes|y) ALLOW_FB="true" ;;
-            false|0|no|n) ALLOW_FB="false" ;;
-            *) ALLOW_FB="true" ;;
-          esac
-
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${MODE}" != "release" && "${ALLOW_FB}" != "true" ]]; then
-            echo "Unsigned fallback is disabled. Enable allow_unsigned_fallback=true for manual run."
-            exit 1
           fi
 
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${MODE}" != "release" ]]; then
