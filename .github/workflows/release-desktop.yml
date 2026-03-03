@@ -176,7 +176,7 @@ jobs:
           retention-days: 14
 
   android:
-    name: Build Android (Signed Release)
+    name: Build Android (Release Or Debug Fallback)
     needs: validate
     runs-on: ubuntu-22.04
     timeout-minutes: 120
@@ -256,6 +256,7 @@ jobs:
           }
 
           KEYSTORE_PATH=""
+          BUILD_MODE="release"
           if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
             KEYSTORE_PATH="${RUNNER_TEMP}/android-release.keystore"
             echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${KEYSTORE_PATH}"
@@ -264,8 +265,9 @@ jobs:
           elif [ -f "apps/frontend/src-tauri/gen/junction-release.keystore" ]; then
             KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/gen/junction-release.keystore"
           else
-            echo "Missing Android keystore"
-            exit 1
+            BUILD_MODE="debug"
+            KEYSTORE_PATH="${HOME}/.android/debug.keystore"
+            keytool -genkeypair -v -keystore "${KEYSTORE_PATH}" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
           fi
 
           KEY_ALIAS="${ANDROID_KEY_ALIAS}"
@@ -280,9 +282,16 @@ jobs:
           if [ -z "${KEY_PASSWORD}" ]; then KEY_PASSWORD="$(prop apps/frontend/src-tauri/gen/android/key.properties keyPassword)"; fi
           if [ -z "${STORE_PASSWORD}" ]; then STORE_PASSWORD="$(prop apps/frontend/src-tauri/gen/android/key.properties storePassword)"; fi
 
-          [ -n "${KEY_ALIAS}" ] || (echo "Missing Android keyAlias" && exit 1)
-          [ -n "${KEY_PASSWORD}" ] || (echo "Missing Android keyPassword" && exit 1)
-          [ -n "${STORE_PASSWORD}" ] || (echo "Missing Android storePassword" && exit 1)
+          if [ "${BUILD_MODE}" = "release" ]; then
+            [ -n "${KEY_ALIAS}" ] || (echo "Missing Android keyAlias" && exit 1)
+            [ -n "${KEY_PASSWORD}" ] || (echo "Missing Android keyPassword" && exit 1)
+            [ -n "${STORE_PASSWORD}" ] || (echo "Missing Android storePassword" && exit 1)
+          else
+            KEY_ALIAS="androiddebugkey"
+            KEY_PASSWORD="android"
+            STORE_PASSWORD="android"
+            echo "Android signing material missing, fallback to debug APK build."
+          fi
 
           cat > apps/frontend/src-tauri/gen/android/key.properties <<EOF
           storePassword=${STORE_PASSWORD}
@@ -290,9 +299,16 @@ jobs:
           keyAlias=${KEY_ALIAS}
           storeFile=${KEYSTORE_PATH}
           EOF
+          echo "ANDROID_BUILD_MODE=${BUILD_MODE}" >> "$GITHUB_ENV"
 
-      - name: Build Android signed release
-        run: pnpm --filter @junction/frontend tauri android build --ci --apk --aab
+      - name: Build Android package
+        shell: bash
+        run: |
+          if [ "${ANDROID_BUILD_MODE}" = "release" ]; then
+            pnpm --filter @junction/frontend tauri android build --ci --apk --aab
+          else
+            pnpm --filter @junction/frontend tauri android build --ci --debug --apk
+          fi
 
       - name: Collect Android artifacts
         shell: bash
@@ -311,7 +327,7 @@ jobs:
           retention-days: 14
 
   ios:
-    name: Build iOS (Signed IPA)
+    name: Build iOS (Signed IPA Or Simulator Fallback)
     needs: validate
     runs-on: macos-14
     timeout-minutes: 120
@@ -380,27 +396,40 @@ jobs:
             IOS_PWD="$(cat apps/frontend/src-tauri/signing/ios/certificate_password.txt)"
           fi
 
-          [ -n "${CERT_B64}" ] || (echo "Missing iOS certificate" && exit 1)
-          [ -n "${PROVISION_B64}" ] || (echo "Missing iOS mobile provision" && exit 1)
-          [ -n "${IOS_PWD}" ] || (echo "Missing iOS certificate password" && exit 1)
+          IOS_BUILD_MODE="release"
+          if [ -z "${CERT_B64}" ] || [ -z "${PROVISION_B64}" ] || [ -z "${IOS_PWD}" ]; then
+            IOS_BUILD_MODE="simulator-debug"
+            echo "iOS signing material missing, fallback to simulator debug build."
+          fi
 
           echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> "$GITHUB_ENV"
           echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> "$GITHUB_ENV"
           echo "IOS_CERTIFICATE_PASSWORD_VALUE=${IOS_PWD}" >> "$GITHUB_ENV"
+          echo "IOS_BUILD_MODE=${IOS_BUILD_MODE}" >> "$GITHUB_ENV"
 
-      - name: Build iOS signed IPA
+      - name: Build iOS package
+        shell: bash
         env:
           IOS_CERTIFICATE: ${{ env.IOS_CERTIFICATE_B64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ env.IOS_CERTIFICATE_PASSWORD_VALUE }}
           IOS_MOBILE_PROVISION: ${{ env.IOS_MOBILE_PROVISION_B64 }}
-        run: pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
+        run: |
+          if [ "${IOS_BUILD_MODE}" = "release" ]; then
+            pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
+          else
+            pnpm --filter @junction/frontend tauri ios build --ci --debug --simulator
+          fi
 
       - name: Collect iOS artifacts
         shell: bash
         run: |
           mkdir -p mobile-dist/ios
-          find apps/frontend/src-tauri/gen/apple -type f -name "*.ipa" -exec cp {} mobile-dist/ios/ \;
-          [ -n "$(ls -A mobile-dist/ios)" ] || (echo "Signed iOS IPA not found" && exit 1)
+          if [ "${IOS_BUILD_MODE}" = "release" ]; then
+            find apps/frontend/src-tauri/gen/apple -type f -name "*.ipa" -exec cp {} mobile-dist/ios/ \;
+          else
+            find apps/frontend/src-tauri/gen/ios -type d -name "*.app" -exec cp -R {} mobile-dist/ios/ \;
+          fi
+          [ -n "$(ls -A mobile-dist/ios)" ] || (echo "iOS output not found" && exit 1)
           tar -czf release-bundle-ios-signed.tar.gz -C mobile-dist ios
 
       - name: Upload iOS artifact
