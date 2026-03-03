@@ -1,4 +1,4 @@
-name: Release Multi Platform
+﻿name: Release Multi Platform
 
 on:
   push:
@@ -523,20 +523,59 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          # 只收集最终可分发安装包，避免把 .app 内部文件发布出去
-          find dist -type f \( \
+          # Collect only installer files and avoid publishing .app internals.
+          # Prefix with artifact directory name to avoid filename collisions.
+          found=0
+          while IFS= read -r -d '' f; do
+            rel="${f#dist/}"
+            group="${rel%%/*}"
+            base="$(basename "$f")"
+            target="release-assets/${group}__${base}"
+            cp "$f" "$target"
+            found=1
+          done < <(find dist -type f \( \
             -name "*.msi" -o -name "*.exe" -o -name "*.msix" -o \
             -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o \
             -name "*.apk" -o -name "*.aab" -o -name "*.ipa" \
-          \) -print0 | while IFS= read -r -d '' f; do
-            cp "$f" "release-assets/$(basename "$f")"
-          done
+          \) -print0)
+          [ "$found" -eq 1 ] || (echo "No publishable installer assets found." && exit 1)
           ls -la release-assets
-          cd release-assets
-          sha256sum * > SHA256SUMS.txt
+          {
+            echo "# Release Assets"
+            find release-assets -maxdepth 1 -type f -printf "%f\n" | sort
+          } > release-assets/ASSET_LIST.txt
+          (cd release-assets && sha256sum * > SHA256SUMS.txt)
 
       - name: Show files
         run: find release-assets -type f | sort
+
+      - name: Remove existing release assets
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = `${{ needs.validate.outputs.release_tag }}`;
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag,
+              });
+              for (const asset of release.data.assets) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id,
+                });
+                core.info(`Deleted asset: ${asset.name}`);
+              }
+            } catch (error) {
+              if (error.status === 404) {
+                core.info(`Release ${tag} does not exist yet, skip cleanup.`);
+              } else {
+                throw error;
+              }
+            }
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -548,3 +587,4 @@ jobs:
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
