@@ -68,6 +68,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm --filter @junction/backend exec prisma generate --schema prisma/schema.prisma
+
       - name: Build shared types
         run: pnpm --filter @junction/types build
 
