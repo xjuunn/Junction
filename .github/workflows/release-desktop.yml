@@ -263,6 +263,18 @@ jobs:
       - name: Init Android project
         run: pnpm --filter @junction/frontend tauri android init --ci
 
+      - name: Sanitize Android TLS trust store config
+        shell: bash
+        run: |
+          set -euo pipefail
+          GP="apps/frontend/src-tauri/gen/android/gradle.properties"
+          [ -f "$GP" ] || (echo "Missing gradle.properties: $GP" && exit 1)
+          sed -i '/^systemProp\.javax\.net\.ssl\.trustStoreType=/d' "$GP"
+          sed -i '/^systemProp\.javax\.net\.ssl\.trustStore=/d' "$GP"
+          sed -i '/^systemProp\.javax\.net\.ssl\.trustStorePassword=/d' "$GP"
+          sed -i '/^systemProp\.javax\.net\.ssl\.trustStoreProvider=/d' "$GP"
+          sed -i '/^systemProp\.javax\.net\.ssl\.trustStoreType=Windows-ROOT/d' "$GP"
+
       - name: Prepare Android signing
         shell: bash
         env:
@@ -322,6 +334,9 @@ jobs:
           } > apps/frontend/src-tauri/gen/android/key.properties
 
       - name: Build Android release
+        env:
+          JAVA_TOOL_OPTIONS: ''
+          JDK_JAVA_OPTIONS: ''
         run: pnpm --filter @junction/frontend tauri android build --ci --apk --aab
 
       - name: Upload Android packages

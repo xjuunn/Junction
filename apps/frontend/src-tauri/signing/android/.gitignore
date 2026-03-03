@@ -1,0 +1,3 @@
+.local-signing-secrets.txt
+*.bak
+release.generated.keystore
