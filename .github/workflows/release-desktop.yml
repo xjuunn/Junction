@@ -411,23 +411,24 @@ jobs:
             echo "iOS signing material missing, fallback to simulator debug build."
           fi
 
-          echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> "$GITHUB_ENV"
-          echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> "$GITHUB_ENV"
-          echo "IOS_CERTIFICATE_PASSWORD_VALUE=${IOS_PWD}" >> "$GITHUB_ENV"
+          if [ "${IOS_BUILD_MODE}" = "release" ]; then
+            echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> "$GITHUB_ENV"
+            echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> "$GITHUB_ENV"
+            echo "IOS_CERTIFICATE_PASSWORD_VALUE=${IOS_PWD}" >> "$GITHUB_ENV"
+          fi
           echo "IOS_BUILD_MODE=${IOS_BUILD_MODE}" >> "$GITHUB_ENV"
 
-      - name: Build iOS package
-        shell: bash
+      - name: Build iOS signed IPA
+        if: env.IOS_BUILD_MODE == 'release'
         env:
           IOS_CERTIFICATE: ${{ env.IOS_CERTIFICATE_B64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ env.IOS_CERTIFICATE_PASSWORD_VALUE }}
           IOS_MOBILE_PROVISION: ${{ env.IOS_MOBILE_PROVISION_B64 }}
-        run: |
-          if [ "${IOS_BUILD_MODE}" = "release" ]; then
-            pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
-          else
-            pnpm --filter @junction/frontend tauri ios build --ci --debug --target aarch64-sim
-          fi
+        run: pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
+
+      - name: Build iOS simulator fallback
+        if: env.IOS_BUILD_MODE != 'release'
+        run: pnpm --filter @junction/frontend tauri ios build --ci --debug --target aarch64-sim
 
       - name: Collect iOS artifacts
         shell: bash
