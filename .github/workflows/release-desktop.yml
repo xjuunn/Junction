@@ -250,18 +250,24 @@ jobs:
       - name: Validate iOS signing secrets
         env:
           IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+          IOS_MOBILE_PROVISION_BASE64: ${{ secrets.IOS_MOBILE_PROVISION_BASE64 }}
         run: |
-          [ -n "${IOS_CERTIFICATE}" ] || (echo "Missing secret: IOS_CERTIFICATE (base64 p12)" && exit 1)
+          CERT_B64="${IOS_CERTIFICATE:-$IOS_CERTIFICATE_BASE64}"
+          PROVISION_B64="${IOS_MOBILE_PROVISION:-$IOS_MOBILE_PROVISION_BASE64}"
+          [ -n "${CERT_B64}" ] || (echo "Missing secret: IOS_CERTIFICATE or IOS_CERTIFICATE_BASE64 (base64 p12)" && exit 1)
           [ -n "${IOS_CERTIFICATE_PASSWORD}" ] || (echo "Missing secret: IOS_CERTIFICATE_PASSWORD" && exit 1)
-          [ -n "${IOS_MOBILE_PROVISION}" ] || (echo "Missing secret: IOS_MOBILE_PROVISION (base64 mobileprovision)" && exit 1)
+          [ -n "${PROVISION_B64}" ] || (echo "Missing secret: IOS_MOBILE_PROVISION or IOS_MOBILE_PROVISION_BASE64 (base64 mobileprovision)" && exit 1)
+          echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> $GITHUB_ENV
+          echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> $GITHUB_ENV
 
       - name: Build iOS app (release signed IPA)
         env:
-          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE: ${{ env.IOS_CERTIFICATE_B64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+          IOS_MOBILE_PROVISION: ${{ env.IOS_MOBILE_PROVISION_B64 }}
         run: pnpm --filter @junction/frontend tauri ios build --ci --export-method app-store-connect
 
       - name: Archive iOS artifacts
