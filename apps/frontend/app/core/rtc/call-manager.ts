@@ -26,6 +26,7 @@ import { createCallId, stopMediaStream } from '~/utils/rtc'
 import * as messageApi from '~/api/message'
 import * as callApi from '~/api/call'
 import { MessageType } from '~/api/message'
+import { resolveApiBaseUrl, resolveLiveKitBaseUrl } from '~/utils/backend-endpoint'
 
 export interface StartCallOptions {
   conversationId: string
@@ -284,10 +285,10 @@ export class CallManager {
 
   private resolveLiveKitUrls(inputUrl: string) {
     const candidates: string[] = []
-    const runtimeLivekitUrl = String(this.runtimeConfig.public.livekitUrl || '').trim()
+    const runtimeLivekitUrl = resolveLiveKitBaseUrl()
     const tauriServerHost = String(this.runtimeConfig.public.tauriServerHost || '').trim()
     const serverHost = String(this.runtimeConfig.public.serverHost || '').trim()
-    const apiUrl = String(this.runtimeConfig.public.apiUrl || '').trim()
+    const apiUrl = resolveApiBaseUrl()
     const locationHost = typeof window !== 'undefined' ? window.location.hostname : ''
     const fallbackHosts = [tauriServerHost, serverHost, this.extractHostname(apiUrl), locationHost]
       .map(host => String(host || '').trim())

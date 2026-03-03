@@ -1,4 +1,5 @@
 import type { ModelMessage } from 'ai'
+import { resolveApiBaseUrl } from '~/utils/backend-endpoint'
 
 const base = '/ai'
 
@@ -36,11 +37,11 @@ export async function streamAiText(options: AiTextRequest) {
     throw new Error('AI 请求参数错误：必须传入 prompt 或 messages')
   }
 
-  const runtimeConfig = useRuntimeConfig()
-  const apiUrl = runtimeConfig.public.apiUrl as string
+  const apiUrl = resolveApiBaseUrl()
   const token = useUserStore().authToken.value
+  const streamUrl = `${apiUrl.replace(/\/+$/, '')}${base}`
 
-  const response = await fetch(`${apiUrl}${base}/stream`, {
+  const response = await fetch(`${streamUrl}/stream`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

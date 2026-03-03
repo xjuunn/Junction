@@ -6,6 +6,7 @@ import { useEditorWithImageUpload } from '../../core/editor'
 import { uploadFiles } from '../../api/upload'
 import { downloadFile, findExistingDownloadPath, openLocalDirForFile, openLocalPath } from '~/utils/download'
 import { isTauri } from '~/utils/check'
+import { resolveAssetBaseUrl } from '~/utils/backend-endpoint'
 
 type MentionItem = { id: string; name: string; image?: string | null; accountType?: string | null }
 
@@ -186,7 +187,7 @@ const processAndInsertImage = async (view: any, file: File, pos?: number) => {
     try {
         const response = await uploadFiles('message', [file]);
         if (response.success && response.data?.files?.[0]) {
-            const imageUrl = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+            const imageUrl = `${resolveAssetBaseUrl()}${response.data.files[0]}`;
             const { state } = view;
             const node = state.schema.nodes.image.create({
                 src: imageUrl,
@@ -212,7 +213,7 @@ const processAndInsertFile = async (view: any, file: File, pos?: number) => {
     try {
         const response = await uploadFiles('message', [file]);
         if (response.success && response.data?.files?.[0]) {
-            const fileUrl = `${useRuntimeConfig().public.apiUrl}${response.data.files[0]}`;
+            const fileUrl = `${resolveAssetBaseUrl()}${response.data.files[0]}`;
             const { state } = view;
             const linkMark = state.schema.marks.link?.create({
                 href: fileUrl,
@@ -399,7 +400,7 @@ const editor = useEditorWithImageUpload({
     },
 }, async (file) => {
     const response = await uploadFiles('message', [file]);
-    return `${useRuntimeConfig().public.apiUrl}${response?.data?.files[0]}`;
+    return `${resolveAssetBaseUrl()}${response?.data?.files[0]}`;
 });
 
 // --- 外部操作 API 暴露 ---

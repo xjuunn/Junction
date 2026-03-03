@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import type { SocketNamespaces, NSKeys, EventKeys, InferSend, InferAck, InferListen } from "./socket.types";
+import { resolveSocketNamespaceUrl } from '~/utils/backend-endpoint'
 
 export class SocketClient<N extends NSKeys> {
     private static instances = new Map<string, any>();
@@ -13,7 +14,6 @@ export class SocketClient<N extends NSKeys> {
 
     private constructor(namespace: N) {
         this.namespace = namespace;
-        const config = useRuntimeConfig();
         const userStore = useUserStore();
 
         const isTauri = (() => {
@@ -31,12 +31,8 @@ export class SocketClient<N extends NSKeys> {
             console.debug('[Socket] Tauri detection:', { ...checks, isTauriEnv });
             return isTauriEnv;
         })();
-        const serverHost = isTauri
-            ? (config.public.tauriServerHost || config.public.serverHost || 'localhost')
-            : config.public.serverHost;
-        const backendPort = config.public.backendPort;
-        const backendUrl = `${config.public.httpType}://${serverHost}:${backendPort}/${namespace}`;
-        console.log(`[Socket] Environment: ${isTauri ? 'Tauri' : 'Web'}, Host: ${serverHost}, Port: ${backendPort}, URL: ${backendUrl}`);
+        const backendUrl = resolveSocketNamespaceUrl(String(namespace))
+        console.log(`[Socket] Environment: ${isTauri ? 'Tauri' : 'Web'}, URL: ${backendUrl}`);
 
         const initialToken = userStore.authToken.value;
         const socketOptions: any = {

@@ -1,6 +1,9 @@
 import { getSavedDownloadDir, setSavedDownloadDir } from '~/utils/download'
 
 export interface AppSettings {
+  backendServerUrl: string
+  assetBaseUrl: string
+  livekitBaseUrl: string
   language: string
   timezone: string
   dateFormat: string
@@ -172,6 +175,9 @@ export interface ScrcpyConfig {
 }
 
 export const useSettingsStore = defineStore('settings', () => {
+  const backendServerUrl = ref('')
+  const assetBaseUrl = ref('')
+  const livekitBaseUrl = ref('')
   const language = ref('zh-CN')
   const timezone = ref('Asia/Shanghai')
   const dateFormat = ref('YYYY-MM-DD')
@@ -344,6 +350,9 @@ export const useSettingsStore = defineStore('settings', () => {
   })
 
   const settings = computed<AppSettings>(() => ({
+    backendServerUrl: backendServerUrl.value,
+    assetBaseUrl: assetBaseUrl.value,
+    livekitBaseUrl: livekitBaseUrl.value,
     language: language.value,
     timezone: timezone.value,
     dateFormat: dateFormat.value,
@@ -390,6 +399,9 @@ export const useSettingsStore = defineStore('settings', () => {
   }))
 
   return {
+    backendServerUrl,
+    assetBaseUrl,
+    livekitBaseUrl,
     language,
     timezone,
     dateFormat,

@@ -6,6 +6,7 @@ const route = useRoute()
 
 const menuItems = computed(() => [
   { to: '/settings/general', label: '通用设置', icon: 'mingcute:settings-3-line' },
+  { to: '/settings/connection', label: '连接设置', icon: 'mingcute:wifi-line' },
   { to: '/settings/ai', label: 'AI 设置', icon: 'mingcute:ai-line' },
   { to: '/settings/bots', label: '机器人管理', icon: 'mingcute:ai-line' },
   { to: '/settings/notification', label: '通知设置', icon: 'mingcute:notification-line' },
@@ -121,3 +122,4 @@ onMounted(() => {
     </div>
   </div>
 </template>
+

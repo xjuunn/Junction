@@ -5,6 +5,7 @@
 
 import { api } from '~/utils/api'
 import type { UploadResponse } from '../types'
+import { resolveAssetBaseUrl } from '~/utils/backend-endpoint'
 
 /**
  * 上传服务配置
@@ -223,8 +224,7 @@ export class UploadService {
     
     // 添加基础路径
     try {
-      const runtimeConfig = useRuntimeConfig()
-      const baseUrl = runtimeConfig.public.apiUrl as string || ''
+      const baseUrl = resolveAssetBaseUrl()
       
       if (url.startsWith('/')) {
         return baseUrl + url

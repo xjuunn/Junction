@@ -1,3 +1,5 @@
+﻿import { normalizeEndpointUrl, resolveAssetBaseUrl } from '~/utils/backend-endpoint'
+
 /** 相对时间格式化 */
 export function formatTimeAgo(dateStr: Date | string): string {
     if (!dateStr) return '';
@@ -21,14 +23,8 @@ export function formatTimeAgo(dateStr: Date | string): string {
 }
 
 function resolveApiBaseUrl(options?: { baseUrl?: string }): string {
-    const config = useRuntimeConfig();
-    const protocol = String(config.public.httpType || 'http').trim();
-    const host = String(config.public.serverHost || '').trim();
-    const backendPort = String(config.public.backendPort || '').trim();
-    const fallback = host
-        ? `${protocol}://${host}${backendPort ? `:${backendPort}` : ''}`
-        : '';
-    return String(options?.baseUrl || config.public.apiUrl || fallback).trim();
+    const custom = normalizeEndpointUrl(options?.baseUrl || '', { defaultProtocol: 'http' })
+    return custom || resolveAssetBaseUrl()
 }
 
 /**
@@ -88,3 +84,5 @@ export function normalizeUploadPath(
 
     return value;
 }
+
+

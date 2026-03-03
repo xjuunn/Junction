@@ -1,8 +1,9 @@
 import { createAuthClient } from "better-auth/vue"
 import { emailOTPClient, passkeyClient, siweClient, jwtClient } from 'better-auth/client/plugins'
+import { resolveApiBaseUrl } from '~/utils/backend-endpoint'
 
 function resolveAuthBaseURL(config: ReturnType<typeof useRuntimeConfig>): string {
-    const fallback = String(config.public.apiUrl || '').trim();
+    const fallback = resolveApiBaseUrl();
     if (!import.meta.client) return fallback;
 
     const protocol = String(window.location.protocol || 'http:');

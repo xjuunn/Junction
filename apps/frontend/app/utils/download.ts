@@ -1,5 +1,6 @@
 import { isTauri } from '~/utils/check';
 import { useSettingsStore } from '~/stores/settings';
+import { resolveApiBaseUrl } from '~/utils/backend-endpoint';
 
 export type DownloadMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -118,8 +119,7 @@ const resolveDownloadUrl = (rawUrl: string) => {
   if (!import.meta.client) return input;
 
   try {
-    const runtimeConfig = useRuntimeConfig();
-    const apiUrl = String(runtimeConfig.public.apiUrl || '').trim();
+    const apiUrl = resolveApiBaseUrl();
     if (!apiUrl) return input;
 
     const sourceUrl = new URL(input, window.location.origin);

@@ -2,6 +2,7 @@ import * as conversationApi from '~/api/conversation'
 import { notify } from '~/utils/notification'
 import { isAuthInvalidError } from '~/utils/auth'
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { normalizeEndpointUrl, probeBackendReachability, resolveApiBaseUrl } from '~/utils/backend-endpoint'
 
 type ConversationMeta = {
   id: string
@@ -16,6 +17,8 @@ export default defineNuxtPlugin(async () => {
   await appTheme.init()
 
   const settings = useSettingsStore()
+  const route = useRoute()
+  const toast = useToast()
   const prefersDark = usePreferredDark()
 
   const applyThemeMode = async (mode: string) => {
@@ -95,6 +98,28 @@ export default defineNuxtPlugin(async () => {
     }
   )
 
+  const preferredBaseUrl = normalizeEndpointUrl(settings.backendServerUrl || '', { defaultProtocol: 'http' })
+    || resolveApiBaseUrl()
+  const healthCheck = await probeBackendReachability({
+    baseUrl: preferredBaseUrl,
+    timeoutMs: 3500,
+  })
+  if (!healthCheck.reachable) {
+    const isNoSignal = healthCheck.reason === 'timeout' || healthCheck.reason === 'network-error'
+    const targetPath = isNoSignal ? '/no-signal' : '/settings/connection'
+    if (!route.path.startsWith(targetPath)) {
+      await navigateTo({
+        path: targetPath,
+        query: {
+          reason: 'unreachable',
+          probe: healthCheck.reason || 'unknown',
+          from: route.fullPath || '/',
+        },
+      }, { replace: true })
+    }
+    return
+  }
+
   const userStore = useUserStore()
   if (userStore.authToken.value) {
     try {
@@ -110,8 +135,6 @@ export default defineNuxtPlugin(async () => {
     userStore.markAuthChecked()
   }
 
-  const route = useRoute()
-  const toast = useToast()
   const { on: busOn } = useEmitt()
   const focusAppWindowForNotification = async () => {
     if (!isTauri()) return
