@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@tiptap/core': ^3.14.0
+  '@tiptap/pm': ^3.14.0
+  '@tiptap/vue-3': ^3.14.0
+
 importers:
 
   .:
@@ -2751,12 +2756,12 @@ packages:
   '@tiptap/extension-audio@3.16.0':
     resolution: {integrity: sha512-xrTFWeYOB5uC/rDsljdE+8v/1ea3U6st8L8KSJY/yLCG+A9R3flcMeL+FjVn65IOWb1y6CdtWH709pbxSbI0Nw==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
+      '@tiptap/core': ^3.14.0
 
   '@tiptap/extension-blockquote@3.16.0':
     resolution: {integrity: sha512-c1bhJ3KDFXyNcMweiBzu0LouBXfUC/sUMtaEafQePR98BVu+d0tmWXcGlfVarGVoRyCYFa1mHpkgtxp4SS3lag==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
+      '@tiptap/core': ^3.14.0
 
   '@tiptap/extension-bold@3.14.0':
     resolution: {integrity: sha512-T4ma6VLoHm9JupglidD3CfZXm89A3HMv99gLplXNizvy1mlr4R3uC3aBqKw6lAP+NoqCqbIgjwc4YYsqZClNwA==}
@@ -2777,17 +2782,17 @@ packages:
   '@tiptap/extension-code-block-lowlight@3.16.0':
     resolution: {integrity: sha512-PeqnrSjsf4PHg1vY7xTOqIxXo1CAq27drBvWWcqox6Sjq73jW8Yln0cVDQL/0RHIgryKD6GB5HJ2W6ORVG4Ufg==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
+      '@tiptap/core': ^3.14.0
       '@tiptap/extension-code-block': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/pm': ^3.14.0
       highlight.js: ^11
       lowlight: ^2 || ^3
 
   '@tiptap/extension-code-block@3.16.0':
     resolution: {integrity: sha512-hAsXe6fIBsvIMWlVEXKLEzFQ8h6VUEBWqEEFIQgq+SpZCkGX+KzVmFXd5V2aDqb+BoOyqYiA2w1d/frBBxVEpw==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
 
   '@tiptap/extension-code@3.14.0':
     resolution: {integrity: sha512-Sx9yLorzS+oqNmXID4jt0G5tDnsEgU0HtEXPLD3KNt/ltVxWJU0AXwCsp1/Dg0HIDL868vWpJ2jC1t/4oaf9kA==}
@@ -2797,7 +2802,7 @@ packages:
   '@tiptap/extension-document@3.16.0':
     resolution: {integrity: sha512-vOwBnJIonYmmFVMEnnE1jwoUMq0P/9BcaUocIG9o5iFRTV38I8YGn8n6DiE1pjSeLXRpLrXl6LLwdOMBJewhBg==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
+      '@tiptap/core': ^3.14.0
 
   '@tiptap/extension-dropcursor@3.14.0':
     resolution: {integrity: sha512-IwHyiZKLjV9WSBlQFS+afMjucIML8wFAKkG8UKCu+CVOe/Qd1ImDGyv6rzPlCmefJkDHIUWS+c2STapJlUD1VQ==}
@@ -2807,8 +2812,8 @@ packages:
   '@tiptap/extension-emoji@3.16.0':
     resolution: {integrity: sha512-JVb6I/X1w4rnMXWkYXy5jYgFQ+U3qjMpWN7mhrxtbR/votLpTgyIItrKIzysg+z9qBi/QJiF/2a8FWEIdOwoHQ==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
       '@tiptap/suggestion': ^3.16.0
 
   '@tiptap/extension-floating-menu@3.14.0':
@@ -2826,7 +2831,7 @@ packages:
   '@tiptap/extension-hard-break@3.16.0':
     resolution: {integrity: sha512-nwUTixlHYo9V1lfOYsRi2JiAYCRC7pObB3Kt7rEeMxB3XmcRcSpHtxYs6r+TvifsLFys8RG5wOFXIV/YXZHcDg==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
+      '@tiptap/core': ^3.14.0
 
   '@tiptap/extension-heading@3.14.0':
     resolution: {integrity: sha512-4xpahSo3b1dN2nwA0XKXLQVz9nZ/vE443a/Y5QLWeXiu3v9wkcMs/5kQ5ysFeDZRBTfVUWBqhngI7zhvDUx2zQ==}
@@ -2836,13 +2841,13 @@ packages:
   '@tiptap/extension-horizontal-rule@3.16.0':
     resolution: {integrity: sha512-yyKl45UCH55pIf8G4bHiUNFxggipRVT276c3t9vrkXU6BkJhzfxxcIc5svWkiThDjdYmJs1FfVCYAtGSuKiSyA==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
 
   '@tiptap/extension-image@3.16.0':
     resolution: {integrity: sha512-mTjt4kdyVtY/2dJcfxAgBae/dkH+r6GwARl7NlPtnI3EzpELFR65FNuOQyTxFXP3yfV9uMtPpq6Wevk8aLTsxQ==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
+      '@tiptap/core': ^3.14.0
 
   '@tiptap/extension-italic@3.14.0':
     resolution: {integrity: sha512-Arl5EaG4wdyipwvKjsI7Krlk3OkmqvLfF0YfGwsd5AVDxTiYuiDGgz7RF8J2kttbBeiUTqwME5xpkryQK3F+fg==}
@@ -2868,21 +2873,21 @@ packages:
   '@tiptap/extension-list@3.16.0':
     resolution: {integrity: sha512-tpjWGugfI0XYR9iG/QlYYtCY35TFWHNwGKc94wN4s7NmAjB4xlwdTkTZQ6PdZ39x1SeHkRjxAka+6GcBIoOHGQ==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
 
   '@tiptap/extension-mathematics@3.16.0':
     resolution: {integrity: sha512-Hlt1403ge3fVk/d8gILNNisYyRer18/tF5mdV6LiC0t10ZiD2ctil5W9RMAzjaNYybIeHRgHod+5WDNxmxxTZA==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
       katex: ^0.16.4
 
   '@tiptap/extension-mention@3.16.0':
     resolution: {integrity: sha512-4vCC8XxHruYSTdoRr37GXvUDvSU0nEc9tUr6673ylOMxPu2lvMb7W+unDn6p5mQu91vKvotyzJMtyHCo9Ac3Fw==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
       '@tiptap/suggestion': ^3.16.0
 
   '@tiptap/extension-ordered-list@3.14.0':
@@ -2908,8 +2913,8 @@ packages:
   '@tiptap/extension-table@3.16.0':
     resolution: {integrity: sha512-m7h7YdffWxI0lglKUfR+39UD9psOprn/E4qYzjxOSXl1rg8DnP6zi8LF+5X+v32my9WBbizXxVBIdy8AuDWxAw==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
 
   '@tiptap/extension-text@3.14.0':
     resolution: {integrity: sha512-XlpnD87LQ7lLcDcBenHgzxv3uivQzPdVHM16CY4lXR4aKDIp2mxjPZr4twHT+cOnRQHc8VYpRgkEo6LLX6VylA==}
@@ -2936,8 +2941,8 @@ packages:
   '@tiptap/suggestion@3.16.0':
     resolution: {integrity: sha512-o0fix23VeqiFtvGqJkiBLlBrbfhSMeYFlXPoanU7zbL1TC2dhhEb6nlUr8Ppnc6pkUpWwo7JSN18hjJutPYGPw==}
     peerDependencies:
-      '@tiptap/core': ^3.16.0
-      '@tiptap/pm': ^3.16.0
+      '@tiptap/core': ^3.14.0
+      '@tiptap/pm': ^3.14.0
 
   '@tiptap/vue-3@3.14.0':
     resolution: {integrity: sha512-REo6xBZH5AI/A/nnEcwe5Zj75PQwxArCsWkVDBUaD76ZKzIERqeOhoHDlw9hvDMEhoELaQXhWY8THb49TyFaJw==}
