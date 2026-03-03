@@ -338,7 +338,7 @@ jobs:
   ios:
     name: Build iOS (Signed IPA Or Simulator Fallback)
     needs: validate
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 120
 
     steps:
@@ -356,6 +356,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
