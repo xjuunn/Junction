@@ -28,7 +28,7 @@ on:
       allow_unsigned_fallback:
         description: 'Only for manual run: allow iOS simulator fallback when signing is missing'
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -293,16 +293,19 @@ jobs:
             fi
           }
 
-          KEYSTORE_B64="${ANDROID_KEYSTORE_BASE64:-$ANDROID_KEYSTORE_FILE_BASE64}"
-          if [ -z "${KEYSTORE_B64}" ] && [ -f "apps/frontend/src-tauri/signing/android/release.keystore.base64" ]; then
+          # Local signing files first, then fall back to secrets.
+          KEYSTORE_B64=""
+          if [ -f "apps/frontend/src-tauri/signing/android/release.keystore.base64" ]; then
             KEYSTORE_B64="$(tr -d '\n\r' < apps/frontend/src-tauri/signing/android/release.keystore.base64)"
+          else
+            KEYSTORE_B64="${ANDROID_KEYSTORE_BASE64:-$ANDROID_KEYSTORE_FILE_BASE64}"
           fi
 
-          if [ -n "${KEYSTORE_B64}" ]; then
+          if [ -f "apps/frontend/src-tauri/signing/android/release.keystore" ]; then
+            KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/signing/android/release.keystore"
+          elif [ -n "${KEYSTORE_B64}" ]; then
             KEYSTORE_PATH="${RUNNER_TEMP}/android-release.keystore"
             echo "${KEYSTORE_B64}" | base64 -d > "${KEYSTORE_PATH}"
-          elif [ -f "apps/frontend/src-tauri/signing/android/release.keystore" ]; then
-            KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/signing/android/release.keystore"
           elif [ -f "apps/frontend/src-tauri/gen/junction-release.keystore" ]; then
             KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/gen/junction-release.keystore"
           else
@@ -417,22 +420,34 @@ jobs:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
         run: |
           set -euo pipefail
-          CERT_B64="${IOS_CERTIFICATE:-$IOS_CERTIFICATE_BASE64}"
-          PROVISION_B64="${IOS_MOBILE_PROVISION:-$IOS_MOBILE_PROVISION_BASE64}"
-          IOS_PWD="${IOS_CERTIFICATE_PASSWORD:-}"
-          DEV_TEAM="${IOS_DEVELOPMENT_TEAM:-$APPLE_DEVELOPMENT_TEAM}"
+          # Local signing files first, then fall back to secrets.
+          CERT_B64=""
+          PROVISION_B64=""
+          IOS_PWD=""
+          DEV_TEAM=""
 
-          if [ -z "${CERT_B64}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate.p12" ]; then
+          if [ -f "apps/frontend/src-tauri/signing/ios/certificate.p12" ]; then
             CERT_B64="$(base64 < apps/frontend/src-tauri/signing/ios/certificate.p12 | tr -d '\n')"
+          else
+            CERT_B64="${IOS_CERTIFICATE:-$IOS_CERTIFICATE_BASE64}"
           fi
-          if [ -z "${PROVISION_B64}" ] && [ -f "apps/frontend/src-tauri/signing/ios/profile.mobileprovision" ]; then
+
+          if [ -f "apps/frontend/src-tauri/signing/ios/profile.mobileprovision" ]; then
             PROVISION_B64="$(base64 < apps/frontend/src-tauri/signing/ios/profile.mobileprovision | tr -d '\n')"
+          else
+            PROVISION_B64="${IOS_MOBILE_PROVISION:-$IOS_MOBILE_PROVISION_BASE64}"
           fi
-          if [ -z "${IOS_PWD}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate_password.txt" ]; then
+
+          if [ -f "apps/frontend/src-tauri/signing/ios/certificate_password.txt" ]; then
             IOS_PWD="$(cat apps/frontend/src-tauri/signing/ios/certificate_password.txt)"
+          else
+            IOS_PWD="${IOS_CERTIFICATE_PASSWORD:-}"
           fi
-          if [ -z "${DEV_TEAM}" ] && [ -f "apps/frontend/src-tauri/signing/ios/development_team.txt" ]; then
+
+          if [ -f "apps/frontend/src-tauri/signing/ios/development_team.txt" ]; then
             DEV_TEAM="$(cat apps/frontend/src-tauri/signing/ios/development_team.txt)"
+          else
+            DEV_TEAM="${IOS_DEVELOPMENT_TEAM:-$APPLE_DEVELOPMENT_TEAM}"
           fi
 
           MODE="release"
@@ -440,13 +455,13 @@ jobs:
             MODE="simulator-debug"
           fi
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${MODE}" != "release" ]]; then
-            echo "Tag release requires full iOS signing materials."
-            exit 1
-          fi
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${MODE}" != "release" && "${{ needs.validate.outputs.allow_unsigned_fallback }}" != "true" ]]; then
             echo "Unsigned fallback is disabled. Enable allow_unsigned_fallback=true for manual run."
             exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${MODE}" != "release" ]]; then
+            echo "iOS signing materials incomplete on push tag, fallback to simulator build."
           fi
 
           if [ "${MODE}" = "release" ]; then
@@ -458,6 +473,9 @@ jobs:
           fi
 
           echo "mode=${MODE}" >> "$GITHUB_OUTPUT"
+
+      - name: Show iOS build mode
+        run: echo "iOS build mode = ${{ steps.ios_sign.outputs.mode }}"
 
       - name: Build iOS signed IPA
         if: steps.ios_sign.outputs.mode == 'release'

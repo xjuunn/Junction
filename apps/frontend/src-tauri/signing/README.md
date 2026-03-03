@@ -20,9 +20,9 @@ keyAlias=你的_key_alias
 
 说明：
 
-- 若存在 `ANDROID_*` secrets，优先使用 secrets。
+- CI 默认优先使用本目录签名文件。
+- 本地文件缺失时，才回退到 `ANDROID_*` secrets。
 - 支持 secrets：`ANDROID_KEYSTORE_BASE64` 或 `ANDROID_KEYSTORE_FILE_BASE64`。
-- 若 secrets 缺失，则回退到本目录文件。
 - 若本目录也缺失，则 Android 签名构建失败。
 
 ## iOS
@@ -36,7 +36,7 @@ keyAlias=你的_key_alias
 
 说明：
 
-- 若存在 `IOS_*` secrets，优先使用 secrets。
-- 若 secrets 缺失，则回退到本目录文件。
+- CI 默认优先使用本目录签名文件。
+- 本地文件缺失时，才回退到 `IOS_*` secrets。
 - `certificate_password.txt` 只放密码明文，不要加额外字符。
 - `development_team.txt` 放 Apple Team ID（10 位字母数字），例如 `ABCDE12345`。
