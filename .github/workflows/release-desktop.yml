@@ -426,7 +426,7 @@ jobs:
           if [ "${IOS_BUILD_MODE}" = "release" ]; then
             pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
           else
-            pnpm --filter @junction/frontend tauri ios build --ci --debug --target aarch64-apple-ios-sim
+            pnpm --filter @junction/frontend tauri ios build --ci --debug --target aarch64-sim
           fi
 
       - name: Collect iOS artifacts
