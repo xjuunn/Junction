@@ -4,6 +4,7 @@ import { normalizeEndpointUrl, probeBackendReachability, resolveRuntimeApiBaseUr
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
+const router = useRouter();
 const toast = useToast()
 const settings = useSettingsStore()
 
@@ -24,8 +25,9 @@ const normalizedServerUrl = computed(() => normalizeHttpInput(form.backendServer
 const canSave = computed(() => !!normalizedServerUrl.value)
 
 const handleBack = () => {
-  const target = String(route.query.from || '/')
-  navigateTo(target, { replace: true })
+  // const target = String(route.query.from || '/')
+  // navigateTo(target, { replace: true })
+  router.back();
 }
 
 const socketEndpoint = computed(() => {
@@ -100,12 +102,13 @@ async function saveAndRetry() {
     }
 
     toast.success('配置已保存，正在应用')
-    const from = String(route.query.from || '/')
-    const fallback = '/'
-    const target = from.startsWith('/no-signal') || from.startsWith('/settings/connection')
-      ? fallback
-      : from
-    await navigateTo(target, { replace: true })
+    // const from = String(route.query.from || '/')
+    // const fallback = '/'
+    // const target = from.startsWith('/no-signal') || from.startsWith('/settings/connection')
+    //   ? fallback
+    //   : from
+    // await navigateTo(target)
+    router.back();
   } finally {
     saving.value = false
   }
@@ -130,12 +133,8 @@ async function saveAndRetry() {
             <div class="label py-1">
               <span class="label-text text-sm font-medium">服务器地址</span>
             </div>
-            <input
-              v-model="form.backendServerUrl"
-              type="text"
-              class="input input-bordered h-11 rounded-xl bg-base-100"
-              placeholder="例如 10.105.86.133:8080 或 api.example.com"
-            />
+            <input v-model="form.backendServerUrl" type="text" class="input input-bordered h-11 rounded-xl bg-base-100"
+              placeholder="例如 10.105.86.133:8080 或 api.example.com" />
           </label>
         </div>
 
@@ -143,11 +142,13 @@ async function saveAndRetry() {
           <div class="grid grid-cols-1 gap-3">
             <label class="form-control">
               <span class="mb-1 text-xs font-medium text-base-content/65">Socket 地址</span>
-              <input :value="socketEndpoint || '请先填写服务器地址'" type="text" class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
+              <input :value="socketEndpoint || '请先填写服务器地址'" type="text"
+                class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
             </label>
             <label class="form-control">
               <span class="mb-1 text-xs font-medium text-base-content/65">LiveKit 地址</span>
-              <input :value="livekitEndpoint || '请先填写服务器地址'" type="text" class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
+              <input :value="livekitEndpoint || '请先填写服务器地址'" type="text"
+                class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
             </label>
           </div>
         </div>

@@ -59,10 +59,16 @@
             </nuxt-link>
         </div>
 
-        <div class="text-end mt-4">
+        <div class="flex items-center justify-between mt-4 px-4">
+            <nuxt-link to="/settings/connection" class="text-sm hover:link text-base-content/60">
+                设置网络
+            </nuxt-link>
             <nuxt-link to="/auth/sign-up" :replace="true" class="text-sm hover:link text-base-content/60">
                 没有账号？ 前往注册
             </nuxt-link>
+        </div>
+        <div class="text-end mt-6">
+
         </div>
     </div>
 </template>

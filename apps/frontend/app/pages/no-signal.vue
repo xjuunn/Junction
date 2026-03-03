@@ -12,7 +12,6 @@ const goConnectionSettings = () => {
         from: String(route.query.from || '/'),
       },
     },
-    { replace: true },
   )
 }
 </script>
@@ -26,8 +25,10 @@ const goConnectionSettings = () => {
     </div>
 
     <div class="relative mx-auto flex min-h-full w-full max-w-3xl items-center justify-center px-4 py-10">
-      <section class="w-full rounded-3xl border border-base-content/10 bg-base-100/72 p-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl md:p-10">
-        <div class="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-error/25 bg-error/10 text-error">
+      <section
+        class="w-full rounded-3xl border border-base-content/10 bg-base-100/72 p-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl md:p-10">
+        <div
+          class="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-error/25 bg-error/10 text-error">
           <Icon name="mingcute:wifi-off-line" size="30" />
         </div>
 
