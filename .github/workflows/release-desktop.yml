@@ -461,20 +461,20 @@ jobs:
           if [ "${IOS_BUILD_MODE}" = "release" ]; then
             [ -n "${DEV_TEAM}" ] || (echo "Missing iOS development team ID: set IOS_DEVELOPMENT_TEAM/APPLE_DEVELOPMENT_TEAM secret or signing/ios/development_team.txt" && exit 1)
             python - <<'PY'
-import base64, os, sys
-cert = os.environ.get("CERT_B64", "")
-prov = os.environ.get("PROVISION_B64", "")
-try:
-    base64.b64decode(cert, validate=True)
-except Exception:
-    print("Invalid iOS certificate base64")
-    sys.exit(1)
-try:
-    base64.b64decode(prov, validate=True)
-except Exception:
-    print("Invalid iOS mobileprovision base64")
-    sys.exit(1)
-PY
+            import base64, os, sys
+            cert = os.environ.get("CERT_B64", "")
+            prov = os.environ.get("PROVISION_B64", "")
+            try:
+                base64.b64decode(cert, validate=True)
+            except Exception:
+                print("Invalid iOS certificate base64")
+                sys.exit(1)
+            try:
+                base64.b64decode(prov, validate=True)
+            except Exception:
+                print("Invalid iOS mobileprovision base64")
+                sys.exit(1)
+            PY
             echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> "$GITHUB_ENV"
             echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> "$GITHUB_ENV"
             echo "IOS_CERTIFICATE_PASSWORD_VALUE=${IOS_PWD}" >> "$GITHUB_ENV"
