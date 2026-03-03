@@ -5,17 +5,86 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (example: v0.1.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Publish as prerelease'
+        required: false
+        default: false
+        type: boolean
+      export_method:
+        description: 'iOS export method'
+        required: false
+        default: app-store-connect
+        type: choice
+        options:
+          - app-store-connect
+          - ad-hoc
+          - development
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.ref }}-${{ github.event.inputs.release_tag || 'auto' }}
   cancel-in-progress: false
 
+env:
+  CI: true
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.18.3'
+
 jobs:
+  validate:
+    name: Validate Release Context
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      export_method: ${{ steps.meta.outputs.export_method }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            PRE=false
+            EXPORT_METHOD="app-store-connect"
+          else
+            TAG="${{ github.event.inputs.release_tag }}"
+            PRE="${{ github.event.inputs.prerelease }}"
+            EXPORT_METHOD="${{ github.event.inputs.export_method }}"
+          fi
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$ ]] || (echo "Invalid release tag: $TAG" && exit 1)
+          echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
+          echo "export_method=$EXPORT_METHOD" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag/version consistency
+        shell: bash
+        run: |
+          TAG="${{ steps.meta.outputs.release_tag }}"
+          APP_VERSION="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('apps/frontend/src-tauri/tauri.conf.json','utf8'));console.log(p.version)")"
+          EXPECTED="v${APP_VERSION}"
+          if [[ "$TAG" != "$EXPECTED" ]]; then
+            echo "Tag/version mismatch: tag=$TAG, tauri.conf.json=$EXPECTED"
+            exit 1
+          fi
+
   desktop:
-    name: Build ${{ matrix.platform.name }}
+    name: Build Desktop (${{ matrix.platform.name }})
+    needs: validate
+    timeout-minutes: 90
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -33,8 +102,6 @@ jobs:
             archive_cmd: tar -czf release-bundle-linux-x64.tar.gz -C apps/frontend/src-tauri/target/release bundle
             archive_name: release-bundle-linux-x64.tar.gz
 
-    runs-on: ${{ matrix.platform.os }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,17 +109,22 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/frontend/src-tauri -> target
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -74,16 +146,13 @@ jobs:
       - name: Build workspace packages
         run: pnpm build:packages
 
-      - name: Build Tauri app
+      - name: Build Tauri desktop
         run: pnpm --filter @junction/frontend tauri build
 
-      - name: Pack build artifacts
+      - name: Assert bundle output
         shell: bash
         run: |
-          if [ ! -d "apps/frontend/src-tauri/target/release/bundle" ]; then
-            echo "Bundle directory not found"
-            exit 1
-          fi
+          [ -d "apps/frontend/src-tauri/target/release/bundle" ] || (echo "Bundle directory not found" && exit 1)
 
       - name: Archive (Windows)
         if: runner.os == 'Windows'
@@ -97,13 +166,16 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform.name }}
+          name: desktop-${{ matrix.platform.name }}
           path: ${{ matrix.platform.archive_name }}
           if-no-files-found: error
+          retention-days: 14
 
   android:
-    name: Build android-release-signed
+    name: Build Android (Signed Release)
+    needs: validate
     runs-on: ubuntu-22.04
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -112,13 +184,13 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
       - name: Setup Java
@@ -131,6 +203,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/frontend/src-tauri -> target
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -158,18 +235,6 @@ jobs:
       - name: Normalize Android Gradle properties
         run: sed -i '/trustStoreType=Windows-ROOT/d' apps/frontend/src-tauri/gen/android/gradle.properties
 
-      - name: Validate Android signing secrets
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          [ -n "${ANDROID_KEYSTORE_BASE64}" ] || (echo "Missing secret: ANDROID_KEYSTORE_BASE64" && exit 1)
-          [ -n "${ANDROID_KEYSTORE_PASSWORD}" ] || (echo "Missing secret: ANDROID_KEYSTORE_PASSWORD" && exit 1)
-          [ -n "${ANDROID_KEY_ALIAS}" ] || (echo "Missing secret: ANDROID_KEY_ALIAS" && exit 1)
-          [ -n "${ANDROID_KEY_PASSWORD}" ] || (echo "Missing secret: ANDROID_KEY_PASSWORD" && exit 1)
-
       - name: Prepare Android signing config
         shell: bash
         env:
@@ -178,37 +243,74 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/android-release.keystore"
+          prop() {
+            local f="$1"
+            local k="$2"
+            if [ -f "$f" ]; then
+              grep -E "^${k}=" "$f" | head -n1 | cut -d'=' -f2-
+            fi
+          }
+
+          KEYSTORE_PATH=""
+          if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
+            KEYSTORE_PATH="${RUNNER_TEMP}/android-release.keystore"
+            echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${KEYSTORE_PATH}"
+          elif [ -f "apps/frontend/src-tauri/signing/android/release.keystore" ]; then
+            KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/signing/android/release.keystore"
+          elif [ -f "apps/frontend/src-tauri/gen/junction-release.keystore" ]; then
+            KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/gen/junction-release.keystore"
+          else
+            echo "Missing Android keystore"
+            exit 1
+          fi
+
+          KEY_ALIAS="${ANDROID_KEY_ALIAS}"
+          KEY_PASSWORD="${ANDROID_KEY_PASSWORD}"
+          STORE_PASSWORD="${ANDROID_KEYSTORE_PASSWORD}"
+
+          if [ -z "${KEY_ALIAS}" ]; then KEY_ALIAS="$(prop apps/frontend/src-tauri/signing/android/signing.properties keyAlias)"; fi
+          if [ -z "${KEY_PASSWORD}" ]; then KEY_PASSWORD="$(prop apps/frontend/src-tauri/signing/android/signing.properties keyPassword)"; fi
+          if [ -z "${STORE_PASSWORD}" ]; then STORE_PASSWORD="$(prop apps/frontend/src-tauri/signing/android/signing.properties storePassword)"; fi
+
+          if [ -z "${KEY_ALIAS}" ]; then KEY_ALIAS="$(prop apps/frontend/src-tauri/gen/android/key.properties keyAlias)"; fi
+          if [ -z "${KEY_PASSWORD}" ]; then KEY_PASSWORD="$(prop apps/frontend/src-tauri/gen/android/key.properties keyPassword)"; fi
+          if [ -z "${STORE_PASSWORD}" ]; then STORE_PASSWORD="$(prop apps/frontend/src-tauri/gen/android/key.properties storePassword)"; fi
+
+          [ -n "${KEY_ALIAS}" ] || (echo "Missing Android keyAlias" && exit 1)
+          [ -n "${KEY_PASSWORD}" ] || (echo "Missing Android keyPassword" && exit 1)
+          [ -n "${STORE_PASSWORD}" ] || (echo "Missing Android storePassword" && exit 1)
+
           cat > apps/frontend/src-tauri/gen/android/key.properties <<EOF
-          storePassword=${ANDROID_KEYSTORE_PASSWORD}
-          keyPassword=${ANDROID_KEY_PASSWORD}
-          keyAlias=${ANDROID_KEY_ALIAS}
-          storeFile=${RUNNER_TEMP}/android-release.keystore
+          storePassword=${STORE_PASSWORD}
+          keyPassword=${KEY_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          storeFile=${KEYSTORE_PATH}
           EOF
 
-      - name: Build Android app (release signed)
+      - name: Build Android signed release
         run: pnpm --filter @junction/frontend tauri android build --ci --apk --aab
 
-      - name: Archive Android artifacts
+      - name: Collect Android artifacts
+        shell: bash
         run: |
           mkdir -p mobile-dist/android
           find apps/frontend/src-tauri/gen/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -exec cp {} mobile-dist/android/ \;
-          if [ -z "$(ls -A mobile-dist/android)" ]; then
-            echo "Signed Android outputs not found"
-            exit 1
-          fi
+          [ -n "$(ls -A mobile-dist/android)" ] || (echo "Signed Android outputs not found" && exit 1)
           tar -czf release-bundle-android-signed.tar.gz -C mobile-dist android
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-signed
+          name: mobile-android-signed
           path: release-bundle-android-signed.tar.gz
           if-no-files-found: error
+          retention-days: 14
 
   ios:
-    name: Build ios-release-signed
+    name: Build iOS (Signed IPA)
+    needs: validate
     runs-on: macos-14
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -217,19 +319,24 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/frontend/src-tauri -> target
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -241,13 +348,13 @@ jobs:
         run: pnpm build:packages
 
       - name: Ensure CocoaPods
-        run: |
-          pod --version || sudo gem install cocoapods
+        run: pod --version || sudo gem install cocoapods
 
       - name: Init iOS project
         run: pnpm --filter @junction/frontend tauri ios init --ci
 
-      - name: Validate iOS signing secrets
+      - name: Prepare iOS signing config
+        shell: bash
         env:
           IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
@@ -257,41 +364,56 @@ jobs:
         run: |
           CERT_B64="${IOS_CERTIFICATE:-$IOS_CERTIFICATE_BASE64}"
           PROVISION_B64="${IOS_MOBILE_PROVISION:-$IOS_MOBILE_PROVISION_BASE64}"
-          [ -n "${CERT_B64}" ] || (echo "Missing secret: IOS_CERTIFICATE or IOS_CERTIFICATE_BASE64 (base64 p12)" && exit 1)
-          [ -n "${IOS_CERTIFICATE_PASSWORD}" ] || (echo "Missing secret: IOS_CERTIFICATE_PASSWORD" && exit 1)
-          [ -n "${PROVISION_B64}" ] || (echo "Missing secret: IOS_MOBILE_PROVISION or IOS_MOBILE_PROVISION_BASE64 (base64 mobileprovision)" && exit 1)
-          echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> $GITHUB_ENV
-          echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> $GITHUB_ENV
+          IOS_PWD="${IOS_CERTIFICATE_PASSWORD}"
 
-      - name: Build iOS app (release signed IPA)
+          if [ -z "${CERT_B64}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate.p12" ]; then
+            CERT_B64="$(base64 < apps/frontend/src-tauri/signing/ios/certificate.p12 | tr -d '\n')"
+          fi
+          if [ -z "${PROVISION_B64}" ] && [ -f "apps/frontend/src-tauri/signing/ios/profile.mobileprovision" ]; then
+            PROVISION_B64="$(base64 < apps/frontend/src-tauri/signing/ios/profile.mobileprovision | tr -d '\n')"
+          fi
+          if [ -z "${IOS_PWD}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate_password.txt" ]; then
+            IOS_PWD="$(cat apps/frontend/src-tauri/signing/ios/certificate_password.txt)"
+          fi
+
+          [ -n "${CERT_B64}" ] || (echo "Missing iOS certificate" && exit 1)
+          [ -n "${PROVISION_B64}" ] || (echo "Missing iOS mobile provision" && exit 1)
+          [ -n "${IOS_PWD}" ] || (echo "Missing iOS certificate password" && exit 1)
+
+          echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> "$GITHUB_ENV"
+          echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> "$GITHUB_ENV"
+          echo "IOS_CERTIFICATE_PASSWORD_VALUE=${IOS_PWD}" >> "$GITHUB_ENV"
+
+      - name: Build iOS signed IPA
         env:
           IOS_CERTIFICATE: ${{ env.IOS_CERTIFICATE_B64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_CERTIFICATE_PASSWORD: ${{ env.IOS_CERTIFICATE_PASSWORD_VALUE }}
           IOS_MOBILE_PROVISION: ${{ env.IOS_MOBILE_PROVISION_B64 }}
-        run: pnpm --filter @junction/frontend tauri ios build --ci --export-method app-store-connect
+        run: pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
 
-      - name: Archive iOS artifacts
+      - name: Collect iOS artifacts
+        shell: bash
         run: |
           mkdir -p mobile-dist/ios
           find apps/frontend/src-tauri/gen/apple -type f -name "*.ipa" -exec cp {} mobile-dist/ios/ \;
-          if [ -z "$(ls -A mobile-dist/ios)" ]; then
-            echo "Signed iOS IPA not found"
-            exit 1
-          fi
+          [ -n "$(ls -A mobile-dist/ios)" ] || (echo "Signed iOS IPA not found" && exit 1)
           tar -czf release-bundle-ios-signed.tar.gz -C mobile-dist ios
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-signed
+          name: mobile-ios-signed
           path: release-bundle-ios-signed.tar.gz
           if-no-files-found: error
+          retention-days: 14
 
   release:
     name: Publish GitHub Release
-    runs-on: ubuntu-latest
-    needs: [desktop, android, ios]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [validate, desktop, android, ios]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
 
     steps:
       - name: Download artifacts
@@ -299,15 +421,22 @@ jobs:
         with:
           path: dist
 
-      - name: Show files
-        run: find dist -type f
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -type f -maxdepth 3 -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+
+      - name: Show release files
+        run: find dist -type f | sort
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.validate.outputs.release_tag }}
           files: dist/**/*
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
