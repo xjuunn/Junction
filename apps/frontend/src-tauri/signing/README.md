@@ -30,9 +30,11 @@ keyAlias=你的_key_alias
 - `apps/frontend/src-tauri/signing/ios/certificate.p12`
 - `apps/frontend/src-tauri/signing/ios/profile.mobileprovision`
 - `apps/frontend/src-tauri/signing/ios/certificate_password.txt`
+- `apps/frontend/src-tauri/signing/ios/development_team.txt`
 
 说明：
 
 - 若存在 `IOS_*` secrets，优先使用 secrets。
 - 若 secrets 缺失，则回退到本目录文件。
 - `certificate_password.txt` 只放密码明文，不要加额外字符。
+- `development_team.txt` 放 Apple Team ID（10 位字母数字），例如 `ABCDE12345`。

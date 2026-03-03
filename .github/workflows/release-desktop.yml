@@ -84,6 +84,45 @@ jobs:
             exit 1
           fi
 
+      - name: Preflight signing materials for tag release
+        if: github.event_name == 'push'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+          IOS_MOBILE_PROVISION_BASE64: ${{ secrets.IOS_MOBILE_PROVISION_BASE64 }}
+          IOS_DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        shell: bash
+        run: |
+          has_android=false
+          if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
+            [ -n "${ANDROID_KEYSTORE_PASSWORD}" ] || (echo "Missing secret: ANDROID_KEYSTORE_PASSWORD" && exit 1)
+            [ -n "${ANDROID_KEY_ALIAS}" ] || (echo "Missing secret: ANDROID_KEY_ALIAS" && exit 1)
+            [ -n "${ANDROID_KEY_PASSWORD}" ] || (echo "Missing secret: ANDROID_KEY_PASSWORD" && exit 1)
+            has_android=true
+          elif [ -f "apps/frontend/src-tauri/signing/android/release.keystore" ] || [ -f "apps/frontend/src-tauri/gen/junction-release.keystore" ]; then
+            has_android=true
+          fi
+          [ "${has_android}" = true ] || (echo "Missing Android signing materials for tag release." && exit 1)
+
+          CERT_B64="${IOS_CERTIFICATE:-$IOS_CERTIFICATE_BASE64}"
+          PROVISION_B64="${IOS_MOBILE_PROVISION:-$IOS_MOBILE_PROVISION_BASE64}"
+          DEV_TEAM="${IOS_DEVELOPMENT_TEAM:-$APPLE_DEVELOPMENT_TEAM}"
+          if [ -z "${CERT_B64}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate.p12" ]; then CERT_B64="file"; fi
+          if [ -z "${PROVISION_B64}" ] && [ -f "apps/frontend/src-tauri/signing/ios/profile.mobileprovision" ]; then PROVISION_B64="file"; fi
+          if [ -z "${IOS_CERTIFICATE_PASSWORD}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate_password.txt" ]; then IOS_CERTIFICATE_PASSWORD="file"; fi
+          if [ -z "${DEV_TEAM}" ] && [ -f "apps/frontend/src-tauri/signing/ios/development_team.txt" ]; then DEV_TEAM="file"; fi
+          [ -n "${CERT_B64}" ] || (echo "Missing iOS certificate for tag release." && exit 1)
+          [ -n "${PROVISION_B64}" ] || (echo "Missing iOS provision for tag release." && exit 1)
+          [ -n "${IOS_CERTIFICATE_PASSWORD}" ] || (echo "Missing iOS certificate password for tag release." && exit 1)
+          [ -n "${DEV_TEAM}" ] || (echo "Missing iOS development team for tag release." && exit 1)
+
   desktop:
     name: Build Desktop (${{ matrix.platform.name }})
     needs: validate
@@ -95,16 +134,10 @@ jobs:
         platform:
           - name: windows-x64
             os: windows-latest
-            archive_cmd: Compress-Archive -Path apps/frontend/src-tauri/target/release/bundle/* -DestinationPath release-bundle-windows-x64.zip -Force
-            archive_name: release-bundle-windows-x64.zip
           - name: macos-arm64
             os: macos-14
-            archive_cmd: tar -czf release-bundle-macos-arm64.tar.gz -C apps/frontend/src-tauri/target/release bundle
-            archive_name: release-bundle-macos-arm64.tar.gz
           - name: linux-x64
             os: ubuntu-22.04
-            archive_cmd: tar -czf release-bundle-linux-x64.tar.gz -C apps/frontend/src-tauri/target/release bundle
-            archive_name: release-bundle-linux-x64.tar.gz
 
     steps:
       - name: Checkout
@@ -158,20 +191,38 @@ jobs:
         run: |
           [ -d "apps/frontend/src-tauri/target/release/bundle" ] || (echo "Bundle directory not found" && exit 1)
 
-      - name: Archive (Windows)
+      - name: Upload desktop installers (Windows)
         if: runner.os == 'Windows'
-        shell: powershell
-        run: ${{ matrix.platform.archive_cmd }}
-
-      - name: Archive (Non-Windows)
-        if: runner.os != 'Windows'
-        run: ${{ matrix.platform.archive_cmd }}
-
-      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.platform.name }}
-          path: ${{ matrix.platform.archive_name }}
+          path: |
+            apps/frontend/src-tauri/target/release/bundle/**/*.msi
+            apps/frontend/src-tauri/target/release/bundle/**/*.exe
+            apps/frontend/src-tauri/target/release/bundle/**/*.msix
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload desktop installers (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform.name }}
+          path: |
+            apps/frontend/src-tauri/target/release/bundle/**/*.dmg
+            apps/frontend/src-tauri/target/release/bundle/**/*.app.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload desktop installers (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform.name }}
+          path: |
+            apps/frontend/src-tauri/target/release/bundle/**/*.AppImage
+            apps/frontend/src-tauri/target/release/bundle/**/*.deb
+            apps/frontend/src-tauri/target/release/bundle/**/*.rpm
           if-no-files-found: error
           retention-days: 14
 
@@ -260,12 +311,11 @@ jobs:
             local f="$1"
             local k="$2"
             if [ -f "$f" ]; then
-              grep -E "^${k}=" "$f" | head -n1 | cut -d'=' -f2-
+              grep -E "^${k}=" "$f" | head -n1 | cut -d'=' -f2- | tr -d '\r'
             fi
           }
 
           KEYSTORE_PATH=""
-          BUILD_MODE="release"
           if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
             KEYSTORE_PATH="${RUNNER_TEMP}/android-release.keystore"
             echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${KEYSTORE_PATH}"
@@ -274,9 +324,8 @@ jobs:
           elif [ -f "apps/frontend/src-tauri/gen/junction-release.keystore" ]; then
             KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/gen/junction-release.keystore"
           else
-            BUILD_MODE="debug"
-            KEYSTORE_PATH="${HOME}/.android/debug.keystore"
-            keytool -genkeypair -v -keystore "${KEYSTORE_PATH}" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
+            echo "Missing Android keystore for release build"
+            exit 1
           fi
 
           KEY_ALIAS="${ANDROID_KEY_ALIAS}"
@@ -291,16 +340,9 @@ jobs:
           if [ -z "${KEY_PASSWORD}" ]; then KEY_PASSWORD="$(prop apps/frontend/src-tauri/gen/android/key.properties keyPassword)"; fi
           if [ -z "${STORE_PASSWORD}" ]; then STORE_PASSWORD="$(prop apps/frontend/src-tauri/gen/android/key.properties storePassword)"; fi
 
-          if [ "${BUILD_MODE}" = "release" ]; then
-            [ -n "${KEY_ALIAS}" ] || (echo "Missing Android keyAlias" && exit 1)
-            [ -n "${KEY_PASSWORD}" ] || (echo "Missing Android keyPassword" && exit 1)
-            [ -n "${STORE_PASSWORD}" ] || (echo "Missing Android storePassword" && exit 1)
-          else
-            KEY_ALIAS="androiddebugkey"
-            KEY_PASSWORD="android"
-            STORE_PASSWORD="android"
-            echo "Android signing material missing, fallback to debug APK build."
-          fi
+          [ -n "${KEY_ALIAS}" ] || (echo "Missing Android keyAlias" && exit 1)
+          [ -n "${KEY_PASSWORD}" ] || (echo "Missing Android keyPassword" && exit 1)
+          [ -n "${STORE_PASSWORD}" ] || (echo "Missing Android storePassword" && exit 1)
 
           cat > apps/frontend/src-tauri/gen/android/key.properties <<EOF
           storePassword=${STORE_PASSWORD}
@@ -308,30 +350,17 @@ jobs:
           keyAlias=${KEY_ALIAS}
           storeFile=${KEYSTORE_PATH}
           EOF
-          echo "ANDROID_BUILD_MODE=${BUILD_MODE}" >> "$GITHUB_ENV"
 
       - name: Build Android package
-        shell: bash
-        run: |
-          if [ "${ANDROID_BUILD_MODE}" = "release" ]; then
-            pnpm --filter @junction/frontend tauri android build --ci --apk --aab
-          else
-            pnpm --filter @junction/frontend tauri android build --ci --debug --apk
-          fi
-
-      - name: Collect Android artifacts
-        shell: bash
-        run: |
-          mkdir -p mobile-dist/android
-          find apps/frontend/src-tauri/gen/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -exec cp {} mobile-dist/android/ \;
-          [ -n "$(ls -A mobile-dist/android)" ] || (echo "Signed Android outputs not found" && exit 1)
-          tar -czf release-bundle-android-signed.tar.gz -C mobile-dist android
+        run: pnpm --filter @junction/frontend tauri android build --ci --apk --aab
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
           name: mobile-android-signed
-          path: release-bundle-android-signed.tar.gz
+          path: |
+            apps/frontend/src-tauri/gen/android/app/build/outputs/**/*.apk
+            apps/frontend/src-tauri/gen/android/app/build/outputs/**/*.aab
           if-no-files-found: error
           retention-days: 14
 
@@ -398,10 +427,13 @@ jobs:
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
           IOS_MOBILE_PROVISION_BASE64: ${{ secrets.IOS_MOBILE_PROVISION_BASE64 }}
+          IOS_DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
         run: |
           CERT_B64="${IOS_CERTIFICATE:-$IOS_CERTIFICATE_BASE64}"
           PROVISION_B64="${IOS_MOBILE_PROVISION:-$IOS_MOBILE_PROVISION_BASE64}"
           IOS_PWD="${IOS_CERTIFICATE_PASSWORD}"
+          DEV_TEAM="${IOS_DEVELOPMENT_TEAM:-$APPLE_DEVELOPMENT_TEAM}"
 
           if [ -z "${CERT_B64}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate.p12" ]; then
             CERT_B64="$(base64 < apps/frontend/src-tauri/signing/ios/certificate.p12 | tr -d '\n')"
@@ -412,17 +444,41 @@ jobs:
           if [ -z "${IOS_PWD}" ] && [ -f "apps/frontend/src-tauri/signing/ios/certificate_password.txt" ]; then
             IOS_PWD="$(cat apps/frontend/src-tauri/signing/ios/certificate_password.txt)"
           fi
+          if [ -z "${DEV_TEAM}" ] && [ -f "apps/frontend/src-tauri/signing/ios/development_team.txt" ]; then
+            DEV_TEAM="$(cat apps/frontend/src-tauri/signing/ios/development_team.txt)"
+          fi
 
           IOS_BUILD_MODE="release"
           if [ -z "${CERT_B64}" ] || [ -z "${PROVISION_B64}" ] || [ -z "${IOS_PWD}" ]; then
             IOS_BUILD_MODE="simulator-debug"
             echo "iOS signing material missing, fallback to simulator debug build."
+            if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+              echo "Tag release requires signed IPA. Missing iOS signing material."
+              exit 1
+            fi
           fi
 
           if [ "${IOS_BUILD_MODE}" = "release" ]; then
+            [ -n "${DEV_TEAM}" ] || (echo "Missing iOS development team ID: set IOS_DEVELOPMENT_TEAM/APPLE_DEVELOPMENT_TEAM secret or signing/ios/development_team.txt" && exit 1)
+            python - <<'PY'
+import base64, os, sys
+cert = os.environ.get("CERT_B64", "")
+prov = os.environ.get("PROVISION_B64", "")
+try:
+    base64.b64decode(cert, validate=True)
+except Exception:
+    print("Invalid iOS certificate base64")
+    sys.exit(1)
+try:
+    base64.b64decode(prov, validate=True)
+except Exception:
+    print("Invalid iOS mobileprovision base64")
+    sys.exit(1)
+PY
             echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> "$GITHUB_ENV"
             echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> "$GITHUB_ENV"
             echo "IOS_CERTIFICATE_PASSWORD_VALUE=${IOS_PWD}" >> "$GITHUB_ENV"
+            echo "APPLE_DEVELOPMENT_TEAM_VALUE=${DEV_TEAM}" >> "$GITHUB_ENV"
           fi
           echo "IOS_BUILD_MODE=${IOS_BUILD_MODE}" >> "$GITHUB_ENV"
 
@@ -432,6 +488,7 @@ jobs:
           IOS_CERTIFICATE: ${{ env.IOS_CERTIFICATE_B64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ env.IOS_CERTIFICATE_PASSWORD_VALUE }}
           IOS_MOBILE_PROVISION: ${{ env.IOS_MOBILE_PROVISION_B64 }}
+          APPLE_DEVELOPMENT_TEAM: ${{ env.APPLE_DEVELOPMENT_TEAM_VALUE }}
         run: pnpm --filter @junction/frontend tauri ios build --ci --export-method ${{ needs.validate.outputs.export_method }}
 
       - name: Build iOS simulator fallback
@@ -439,22 +496,20 @@ jobs:
         run: pnpm --filter @junction/frontend tauri ios build --ci --debug --target aarch64-sim
 
       - name: Collect iOS artifacts
-        shell: bash
-        run: |
-          mkdir -p mobile-dist/ios
-          if [ "${IOS_BUILD_MODE}" = "release" ]; then
-            find apps/frontend/src-tauri/gen/apple -type f -name "*.ipa" -exec cp {} mobile-dist/ios/ \;
-          else
-            find apps/frontend/src-tauri/gen -type d -name "*.app" -exec cp -R {} mobile-dist/ios/ \;
-          fi
-          [ -n "$(ls -A mobile-dist/ios)" ] || (echo "iOS output not found" && exit 1)
-          tar -czf release-bundle-ios-signed.tar.gz -C mobile-dist ios
-
-      - name: Upload iOS artifact
+        if: env.IOS_BUILD_MODE == 'release'
         uses: actions/upload-artifact@v4
         with:
           name: mobile-ios-signed
-          path: release-bundle-ios-signed.tar.gz
+          path: apps/frontend/src-tauri/gen/apple/**/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload iOS simulator fallback artifact
+        if: env.IOS_BUILD_MODE != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-ios-simulator
+          path: apps/frontend/src-tauri/gen/**/*.app
           if-no-files-found: error
           retention-days: 14
 
@@ -476,7 +531,11 @@ jobs:
         shell: bash
         run: |
           cd dist
-          find . -type f -maxdepth 3 -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          find . -type f \( \
+            -name "*.msi" -o -name "*.exe" -o -name "*.msix" -o \
+            -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o \
+            -name "*.apk" -o -name "*.aab" -o -name "*.ipa" \
+          \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
       - name: Show release files
         run: find dist -type f | sort
