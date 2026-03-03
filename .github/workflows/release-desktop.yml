@@ -25,6 +25,11 @@ on:
           - app-store-connect
           - ad-hoc
           - development
+      publish_release:
+        description: 'Publish GitHub Release after build'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -48,6 +53,7 @@ jobs:
       release_tag: ${{ steps.meta.outputs.release_tag }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
       export_method: ${{ steps.meta.outputs.export_method }}
+      publish_release: ${{ steps.meta.outputs.publish_release }}
 
     steps:
       - name: Checkout
@@ -62,10 +68,12 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
             PRE="false"
             EXPORT_METHOD="app-store-connect"
+            PUBLISH_RELEASE="true"
           else
             TAG="${{ github.event.inputs.release_tag }}"
             PRE="${{ github.event.inputs.prerelease }}"
             EXPORT_METHOD="${{ github.event.inputs.export_method }}"
+            PUBLISH_RELEASE="${{ github.event.inputs.publish_release }}"
           fi
 
           if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$ ]]; then
@@ -76,6 +84,7 @@ jobs:
           echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
           echo "export_method=$EXPORT_METHOD" >> "$GITHUB_OUTPUT"
+          echo "publish_release=$PUBLISH_RELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Verify tag/version consistency
         shell: bash
@@ -499,6 +508,7 @@ jobs:
     needs: [validate, desktop, android, ios]
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    if: needs.validate.outputs.publish_release == 'true'
     permissions:
       contents: write
 
@@ -512,21 +522,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd dist
-          find . -type f \( \
+          mkdir -p release-assets
+          # 只收集最终可分发安装包，避免把 .app 内部文件发布出去
+          find dist -type f \( \
             -name "*.msi" -o -name "*.exe" -o -name "*.msix" -o \
             -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o \
             -name "*.apk" -o -name "*.aab" -o -name "*.ipa" \
-          \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          \) -print0 | while IFS= read -r -d '' f; do
+            cp "$f" "release-assets/$(basename "$f")"
+          done
+          ls -la release-assets
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
 
       - name: Show files
-        run: find dist -type f | sort
+        run: find release-assets -type f | sort
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.validate.outputs.release_tag }}
-          files: dist/**/*
+          files: release-assets/*
           generate_release_notes: true
           draft: false
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
