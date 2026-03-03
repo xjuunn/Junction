@@ -7,6 +7,7 @@
 放置文件：
 
 - `apps/frontend/src-tauri/signing/android/release.keystore`
+- `apps/frontend/src-tauri/signing/android/release.keystore.base64`（可选，和 `release.keystore` 二选一）
 - `apps/frontend/src-tauri/signing/android/signing.properties`
 
 `signing.properties` 内容示例：
@@ -20,6 +21,7 @@ keyAlias=你的_key_alias
 说明：
 
 - 若存在 `ANDROID_*` secrets，优先使用 secrets。
+- 支持 secrets：`ANDROID_KEYSTORE_BASE64` 或 `ANDROID_KEYSTORE_FILE_BASE64`。
 - 若 secrets 缺失，则回退到本目录文件。
 - 若本目录也缺失，则 Android 签名构建失败。
 

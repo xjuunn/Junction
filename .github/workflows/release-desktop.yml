@@ -303,6 +303,7 @@ jobs:
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_FILE_BASE64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -316,9 +317,14 @@ jobs:
           }
 
           KEYSTORE_PATH=""
-          if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
+          KEYSTORE_B64="${ANDROID_KEYSTORE_BASE64:-$ANDROID_KEYSTORE_FILE_BASE64}"
+          if [ -z "${KEYSTORE_B64}" ] && [ -f "apps/frontend/src-tauri/signing/android/release.keystore.base64" ]; then
+            KEYSTORE_B64="$(cat apps/frontend/src-tauri/signing/android/release.keystore.base64 | tr -d '\n\r')"
+          fi
+
+          if [ -n "${KEYSTORE_B64}" ]; then
             KEYSTORE_PATH="${RUNNER_TEMP}/android-release.keystore"
-            echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${KEYSTORE_PATH}"
+            echo "${KEYSTORE_B64}" | base64 -d > "${KEYSTORE_PATH}"
           elif [ -f "apps/frontend/src-tauri/signing/android/release.keystore" ]; then
             KEYSTORE_PATH="${GITHUB_WORKSPACE}/apps/frontend/src-tauri/signing/android/release.keystore"
           elif [ -f "apps/frontend/src-tauri/gen/junction-release.keystore" ]; then
@@ -460,21 +466,14 @@ jobs:
 
           if [ "${IOS_BUILD_MODE}" = "release" ]; then
             [ -n "${DEV_TEAM}" ] || (echo "Missing iOS development team ID: set IOS_DEVELOPMENT_TEAM/APPLE_DEVELOPMENT_TEAM secret or signing/ios/development_team.txt" && exit 1)
-            python - <<'PY'
-            import base64, os, sys
-            cert = os.environ.get("CERT_B64", "")
-            prov = os.environ.get("PROVISION_B64", "")
-            try:
-                base64.b64decode(cert, validate=True)
-            except Exception:
-                print("Invalid iOS certificate base64")
-                sys.exit(1)
-            try:
-                base64.b64decode(prov, validate=True)
-            except Exception:
-                print("Invalid iOS mobileprovision base64")
-                sys.exit(1)
-            PY
+            python -c 'import base64,sys
+for name,val in [("certificate",sys.argv[1]),("mobileprovision",sys.argv[2])]:
+    try:
+        base64.b64decode(val, validate=True)
+    except Exception:
+        print(f"Invalid iOS {name} base64")
+        sys.exit(1)
+' "${CERT_B64}" "${PROVISION_B64}"
             echo "IOS_CERTIFICATE_B64=${CERT_B64}" >> "$GITHUB_ENV"
             echo "IOS_MOBILE_PROVISION_B64=${PROVISION_B64}" >> "$GITHUB_ENV"
             echo "IOS_CERTIFICATE_PASSWORD_VALUE=${IOS_PWD}" >> "$GITHUB_ENV"
