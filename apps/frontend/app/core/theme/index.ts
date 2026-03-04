@@ -16,6 +16,11 @@ export class AppTheme {
 
     private constructor() { }
 
+    private isAndroidTauri() {
+        if (!isTauri() || typeof navigator === 'undefined') return false
+        return /android/i.test(String(navigator.userAgent || ''))
+    }
+
     public static getInstance() {
         if (!this.instance) this.instance = new AppTheme()
         return this.instance
@@ -30,10 +35,11 @@ export class AppTheme {
             this.setTheme(prefersDark, true)
         }
         const isBgTransparentSaved = localStorage.getItem('bg-transparent');
+        const canUseTransparentBackground = !this.isAndroidTauri()
         if (isBgTransparentSaved) {
-            this.setBgTransparent(isBgTransparentSaved === 'true');
+            this.setBgTransparent(canUseTransparentBackground && isBgTransparentSaved === 'true');
         } else {
-            this.setBgTransparent(true);
+            this.setBgTransparent(canUseTransparentBackground);
         }
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
@@ -106,12 +112,13 @@ export class AppTheme {
     public setBgTransparent(trans: boolean) {
         const html = document.documentElement
         if (!(html && isTauri())) return;
-        html.style.background = (trans ? 'transparent' : '');
-        if (document.body) document.body.style.background = (trans ? 'transparent' : '');
-        html.classList.toggle('mica-active', trans);
-        if (document.body) document.body.classList.toggle('mica-active', trans);
-        this.isBgTransparent.value = trans;
-        localStorage.setItem('bg-transparent', trans + "");
+        const enabled = this.isAndroidTauri() ? false : trans
+        html.style.background = (enabled ? 'transparent' : '');
+        if (document.body) document.body.style.background = (enabled ? 'transparent' : '');
+        html.classList.toggle('mica-active', enabled);
+        if (document.body) document.body.classList.toggle('mica-active', enabled);
+        this.isBgTransparent.value = enabled;
+        localStorage.setItem('bg-transparent', enabled + "");
     }
 
     public getIsBgTransparent() {

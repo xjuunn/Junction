@@ -26,7 +26,10 @@ type ThemePreset = {
 
 const isSaving = ref(false)
 const paletteMode = ref<PaletteMode>('light')
-const isMicaSupported = computed(() => isTauri())
+const isAndroidTauri = computed(() =>
+  isTauri() && import.meta.client && /android/i.test(String(navigator.userAgent || '')),
+)
+const isMicaSupported = computed(() => isTauri() && !isAndroidTauri.value)
 const isBgTransparent = appTheme.getIsBgTransparent()
 
 const themeModes: Array<{ value: ThemeMode; label: string; desc: string; icon: string }> = [
@@ -159,7 +162,7 @@ const handleResetTheme = () => {
   settings.sidebarCollapsed = false
   settings.animationsEnabled = true
   settings.animationSpeed = 'normal'
-  appTheme.setBgTransparent(true)
+  appTheme.setBgTransparent(isMicaSupported.value)
   toast.success('主题设置已恢复默认')
 }
 
