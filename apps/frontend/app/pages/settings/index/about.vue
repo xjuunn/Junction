@@ -6,7 +6,7 @@ const toast = useToast()
 const { copy } = useClipboard()
 
 const appName = 'Junction'
-const appVersion = '0.1.1'
+const appVersion = '0.1.2'
 const buildDate = '2026-02-02'
 
 const linkItems = [
