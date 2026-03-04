@@ -45,10 +45,10 @@ const commitDetail = ref<GithubCommitDetailData | null>(null)
 const repoStats = computed(() => {
   if (!insights.value) return []
   return [
-    { label: 'Stars', value: insights.value.overview.stars.toLocaleString() },
-    { label: 'Forks', value: insights.value.overview.forks.toLocaleString() },
-    { label: 'Open Issues', value: insights.value.overview.openIssues.toLocaleString() },
-    { label: 'Watchers', value: insights.value.overview.watchers.toLocaleString() },
+    { label: '星标', value: insights.value.overview.stars.toLocaleString() },
+    { label: '分叉', value: insights.value.overview.forks.toLocaleString() },
+    { label: '未关闭问题', value: insights.value.overview.openIssues.toLocaleString() },
+    { label: '关注者', value: insights.value.overview.watchers.toLocaleString() },
   ]
 })
 
@@ -58,20 +58,18 @@ const activityStats = computed(() => {
     { label: '近 7 天提交', value: String(insights.value.frequency.last7Days) },
     { label: '近 30 天提交', value: String(insights.value.frequency.last30Days) },
     { label: '周均提交', value: String(insights.value.frequency.avgPerWeek) },
-    { label: '活跃天数(30天)', value: String(insights.value.frequency.activeDaysIn30Days) },
+    { label: '活跃天数（30天）', value: String(insights.value.frequency.activeDaysIn30Days) },
   ]
 })
-
 const importantMeta = computed(() => {
   if (!insights.value) return []
   return [
     { label: '默认分支', value: insights.value.overview.defaultBranch },
-    { label: '主语言', value: insights.value.overview.language || 'Unknown' },
-    { label: '最近推送', value: formatDate(insights.value.overview.pushedAt) },
+    { label: '主要语言', value: insights.value.overview.language || '未知' },
+    { label: '最近推送', value: formatRelativeTime(insights.value.overview.pushedAt) },
     { label: '创建时间', value: formatDate(insights.value.overview.createdAt) },
   ]
 })
-
 const recentCommits = computed(() => {
   if (!insights.value) return []
   return insights.value.commits.slice(0, 8)
@@ -81,6 +79,47 @@ const topAuthors = computed(() => {
   if (!insights.value) return []
   return insights.value.topAuthors.slice(0, 6)
 })
+
+const formatRelativeTime = (value: string) => {
+  const time = new Date(value)
+  const timestamp = time.getTime()
+  if (!Number.isFinite(timestamp)) return '--'
+
+  const diffMs = Date.now() - timestamp
+  const absMs = Math.abs(diffMs)
+  const minuteMs = 60 * 1000
+  const hourMs = 60 * minuteMs
+  const dayMs = 24 * hourMs
+  const weekMs = 7 * dayMs
+  const monthMs = 30 * dayMs
+  const yearMs = 365 * dayMs
+
+  if (diffMs < 0) return formatDate(value)
+  if (absMs < minuteMs) return '\u521a\u521a'
+  if (absMs < hourMs) {
+    const minutes = Math.floor(absMs / minuteMs)
+    return `${minutes}\u5206\u949f\u524d`
+  }
+  if (absMs < dayMs) {
+    const hours = Math.floor(absMs / hourMs)
+    return `${hours}\u5c0f\u65f6\u524d`
+  }
+  if (absMs < weekMs) {
+    const days = Math.floor(absMs / dayMs)
+    return days === 1 ? '\u4e00\u5929\u524d' : `${days}\u5929\u524d`
+  }
+  if (absMs < monthMs) {
+    const weeks = Math.floor(absMs / weekMs)
+    return weeks === 1 ? '\u4e00\u5468\u524d' : `${weeks}\u5468\u524d`
+  }
+  if (absMs < yearMs) {
+    const months = Math.floor(absMs / monthMs)
+    return months === 1 ? '\u4e00\u4e2a\u6708\u524d' : `${months}\u4e2a\u6708\u524d`
+  }
+
+  const years = Math.floor(absMs / yearMs)
+  return years === 1 ? '\u4e00\u5e74\u524d' : `${years}\u5e74\u524d`
+}
 
 const formatDate = (value: string) => {
   const time = new Date(value)
@@ -182,7 +221,7 @@ onMounted(() => {
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16 relative z-10">
           <div class="flex flex-col gap-2">
             <h2 class="text-3xl md:text-4xl font-medium tracking-tight text-base-content">仓库概览</h2>
-            <p class="text-sm font-light text-base-content/40 tracking-widest uppercase">GITHUB REPOSITORY INSIGHTS</p>
+            <p class="text-sm font-light text-base-content/40 tracking-widest uppercase">仓库洞察</p>
           </div>
           <div class="flex items-center gap-3">
             <button class="flex items-center gap-2 px-5 py-2.5 rounded-full border border-base-content/10 bg-base-content/[0.02] text-xs font-semibold tracking-wider text-base-content/60 hover:text-base-content hover:bg-base-content/5 transition-all" :disabled="loadingInsights" @click="loadInsights(true)">
@@ -241,7 +280,7 @@ onMounted(() => {
             
             <!-- 活跃作者 -->
             <div class="flex flex-col gap-6">
-              <h3 class="text-xs font-bold tracking-[0.2em] text-base-content/30 uppercase pl-2">Top Contributors</h3>
+              <h3 class="text-xs font-bold tracking-[0.2em] text-base-content/30 uppercase pl-2">核心贡献者</h3>
               <div class="flex flex-col gap-2">
                 <div
                   v-for="author in topAuthors"
@@ -255,12 +294,12 @@ onMounted(() => {
                     </div>
                     <div class="flex flex-col min-w-0">
                       <span class="text-sm font-semibold text-base-content/90 truncate">{{ author.name }}</span>
-                      <span class="text-xs font-light text-base-content/40 truncate">{{ author.login || 'unknown' }}</span>
+                      <span class="text-xs font-light text-base-content/40 truncate">{{ author.login || '未知' }}</span>
                     </div>
                   </div>
                   <div class="flex flex-col items-end shrink-0">
                     <span class="text-lg font-medium text-base-content">{{ author.commits }}</span>
-                    <span class="text-[9px] font-bold tracking-widest text-base-content/30 uppercase">Commits</span>
+                    <span class="text-[9px] font-bold tracking-widest text-base-content/30 uppercase">提交数</span>
                   </div>
                 </div>
               </div>
@@ -268,7 +307,7 @@ onMounted(() => {
 
             <!-- 最近提交 -->
             <div class="flex flex-col gap-6">
-              <h3 class="text-xs font-bold tracking-[0.2em] text-base-content/30 uppercase pl-2">Recent Activity</h3>
+              <h3 class="text-xs font-bold tracking-[0.2em] text-base-content/30 uppercase pl-2">最近提交</h3>
               <div class="flex flex-col gap-2">
                 <div
                   v-for="commit in recentCommits"
@@ -294,7 +333,7 @@ onMounted(() => {
     </main>
 
     <!-- 极简提交详情 Modal (使用 DaisyUI 风格结构但覆盖样式) -->
-    <BaseModal v-model="commitModalOpen" title="Commit Details" box-class="max-w-2xl bg-base-100/90 backdrop-blur-3xl border border-base-content/10 rounded-[2rem] shadow-2xl p-0 overflow-hidden">
+    <BaseModal v-model="commitModalOpen" title="提交详情" box-class="max-w-2xl bg-base-100/90 backdrop-blur-3xl border border-base-content/10 rounded-[2rem] shadow-2xl p-0 overflow-hidden">
       <template #default>
         <div class="p-8 md:p-10 flex flex-col gap-8">
           <div v-if="commitModalLoading" class="py-20 flex justify-center">
@@ -308,7 +347,7 @@ onMounted(() => {
               <div class="flex items-center gap-3">
                 <span class="px-3 py-1 rounded-lg bg-base-content/5 text-xs font-mono text-base-content/60 border border-base-content/10">{{ commitDetail.sha.substring(0, 7) }}</span>
                 <span class="text-xs font-light text-base-content/40">·</span>
-                <span class="text-xs font-medium text-base-content/60">{{ commitDetail.commit.author?.name || 'Unknown' }}</span>
+                <span class="text-xs font-medium text-base-content/60">{{ commitDetail.commit.author?.name || '未知' }}</span>
               </div>
             </div>
 
@@ -317,33 +356,33 @@ onMounted(() => {
             <!-- Stats -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div class="flex flex-col p-4 rounded-2xl bg-success/5 border border-success/10 justify-center">
-                <span class="text-[10px] font-bold tracking-widest text-success/60 uppercase mb-1">Additions</span>
+                <span class="text-[10px] font-bold tracking-widest text-success/60 uppercase mb-1">新增</span>
                 <span class="text-2xl font-light text-success">+{{ commitDetail.stats?.additions ?? 0 }}</span>
               </div>
               <div class="flex flex-col p-4 rounded-2xl bg-error/5 border border-error/10 justify-center">
-                <span class="text-[10px] font-bold tracking-widest text-error/60 uppercase mb-1">Deletions</span>
+                <span class="text-[10px] font-bold tracking-widest text-error/60 uppercase mb-1">删除</span>
                 <span class="text-2xl font-light text-error">-{{ commitDetail.stats?.deletions ?? 0 }}</span>
               </div>
               <div class="flex flex-col p-4 rounded-2xl bg-base-content/5 border border-base-content/5 justify-center">
-                <span class="text-[10px] font-bold tracking-widest text-base-content/40 uppercase mb-1">Total</span>
+                <span class="text-[10px] font-bold tracking-widest text-base-content/40 uppercase mb-1">总计</span>
                 <span class="text-2xl font-light text-base-content">{{ commitDetail.stats?.total ?? 0 }}</span>
               </div>
               <div class="flex flex-col p-4 rounded-2xl bg-base-content/5 border border-base-content/5 justify-center">
-                <span class="text-[10px] font-bold tracking-widest text-base-content/40 uppercase mb-1">Files</span>
+                <span class="text-[10px] font-bold tracking-widest text-base-content/40 uppercase mb-1">文件数</span>
                 <span class="text-2xl font-light text-base-content">{{ commitDetail.files?.length ?? 0 }}</span>
               </div>
             </div>
 
             <!-- Full SHA -->
             <div class="flex flex-col p-4 rounded-2xl bg-base-content/[0.02] border border-base-content/5 gap-2">
-              <span class="text-[10px] font-bold tracking-widest text-base-content/30 uppercase">Full SHA Signature</span>
+              <span class="text-[10px] font-bold tracking-widest text-base-content/30 uppercase">完整 SHA</span>
               <span class="text-xs font-mono text-base-content/50 break-all leading-relaxed">{{ commitDetail.sha }}</span>
             </div>
 
             <!-- Action -->
             <div class="flex justify-end pt-4">
               <button class="flex items-center gap-2 px-6 py-3 rounded-full bg-base-content text-base-100 text-sm font-medium tracking-wide hover:scale-105 active:scale-95 transition-transform" @click="openExternalUrl(commitDetail.html_url)">
-                <span>View on GitHub</span>
+                <span>在 GitHub 查看</span>
                 <Icon name="mingcute:external-link-line" class="w-4 h-4" />
               </button>
             </div>

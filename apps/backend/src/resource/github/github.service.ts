@@ -378,6 +378,36 @@ export class GithubService {
     return data.map(item => this.normalizeCommit(item))
   }
 
+  private async getRecentCommitsForInsights(
+    forceRefresh = false,
+    owner?: string,
+    repo?: string,
+    days = 30,
+    maxPages = 10,
+  ): Promise<CommitItem[]> {
+    const repoInfo = this.resolveRepo(owner, repo)
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    const sinceKey = since.slice(0, 10)
+
+    return this.withCache(
+      `repo:commits:since:${repoInfo.key}:${sinceKey}`,
+      async () => {
+        const all: CommitItem[] = []
+        for (let page = 1; page <= maxPages; page++) {
+          const batch = await this.requestGithub<GithubCommitListItem[]>(
+            `${repoInfo.baseUrl}/commits?since=${encodeURIComponent(since)}&page=${page}&per_page=100`,
+          )
+          if (!batch.length) break
+          all.push(...batch.map(item => this.normalizeCommit(item)))
+          if (batch.length < 100) break
+        }
+        return all
+      },
+      this.shortCacheTtlMs,
+      forceRefresh,
+    )
+  }
+
   async getCommitDetail(sha: string, forceRefresh = false, owner?: string, repo?: string): Promise<GithubCommitDetail> {
     const repoInfo = this.resolveRepo(owner, repo)
     return this.withCache(
@@ -395,7 +425,7 @@ export class GithubService {
       async () => {
         const [overview, commits, contributors] = await Promise.all([
           this.getRepoOverview(forceRefresh, repoInfo.owner, repoInfo.repo),
-          this.getCommits(1, 60, forceRefresh, repoInfo.owner, repoInfo.repo),
+          this.getRecentCommitsForInsights(forceRefresh, repoInfo.owner, repoInfo.repo, 30),
           this.withCache(
             `repo:contributors:${repoInfo.key}`,
             () => this.requestGithub<GithubContributor[]>(
