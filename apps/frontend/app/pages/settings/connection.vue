@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { normalizeEndpointUrl, probeBackendReachability, resolveRuntimeApiBaseUrl } from '~/utils/backend-endpoint'
 
 definePageMeta({ layout: 'default' })
@@ -24,10 +24,34 @@ const normalizeWsInput = (value: string) => normalizeEndpointUrl(value, { defaul
 const normalizedServerUrl = computed(() => normalizeHttpInput(form.backendServerUrl))
 const canSave = computed(() => !!normalizedServerUrl.value)
 
-const handleBack = () => {
-  // const target = String(route.query.from || '/')
-  // navigateTo(target, { replace: true })
-  router.back();
+const resolveFallbackTarget = () => {
+  const from = String(route.query.from || '').trim()
+  if (from && !from.startsWith('/settings/connection') && !from.startsWith('/no-signal')) {
+    return from
+  }
+  return '/settings/general'
+}
+
+const navigateBackSafely = async () => {
+  const fallback = resolveFallbackTarget()
+  if (String(route.query.from || '').trim()) {
+    await navigateTo(fallback, { replace: true })
+    return
+  }
+
+  if (import.meta.client && window.history.length > 1) {
+    const before = `${window.location.pathname}${window.location.search}`
+    router.back()
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    const after = `${window.location.pathname}${window.location.search}`
+    if (after !== before) return
+  }
+
+  await navigateTo(fallback, { replace: true })
+}
+
+const handleBack = async () => {
+  await navigateBackSafely()
 }
 
 const socketEndpoint = computed(() => {
@@ -108,7 +132,7 @@ async function saveAndRetry() {
     //   ? fallback
     //   : from
     // await navigateTo(target)
-    router.back();
+    await navigateBackSafely()
   } finally {
     saving.value = false
   }
@@ -118,7 +142,7 @@ async function saveAndRetry() {
 <template>
   <div class="min-h-full bg-transparent px-4 py-8">
     <div class="mx-auto w-full max-w-2xl">
-      <section class="rounded-2xl border border-base-content/10 bg-base-100/80 p-6 shadow-sm backdrop-blur-md md:p-7">
+      <section class="rounded-2xl p-6 shadow-sm backdrop-blur-md md:p-7">
         <header class="mb-6">
           <button class="btn btn-ghost btn-sm mb-3 rounded-lg px-2" @click="handleBack">
             <Icon name="mingcute:left-line" size="16" />
@@ -131,26 +155,24 @@ async function saveAndRetry() {
         <div class="grid grid-cols-1 gap-4">
           <label class="form-control">
             <div class="label py-1">
-              <span class="label-text text-sm font-medium">服务器地址</span>
+              <span class="label-text text-sm font-medium">服务器地址：</span>
             </div>
             <input v-model="form.backendServerUrl" type="text" class="input input-bordered h-11 rounded-xl bg-base-100"
               placeholder="例如 10.105.86.133:8080 或 api.example.com" />
           </label>
         </div>
 
-        <div class="mt-5 rounded-xl border border-base-content/10 bg-base-200/45 p-4">
-          <div class="grid grid-cols-1 gap-3">
-            <label class="form-control">
-              <span class="mb-1 text-xs font-medium text-base-content/65">Socket 地址</span>
-              <input :value="socketEndpoint || '请先填写服务器地址'" type="text"
-                class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
-            </label>
-            <label class="form-control">
-              <span class="mb-1 text-xs font-medium text-base-content/65">LiveKit 地址</span>
-              <input :value="livekitEndpoint || '请先填写服务器地址'" type="text"
-                class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
-            </label>
-          </div>
+        <div class="grid grid-cols-1 gap-3 mt-2">
+          <label class="form-control">
+            <span class="mb-1 text-xs font-medium text-base-content/65">Socket 地址：</span>
+            <input :value="socketEndpoint || '请先填写服务器地址'" type="text"
+              class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
+          </label>
+          <label class="form-control">
+            <span class="mb-1 text-xs font-medium text-base-content/65">LiveKit 地址：</span>
+            <input :value="livekitEndpoint || '请先填写服务器地址'" type="text"
+              class="input input-bordered h-10 rounded-lg bg-base-100/70 text-sm" readonly />
+          </label>
         </div>
 
         <div class="mt-6 flex items-center gap-2">
