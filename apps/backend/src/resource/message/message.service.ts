@@ -110,16 +110,16 @@ export class MessageService {
     if (conversation?.type === 'PRIVATE') {
       const otherMemberId = members.find(m => m.userId !== userId)?.userId;
       if (otherMemberId) {
-        const friendship = await this.prisma.friendship.findFirst({
+        const blockedFriendship = await this.prisma.friendship.findFirst({
           where: {
             OR: [
-              { senderId: userId, receiverId: otherMemberId },
-              { senderId: otherMemberId, receiverId: userId }
+              { senderId: userId, receiverId: otherMemberId, status: 'BLOCKED' },
+              { senderId: otherMemberId, receiverId: userId, status: 'BLOCKED' }
             ]
           },
-          select: { status: true }
+          select: { id: true }
         });
-        if (friendship?.status === 'BLOCKED') {
+        if (blockedFriendship) {
           throw new ForbiddenException('无法与该用户发送消息');
         }
       }
